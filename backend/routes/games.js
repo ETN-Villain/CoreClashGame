@@ -32,55 +32,30 @@ const loadTokenURIMapping = () => {
 };
 
 /* ---------------- VALIDATE TEAM ---------------- */
+// ---------------- VALIDATE TEAM ----------------
 router.post("/validate", async (req, res) => {
   try {
     const { nfts } = req.body;
 
-    if (!Array.isArray(nfts) || nfts.length === 0) {
-      return res.status(400).json({ error: "NFT array is empty or invalid" });
+    if (!Array.isArray(nfts) || nfts.length !== 3) {
+      return res.status(400).json({ error: "Exactly 3 NFTs required" });
     }
 
-    // Ensure each NFT has address and tokenId
     for (const nft of nfts) {
       if (!nft.address || nft.tokenId == null) {
         return res.status(400).json({ error: "Each NFT must have address and tokenId" });
       }
     }
 
-    // Fetch canonical metadata
+    // Fetch metadata (mapping.csv is used internally here)
     const metadata = await fetchBackgrounds(nfts);
 
-    // Load CSV mapping: token_id => tokenURI
-    const tokenURIMapping = loadTokenURIMapping();
+    // ✅ DO NOT check tokenURI here
+    return res.json({ metadata });
 
-    // Merge tokenURI from CSV if missing
-    const metadataWithTokenURI = metadata.map((m, i) => {
-      const tokenId = Number(nfts[i].tokenId); // ensure numeric key
-      const tokenURIFromCSV = tokenURIMapping[tokenId];
-
-      // If the NFT already has a tokenURI in frontend metadata, keep it; else use CSV
-      const tokenURI = m.tokenURI || tokenURIFromCSV || null;
-
-      return {
-        ...m,
-        tokenURI
-      };
-    });
-
-    // Check for missing tokenURIs
-    const missing = metadataWithTokenURI
-      .filter(m => !m.tokenURI)
-      .map(m => m.tokenId);
-
-    if (missing.length > 0) {
-      return res.status(400).json({ error: `NFTs missing tokenURI: ${missing.join(", ")}` });
-    }
-
-    // All good, return merged metadata
-    return res.json({ metadata: metadataWithTokenURI });
   } catch (err) {
-    console.error("Validation error:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    console.error("Validate team failed:", err);
+    return res.status(400).json({ error: err.message });
   }
 });
 
