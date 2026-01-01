@@ -1,26 +1,27 @@
 import { ethers } from "ethers";
 import fs from "fs";
 import path from "path";
+import axios from "axios";
 import { fileURLToPath } from "url";
+import { IPFS_GATEWAY } from "../config.js";
+import { METADATA_JSON_DIR, MAPPING_FILE } from "../paths.js";
 
-// --- Paths ---
+/* ------------------ Paths ------------------ */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Write mapping.csv to backend root
-const OUTPUT_FILE = path.resolve(__dirname, "../mapping.csv");
+const JSON_DIR = METADATA_JSON_DIR;
+const IMAGE_DIR = path.join(JSON_DIR, "images");
+const OUTPUT_CSV = MAPPING_FILE;
 
-// --- Config ---
+/* ------------------ Config ------------------ */
 const RPC = "https://rpc.ankr.com/electroneum";
-const contractAddress = "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4";
-const maxSupply = 474;
+const CONTRACT_ADDRESS = "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4";
+const MAX_SUPPLY = 474;
+const ABI = ["function tokenURI(uint256 tokenId) view returns (string)"];
 
-const abi = [
-  "function tokenURI(uint256 tokenId) view returns (string)"
-];
-
-// --- Helpers ---
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+/* ------------------ Helpers ------------------ */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function fetchWithRetry(contract, tokenId, retries = 5) {
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -38,31 +39,81 @@ async function fetchWithRetry(contract, tokenId, retries = 5) {
   return null;
 }
 
-// --- Main ---
-export async function generateMapping() {
+/* ------------------ Main ------------------ */
+export async function generateMapping(fullRefresh = false) {
+  ensureDirs();
+
   const provider = new ethers.JsonRpcProvider(RPC);
-  const contract = new ethers.Contract(contractAddress, abi, provider);
+  const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
 
-  let rows = ["token_id,token_uri"];
+  const rows = ["token_id,token_uri"];
 
-  for (let id = 1; id <= maxSupply; id++) {
-    console.log(`Processing token ${id}/${maxSupply}…`);
+  // Load existing CSV if not full refresh
+  if (!fullRefresh && fs.existsSync(OUTPUT_CSV)) {
+    const existing = fs.readFileSync(OUTPUT_CSV, "utf8").split("\n").slice(1).filter(Boolean);
+    rows.push(...existing);
+  }
 
-    const uri = await fetchWithRetry(contract, id);
+  for (let tokenId = 1; tokenId <= MAX_SUPPLY; tokenId++) {
+    console.log(`Processing token ${tokenId}/${MAX_SUPPLY}`);
 
-    if (!uri) {
-      rows.push(`${id},ERROR`);
+    // Skip if already in CSV
+    if (rows.some(r => r.startsWith(`${tokenId},`))) continue;
+
+    let tokenURI;
+    try {
+      tokenURI = await contract.tokenURI(tokenId);
+    } catch {
+      console.warn(`⚠️ token ${tokenId} not found on chain → skipping`);
       continue;
     }
 
-    const fileName = uri.split("/").pop();
-    rows.push(`${id},${fileName}`);
+    if (!tokenURI?.startsWith("ipfs://")) {
+      console.warn(`⚠️ token ${tokenId} has invalid URI → skipping`);
+      continue;
+    }
+
+    const jsonFile = tokenURI.split("/").pop();
+    const jsonPath = path.join(JSON_DIR, jsonFile);
+
+    // Skip if JSON already exists
+    if (!fullRefresh && fs.existsSync(jsonPath)) {
+      console.log(`✔ JSON exists → skipping fetch`);
+      rows.push(`${tokenId},${jsonFile}`);
+      continue;
+    }
+
+    // Fetch JSON
+    const rawJson = await fetchFromIPFS(tokenURI, "arraybuffer");
+    if (!rawJson) {
+      console.warn(`⚠️ token ${tokenId} JSON fetch failed → skipping`);
+      continue;
+    }
+
+    const metadata = JSON.parse(rawJson.toString());
+    fs.writeFileSync(jsonPath, JSON.stringify(metadata, null, 2));
+
+    // Fetch image if present
+    if (metadata.image?.startsWith("ipfs://")) {
+      const imageFile = metadata.image.split("/").pop();
+      const imagePath = path.join(IMAGE_DIR, imageFile);
+
+      if (fullRefresh || !fs.existsSync(imagePath)) {
+        const rawImage = await fetchFromIPFS(metadata.image, "arraybuffer");
+        if (rawImage) fs.writeFileSync(imagePath, rawImage);
+      }
+    }
+
+    rows.push(`${tokenId},${jsonFile}`);
+    await sleep(400);
   }
 
-  fs.writeFileSync(
-    new URL("../mapping.csv", import.meta.url),
-    rows.join("\n")
-  );
+  fs.writeFileSync(OUTPUT_CSV, rows.join("\n"));
+  console.log("✅ mapping.csv + JSON + images cached");
+}
 
-  console.log("mapping.csv generated.");
+/* ------------------ CLI ------------------ */
+if (process.argv[1].endsWith("generateMapping.js")) {
+  const full = process.argv[2] === "true";
+  generateMapping(full).catch(console.error);
 }

@@ -1,0 +1,44 @@
+{
+  "name": "Kaelth",
+  "description": "From the silent depths of Planet Zephyros' emerald veins, Kaelth emerged as a living embodiment of defense and vengeance. His body is wrought with jagged thorns, each one forged from the planet's buried scars. Unlike his kin, whose light offers renewal and calm, Kaelth's neon fire cuts through the darkness with ferocity.",
+  "collection": "The Verdant Kin",
+  "image": "ipfs://QmWGpUCkUPTXhSXCPjotMkSxNCdocwAeRZb2kyGXKDfox8/311.png",
+  "fee_recipient": "0xF91453aD5223f4cA0fe01939f0236dCfe8E7074D",
+  "seller_fee_basis_points": 1000,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Energy Vein Canyons"
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Attack",
+      "value": 75
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Defense",
+      "value": 75
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Vitality",
+      "value": 40
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Agility",
+      "value": 62
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "CORE",
+      "value": 87
+    }
+  ]
+}

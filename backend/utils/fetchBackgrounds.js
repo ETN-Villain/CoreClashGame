@@ -1,37 +1,37 @@
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 import csv from "csv-parser";
-import axios from "axios";
+import { METADATA_JSON_DIR, MAPPING_FILE } from "../paths.js";
 
 /**
  * CONFIG
  */
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
 const RARE_BACKGROUNDS = ["Gold", "Silver", "Verdant Green", "Rose Gold"];
-const MAPPING_FILE = path.join(__dirname, "..", "mapping.csv");
-const METADATA_ROOT = "QmZMPmh6qg31NqH5tFKoQ5k3uMDBNMxkQUS7tyqCZstUNv";
+
 /**
- * tokenId -> token_uri map
+ * tokenId -> json filename
  */
 const tokenMap = new Map();
 
 /**
- * Load CSV mapping once at startup
+ * Load mapping.csv once
  */
 export async function loadMapping() {
   if (tokenMap.size > 0) return;
 
+  if (!fs.existsSync(MAPPING_FILE)) {
+    throw new Error("mapping.csv not found – run generateMapping first");
+  }
+
   return new Promise((resolve, reject) => {
     fs.createReadStream(MAPPING_FILE)
-      .pipe(csv({ headers: ["token_id", "token_uri"], skipLines: 0 }))
+      .pipe(csv({ headers: ["token_id", "token_uri"], skipLines: 1 }))
       .on("data", (row) => {
-        // Trim values to avoid whitespace issues
         const tokenId = String(row.token_id).trim();
-        const tokenURI = row.token_uri.trim();
-        tokenMap.set(tokenId, tokenURI);
+        const jsonFile = String(row.token_uri).trim();
+        if (tokenId && jsonFile && jsonFile !== "ERROR") {
+          tokenMap.set(tokenId, jsonFile);
+        }
       })
       .on("end", () => {
         console.log(`Loaded ${tokenMap.size} token mappings`);
@@ -42,7 +42,7 @@ export async function loadMapping() {
 }
 
 /**
- * Fetch metadata JSON from IPFS
+ * Load metadata JSON from local cache ONLY
  */
 async function fetchMetadata(tokenId) {
   const tokenURI = tokenMap.get(String(tokenId));
@@ -51,9 +51,12 @@ async function fetchMetadata(tokenId) {
     throw new Error(`Missing tokenURI for tokenId ${tokenId}`);
   }
 
-  const url = `${IPFS_GATEWAY}${METADATA_ROOT}/${tokenURI}`;
-  const res = await axios.get(url, { timeout: 10000 });
-  const data = res.data;
+  const filePath = path.join(METADATA_JSON_DIR, jsonFile);
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Metadata file missing: ${jsonFile}`);
+  }
+
+  const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
   const attr = {};
   if (Array.isArray(data.attributes)) {
@@ -76,10 +79,6 @@ async function fetchMetadata(tokenId) {
 
 /**
  * MAIN ENTRY
- * tokenURIs = [
- *   { address: "0x...", tokenId: "123" },
- *   ...
- * ]
  */
 export async function fetchBackgrounds(tokenURIs) {
   if (!Array.isArray(tokenURIs) || tokenURIs.length === 0) {
@@ -93,16 +92,14 @@ export async function fetchBackgrounds(tokenURIs) {
   const backgrounds = [];
 
   for (const nft of tokenURIs) {
-    if (!nft.tokenId || !nft.address) throw new Error("NFT must have address and tokenId");
+    if (!nft.tokenId || !nft.address) {
+      throw new Error("NFT must have address and tokenId");
+    }
 
-    const meta = await fetchMetadata(nft.tokenId);
-
-    // Ensure name/background exist
-    meta.name = meta.name || `Token ${nft.tokenId}`;
-    meta.background = meta.background || "Unknown";
+    const meta = loadLocalMetadata(nft.tokenId);
 
     if (names.has(meta.name)) {
-      throw new Error(`Duplicate character: ${meta.name}`);
+      throw new Error(`Duplicate character detected: ${meta.name}`);
     }
     names.add(meta.name);
 
@@ -124,7 +121,7 @@ metadataList.push({
     backgrounds.push(meta.background);
   }
 
-  // Rare background duplication rule
+  // Rare background rule
   const rareCount = {};
   for (const bg of backgrounds) {
     if (RARE_BACKGROUNDS.includes(bg)) {

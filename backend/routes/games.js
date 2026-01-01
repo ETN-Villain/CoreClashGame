@@ -4,6 +4,12 @@ import path from "path";
 import { parse } from "csv-parse/sync"; // use named import
 import { fetchBackgrounds } from "../utils/fetchBackgrounds.js";
 import { autoSettleGame } from "../utils/autoSettleGame.js";
+import { fileURLToPath } from "url";
+
+// Inside your router file
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REVEAL_DIR = path.join(__dirname, "reveal-backups");
+if (!fs.existsSync(REVEAL_DIR)) fs.mkdirSync(REVEAL_DIR, { recursive: true });
 
 const router = express.Router();
 const DIR = path.dirname(new URL(import.meta.url).pathname);
@@ -162,6 +168,51 @@ router.post("/:id/join", async (req, res) => {
   } catch (err) {
     console.error("Join game failed:", err);
     res.status(400).json({ error: err.message });
+  }
+});
+
+router.post("/reveal-backup", async (req, res) => {
+  try {
+    const { gameId, player, salt, nftContracts, tokenIds, backgrounds } = req.body;
+
+    if (
+      gameId === undefined ||
+      !player ||
+      !salt ||
+      !Array.isArray(nftContracts) ||
+      !Array.isArray(tokenIds) ||
+      !Array.isArray(backgrounds) ||
+      nftContracts.length !== 3 ||
+      tokenIds.length !== 3 ||
+      backgrounds.length !== 3
+    ) {
+      return res.status(400).json({ error: "Invalid reveal backup payload" });
+    }
+
+    const metadata = await fetchBackgrounds(
+        tokenIds.map(id => ({ tokenId: id }))
+    );
+
+const traits = metadata.map(m => m.traits);
+
+    // Correct Windows-compatible path
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const REVEAL_DIR = path.join(__dirname, "reveal-backups");
+    if (!fs.existsSync(REVEAL_DIR)) fs.mkdirSync(REVEAL_DIR, { recursive: true });
+
+    const filename = `game-${gameId}-${player}.json`;
+    const filepath = path.join(REVEAL_DIR, filename);
+
+    fs.writeFileSync(
+      filepath,
+      JSON.stringify({ gameId, player, salt, nftContracts, tokenIds, backgrounds }, null, 2)
+    );
+
+    console.log(`Reveal backup saved: ${filename}`);
+    res.json({ success: true, file: filename });
+  } catch (err) {
+    console.error("Save reveal backup failed:", err);
+    res.status(500).json({ error: err.message || "Server error" });
   }
 });
 

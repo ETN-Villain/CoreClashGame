@@ -1,0 +1,44 @@
+{
+  "name": "Lumora",
+  "description": "Lumora is a guardian of balance, ensuring that Zephyros' lush energy remains untainted. She guides explorers and protects the planet from intruders who might try to exploit its resources. Lumora has the power to “grow” organic weapons or tools from her body.",
+  "collection": "The Verdant Kin",
+  "image": "ipfs://QmWGpUCkUPTXhSXCPjotMkSxNCdocwAeRZb2kyGXKDfox8/230.png",
+  "fee_recipient": "0xF91453aD5223f4cA0fe01939f0236dCfe8E7074D",
+  "seller_fee_basis_points": 1000,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Energy Vein Canyons"
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Attack",
+      "value": 46
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Defense",
+      "value": 60
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Vitality",
+      "value": 63
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Agility",
+      "value": 35
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "CORE",
+      "value": 95
+    }
+  ]
+}
