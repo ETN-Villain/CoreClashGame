@@ -1,0 +1,44 @@
+{
+  "name": "Verdant Core",
+  "description": "The Verdant Core is both deity and energy source. It slumbers deep within the heart of Zephyros, its glow pulsing through every root, vein, and creature. It does not speak with words but through visions, pulses of light, and the rhythm of growth itself. When the world is threatened, the Core manifests an avatar, a radiant, regal figure of pure energy, to guide or to defend. This manifestation is known as Verdant Core Incarnate, the same divine presence that once appeared before Lumora to bestow her guardianship.",
+  "collection": "The Verdant Kin",
+  "image": "ipfs://QmWGpUCkUPTXhSXCPjotMkSxNCdocwAeRZb2kyGXKDfox8/418.png",
+  "fee_recipient": "0xF91453aD5223f4cA0fe01939f0236dCfe8E7074D",
+  "seller_fee_basis_points": 1000,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Verdant Green"
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Attack",
+      "value": 64
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Defense",
+      "value": 77
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Vitality",
+      "value": 81
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Agility",
+      "value": 24
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "CORE",
+      "value": 100
+    }
+  ]
+}

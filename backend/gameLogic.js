@@ -116,51 +116,54 @@ export function computeWinner(traits1Arr, traits2Arr) {
  * Populates winner, tie
  */
 export const resolveGame = async (game) => {
-  if (!game.player2) return null; // cannot resolve yet
+  if (!game.player2) return null;
   if (!game._player1?.tokenURIs || !game._player2?.tokenURIs) return null;
 
-  // Fetch all 3 NFTs for player 1
   const traits1 = [];
   for (let i = 0; i < 3; i++) {
     const nftData = await fetchNFT(game._player1.tokenURIs[i]);
-    if (!nftData) return null;
+    if (!nftData) {
+      console.error("Missing metadata for P1 token", game._player1.tokenURIs[i]);
+      return null;
+    }
+
     traits1.push([
-      nftData.traits1[0], // attack
-      nftData.traits1[1], // defense
-      nftData.traits1[2], // vitality
-      nftData.traits1[3], // agility
-      nftData.traits1[4], // core
+      nftData.traits1[0],
+      nftData.traits1[1],
+      nftData.traits1[2],
+      nftData.traits1[3],
+      nftData.traits1[4],
     ]);
   }
 
-  // Fetch all 3 NFTs for player 2
   const traits2 = [];
   for (let i = 0; i < 3; i++) {
     const nftData = await fetchNFT(game._player2.tokenURIs[i]);
-    if (!nftData) return null;
+    if (!nftData) {
+      console.error("Missing metadata for P2 token", game._player2.tokenURIs[i]);
+      return null;
+    }
+
     traits2.push([
-      nftData.traits2[0], // attack
-      nftData.traits2[1], // defense
-      nftData.traits2[2], // vitality
-      nftData.traits2[3], // agility
-      nftData.traits2[4], // core
+      nftData.traits2[0],
+      nftData.traits2[1],
+      nftData.traits2[2],
+      nftData.traits2[3],
+      nftData.traits2[4],
     ]);
   }
 
-  // Compute winner
-  const winnerKey = computeWinner(game._player1.traits, game._player2.traits);
+  const winnerKey = computeWinner(traits1, traits2);
 
-  // Assign winner
   if (winnerKey === "tie") {
     game.winner = null;
     game.tie = true;
   } else {
-    game.winner = game[winnerKey]; // game.player1 or game.player2
+    game.winner = game[winnerKey];
     game.tie = false;
   }
 
   game.settledAt = new Date().toISOString();
-
   return game;
 };
 
