@@ -46,23 +46,15 @@ export async function loadMapping() {
  */
 async function fetchMetadata(tokenId) {
   const tokenURI = tokenMap.get(String(tokenId));
+
   if (!tokenURI) {
-    return {
-      name: `Token ${tokenId}`,
-      background: "Unknown",
-      attack: 0,
-      defense: 0,
-      vitality: 0,
-      agility: 0,
-      core: 0
-    };
+    throw new Error(`Missing tokenURI for tokenId ${tokenId}`);
   }
 
   const url = `${IPFS_GATEWAY}${METADATA_ROOT}/${tokenURI}`;
   const res = await axios.get(url, { timeout: 10000 });
   const data = res.data;
 
-  // Extract fields from OpenSea-style attributes
   const attr = {};
   if (Array.isArray(data.attributes)) {
     for (const a of data.attributes) {
@@ -72,12 +64,13 @@ async function fetchMetadata(tokenId) {
 
   return {
     name: data.name || `Token ${tokenId}`,
-    background: attr["background"] || "Unknown",
-    attack: attr["attack"] ?? 0,
-    defense: attr["defense"] ?? 0,
-    vitality: attr["vitality"] ?? 0,
-    agility: attr["agility"] ?? 0,
-    core: attr["core"] ?? attr["CORE"] ?? 0
+    background: attr.background || "Unknown",
+    attack: attr.attack ?? 0,
+    defense: attr.defense ?? 0,
+    vitality: attr.vitality ?? 0,
+    agility: attr.agility ?? 0,
+    core: attr.core ?? 0,
+    tokenURI // ✅ KEEP IT
   };
 }
 
@@ -113,19 +106,20 @@ export async function fetchBackgrounds(tokenURIs) {
     }
     names.add(meta.name);
 
-    metadataList.push({
-      name: meta.name,
-      background: meta.background,
-      address: nft.address,
-      tokenId: Number(nft.tokenId),
-      traits: [
-        meta.attack ?? 0,
-        meta.defense ?? 0,
-        meta.vitality ?? 0,
-        meta.agility ?? 0,
-        meta.core ?? 0
-      ]
-    });
+metadataList.push({
+  name: meta.name,
+  background: meta.background,
+  address: nft.address,
+  tokenId: Number(nft.tokenId),
+  tokenURI: meta.tokenURI, // ✅ ADD THIS
+  traits: [
+    meta.attack,
+    meta.defense,
+    meta.vitality,
+    meta.agility,
+    meta.core
+  ]
+});
 
     backgrounds.push(meta.background);
   }

@@ -22,7 +22,7 @@ const abi = [
 // --- Helpers ---
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-async function fetchWithRetry(contract, tokenId, retries = 3) {
+async function fetchWithRetry(contract, tokenId, retries = 5) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const uri = await contract.tokenURI(tokenId);
