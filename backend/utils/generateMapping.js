@@ -23,36 +23,19 @@ const ABI = ["function tokenURI(uint256 tokenId) view returns (string)"];
 /* ------------------ Helpers ------------------ */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-const GATEWAYS = [
-  IPFS_GATEWAY,
-  "https://ipfs.io/ipfs/",
-  "https://gateway.pinata.cloud/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
-  "https://dweb.link/ipfs/"
-];
-
-function ensureDirs() {
-  for (const dir of [JSON_DIR, IMAGE_DIR]) {
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  }
-}
-
-async function fetchFromIPFS(ipfsUri, responseType = "arraybuffer", retries = 2) {
-  const cidPath = ipfsUri.replace("ipfs://", "");
-
-  for (const gateway of GATEWAYS) {
-    const url = `${gateway}${cidPath}`;
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        const res = await axios.get(url, { timeout: 15000, responseType });
-        return res.data;
-      } catch (err) {
-        console.warn(`❌ ${gateway} attempt ${attempt}/${retries} failed: ${err.message}`);
-        await sleep(2000 * attempt);
+async function fetchWithRetry(contract, tokenId, retries = 5) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const uri = await contract.tokenURI(tokenId);
+      if (uri && typeof uri === "string" && uri.length > 0) {
+        return uri;
       }
+      throw new Error("Empty URI");
+    } catch (err) {
+      console.log(`Token ${tokenId}: attempt ${attempt} failed (${err.message})`);
+      if (attempt < retries) await sleep(500);
     }
   }
-
   return null;
 }
 

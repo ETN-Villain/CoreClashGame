@@ -44,10 +44,11 @@ export async function loadMapping() {
 /**
  * Load metadata JSON from local cache ONLY
  */
-function loadLocalMetadata(tokenId) {
-  const jsonFile = tokenMap.get(String(tokenId));
-  if (!jsonFile) {
-    throw new Error(`No mapping entry for tokenId ${tokenId}`);
+async function fetchMetadata(tokenId) {
+  const tokenURI = tokenMap.get(String(tokenId));
+
+  if (!tokenURI) {
+    throw new Error(`Missing tokenURI for tokenId ${tokenId}`);
   }
 
   const filePath = path.join(METADATA_JSON_DIR, jsonFile);
@@ -57,7 +58,6 @@ function loadLocalMetadata(tokenId) {
 
   const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
-  // Normalize OpenSea-style attributes
   const attr = {};
   if (Array.isArray(data.attributes)) {
     for (const a of data.attributes) {
@@ -68,11 +68,12 @@ function loadLocalMetadata(tokenId) {
   return {
     name: data.name || `Token ${tokenId}`,
     background: attr.background || "Unknown",
-    attack: Number(attr.attack) || 0,
-    defense: Number(attr.defense) || 0,
-    vitality: Number(attr.vitality) || 0,
-    agility: Number(attr.agility) || 0,
-    core: Number(attr.core ?? attr.CORE) || 0
+    attack: attr.attack ?? 0,
+    defense: attr.defense ?? 0,
+    vitality: attr.vitality ?? 0,
+    agility: attr.agility ?? 0,
+    core: attr.core ?? 0,
+    tokenURI // ✅ KEEP IT
   };
 }
 
@@ -102,19 +103,20 @@ export async function fetchBackgrounds(tokenURIs) {
     }
     names.add(meta.name);
 
-    metadataList.push({
-      name: meta.name,
-      background: meta.background,
-      address: nft.address,
-      tokenId: Number(nft.tokenId),
-      traits: [
-        meta.attack,
-        meta.defense,
-        meta.vitality,
-        meta.agility,
-        meta.core
-      ]
-    });
+metadataList.push({
+  name: meta.name,
+  background: meta.background,
+  address: nft.address,
+  tokenId: Number(nft.tokenId),
+  tokenURI: meta.tokenURI, // ✅ ADD THIS
+  traits: [
+    meta.attack,
+    meta.defense,
+    meta.vitality,
+    meta.agility,
+    meta.core
+  ]
+});
 
     backgrounds.push(meta.background);
   }

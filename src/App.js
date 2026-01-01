@@ -13,6 +13,18 @@ export default function App() {
   const [account, setAccount] = useState(null);
   const [provider, setProvider] = useState(null);
 
+  const [stakeToken, setStakeToken] = useState("");
+  const [stakeAmount, setStakeAmount] = useState("");
+  const [nfts, setNfts] = useState([
+    { address: "", tokenId: "", metadata: null },
+    { address: "", tokenId: "", metadata: null },
+    { address: "", tokenId: "", metadata: null }
+  ]);
+
+const [validated, setValidated] = useState(false);
+const [validating, setValidating] = useState(false);
+
+
   useEffect(() => {
     if (!window.ethereum) return;
 
@@ -27,19 +39,6 @@ export default function App() {
 
     init();
   }, []);
-
-  /* ---------------- FORM STATE ---------------- */
-  const [stakeToken, setStakeToken] = useState("");
-  const [stakeAmount, setStakeAmount] = useState("");
-
-  const [nfts, setNfts] = useState([
-    { address: "", tokenId: "", metadata: null },
-    { address: "", tokenId: "", metadata: null },
-    { address: "", tokenId: "", metadata: null }
-  ]);
-
-  const [validated, setValidated] = useState(false);
-  const [validating, setValidating] = useState(false);
 
   /* ---------------- GAMES ---------------- */
   const [games, setGames] = useState([]);
@@ -311,8 +310,11 @@ async function createGame() {
       [salt, ...nftContracts, ...tokenIds]
     );
 
-    const tx = await game.createGame(stakeToken, stakeWei, commit);
-    const receipt = await tx.wait();
+const event = receipt.logs
+  .map(l => {
+    try { return game.interface.parseLog(l); } catch { return null; }
+  })
+  .find(e => e?.name === "GameCreated");
 
     localStorage.setItem("p1_salt", salt.toString());
     localStorage.setItem("p1_tokenIds", JSON.stringify(tokenIds.map(t => t.toString())));
