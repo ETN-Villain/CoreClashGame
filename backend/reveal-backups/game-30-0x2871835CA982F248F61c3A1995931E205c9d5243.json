@@ -1,0 +1,59 @@
+{
+  "gameId": 30,
+  "player": "0x2871835CA982F248F61c3A1995931E205c9d5243",
+  "salt": "29720888283268588231928267522057399956536963514609085598357416618599789948588",
+  "nftContracts": [
+    "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+    "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+    "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+  ],
+  "tokenIds": [
+    "425",
+    "421",
+    "416"
+  ],
+  "metadata": [
+    {
+      "name": "Lumora",
+      "background": "Silver",
+      "address": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "tokenId": 425,
+      "tokenURI": "332.json",
+      "traits": [
+        48,
+        63,
+        66,
+        37,
+        100
+      ]
+    },
+    {
+      "name": "Verdant Core",
+      "background": "Verdant Green",
+      "address": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "tokenId": 421,
+      "tokenURI": "417.json",
+      "traits": [
+        64,
+        77,
+        81,
+        24,
+        100
+      ]
+    },
+    {
+      "name": "Veyra",
+      "background": "Gold",
+      "address": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "tokenId": 416,
+      "tokenURI": "465.json",
+      "traits": [
+        43,
+        21,
+        100,
+        100,
+        100
+      ]
+    }
+  ]
+}

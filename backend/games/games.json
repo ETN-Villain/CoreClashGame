@@ -1,0 +1,57 @@
+[
+  {
+    "id": 0,
+    "creatorLc": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.1",
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": null,
+    "createdAt": "2026-01-03T00:18:18.878Z",
+    "player2JoinedAt": null,
+    "settledAt": null,
+    "winner": null,
+    "tie": false,
+    "revealReady": false,
+    "cancelled": false,
+    "_player1": {
+      "tokenURIs": [
+        "378.json",
+        "178.json",
+        "405.json"
+      ]
+    },
+    "_player2": null,
+    "_reveal": {}
+  },
+  {
+    "id": 1,
+    "creatorLc": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.1",
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": null,
+    "createdAt": "2026-01-03T00:25:33.229Z",
+    "player2JoinedAt": null,
+    "settledAt": null,
+    "winner": null,
+    "tie": false,
+    "revealReady": false,
+    "cancelled": false,
+    "_player1": {
+      "tokenURIs": [
+        "378.json",
+        "178.json",
+        "405.json"
+      ]
+    },
+    "_player2": null,
+    "_reveal": {}
+  },
+  {
+    "id": 4,
+    "cancelled": false,
+    "_reveal": {},
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "createdAt": "2026-01-03T23:07:29.627Z"
+  }
+]

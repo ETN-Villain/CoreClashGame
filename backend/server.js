@@ -5,6 +5,7 @@ import path from "path";
 import { generateMapping } from "./utils/generateMapping.js";
 import gamesRouter from "./routes/games.js";
 import { METADATA_JSON_DIR, REVEAL_DIR } from "../backend/paths.js";
+import sseRouter from "./routes/sse.js";
 
 const app = express();
 
@@ -13,7 +14,7 @@ app.use(cors({ origin: "http://localhost:3000" })); // allow requests from your 
 app.use(express.json());
 
 // ---------------- ROUTES ----------------
-app.use("/games", gamesRouter);
+app.use("/", sseRouter);
 
 // ---------------- INIT ----------------
 await generateMapping();
@@ -77,4 +78,6 @@ app.get("/reveal-backup/:gameId/:account", (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Server error" });
   }
+
+app.use("/events", sseRouter);
 });
