@@ -1,272 +1,225 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
-import { parse } from "csv-parse/sync"; // use named import
+import { parse } from "csv-parse/sync";
 import { fetchBackgrounds } from "../utils/fetchBackgrounds.js";
-import { autoSettleGame } from "../utils/autoSettleGame.js";
 import { fileURLToPath } from "url";
-
-// Inside your router file
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REVEAL_DIR = path.join(__dirname, "reveal-backups");
-if (!fs.existsSync(REVEAL_DIR)) fs.mkdirSync(REVEAL_DIR, { recursive: true });
+import { readGames, writeGames } from "../gamesStore.js";
 
 const router = express.Router();
-const DIR = path.dirname(new URL(import.meta.url).pathname);
-const GAMES_FILE = path.join(DIR, "games.json");
-const MAPPING_FILE = path.join(DIR, "mapping.csv");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// ---------------- Helper functions ----------------
-const loadGames = () => {
+// ---------------- PATHS ----------------
+const GAMES_FILE = path.join(process.cwd(), "backend", "games", "games.json");
+const REVEAL_DIR = path.join(process.cwd(), "backend", "reveal-backups");
+const MAPPING_FILE = path.join(process.cwd(), "backend", "mapping.csv");
+
+// ---------------- ENSURE DIRS ----------------
+fs.mkdirSync(path.dirname(GAMES_FILE), { recursive: true });
+fs.mkdirSync(REVEAL_DIR, { recursive: true });
+
+// ---------------- HELPERS ----------------
+function loadGames() {
   if (!fs.existsSync(GAMES_FILE)) return [];
-  return JSON.parse(fs.readFileSync(GAMES_FILE, "utf8"));
-};
-
-const saveGames = (games) => {
-  fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2));
-};
-
-const loadTokenURIMapping = () => {
-  if (!fs.existsSync(MAPPING_FILE)) return {};
-  const csvContent = fs.readFileSync(MAPPING_FILE, "utf8");
-  const records = parse(csvContent, { columns: true, skip_empty_lines: true });
-  const mapping = {};
-  for (const r of records) {
-    mapping[Number(r.token_id)] = r.token_uri;
+  try {
+    return JSON.parse(fs.readFileSync(GAMES_FILE, "utf8"));
+  } catch {
+    return [];
   }
-  return mapping;
-};
+}
 
-/* ---------------- VALIDATE TEAM ---------------- */
+function saveGames(games) {
+  fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2));
+}
+
+function loadTokenURIMapping() {
+  if (!fs.existsSync(MAPPING_FILE)) return {};
+  const csv = fs.readFileSync(MAPPING_FILE, "utf8");
+  const records = parse(csv, { columns: true, skip_empty_lines: true });
+  const map = {};
+  for (const r of records) map[Number(r.token_id)] = r.token_uri;
+  return map;
+}
+
 // ---------------- VALIDATE TEAM ----------------
 router.post("/validate", async (req, res) => {
   try {
     const { nfts } = req.body;
-
-    if (!Array.isArray(nfts) || nfts.length !== 3) {
+    if (!Array.isArray(nfts) || nfts.length !== 3)
       return res.status(400).json({ error: "Exactly 3 NFTs required" });
-    }
 
-    for (const nft of nfts) {
-      if (!nft.address || nft.tokenId == null) {
-        return res.status(400).json({ error: "Each NFT must have address and tokenId" });
-      }
-    }
-
-    // Fetch metadata (mapping.csv is used internally here)
     const metadata = await fetchBackgrounds(nfts);
-
-    // ✅ DO NOT check tokenURI here
-    return res.json({ metadata });
-
+    res.json({ metadata });
   } catch (err) {
-    console.error("Validate team failed:", err);
-    return res.status(400).json({ error: err.message });
-  }
-});
-
-router.post("/", async (req, res) => {
-  try {
-    const { creator, stakeToken, stakeAmount, nfts } = req.body;
-
-    if (!creator || !stakeToken || !stakeAmount || !Array.isArray(nfts) || nfts.length !== 3) {
-      return res.status(400).json({ error: "Invalid payload" });
-    }
-
-    // Merge tokenURI from CSV
-    const metadata = await fetchBackgrounds(nfts);
-    const tokenURIMapping = loadTokenURIMapping();
-    const teamData = metadata.map((m, i) => {
-      const tokenId = Number(nfts[i].tokenId);
-      const tokenURI = nfts[i].metadata?.tokenURI || tokenURIMapping[tokenId] || null;
-      if (!tokenURI) throw new Error(`NFT ${tokenId} is missing a tokenURI`);
-      return { ...m, tokenURI };
-    });
-
-    const tokenURIs = teamData.map(m => m.tokenURI);
-
-    const games = loadGames();
-    const nextId = games.length > 0 ? Math.max(...games.map(g => g.id)) + 1 : 0;
-
-    const newGame = {
-      id: nextId,
-      creator,
-      stakeToken,
-      stakeAmount,
-      player1: creator,
-      player2: null,
-      createdAt: new Date().toISOString(),
-      player2JoinedAt: null,
-      settledAt: null,
-      winner: null,
-      tie: false,
-      revealReady: false,
-      _player1: { tokenURIs, teamData },
-      _player2: null
-    };
-
-    games.push(newGame);
-    saveGames(games);
-
-    res.status(201).json({ success: true, gameId: nextId });
-  } catch (err) {
-    console.error("Create game failed:", err);
     res.status(400).json({ error: err.message });
   }
 });
 
-router.post("/:id/join", async (req, res) => {
+// --------- CHECK CREATE GAME VALIDITY --------
+function validateGamePayload(req, res, next) {
+    const { creator, stakeToken, stakeAmount, nfts } = req.body;
+
+    // --- strict validation ---
+    if (
+      !creator ||
+      !stakeToken ||
+      !stakeAmount ||
+      Number(stakeAmount) <= 0 ||
+      !Array.isArray(nfts) ||
+      nfts.length !== 3
+    ) {
+      return res.status(400).json({ error: "Invalid game payload" });
+    }
+
+    for (const nft of nfts) {
+      if (
+        !nft.address ||
+        nft.address === ethers.ZeroAddress ||
+        nft.tokenId === undefined ||
+        nft.tokenId === null
+      ) {
+        return res.status(400).json({ error: "Invalid NFT data" });
+      }
+    }
+
+    next();
+}
+
+// ⛔ NOTHING written yet — safe to continue
+
+// ---------------- CREATE GAME ----------------
+router.post("/", validateGamePayload, (req, res) => {
+  try {
+    const { creator, stakeToken, stakeAmount, nfts } = req.body;
+    if (!creator || !stakeToken || !stakeAmount || !Array.isArray(nfts) || nfts.length !== 3)
+      return res.status(400).json({ error: "Invalid payload" });
+
+    const games = loadGames();
+    const nextId = games.length ? Math.max(...games.map(g => g.id)) + 1 : 0;
+
+    const tokenURIs = nfts.map(n => loadTokenURIMapping()[Number(n.tokenId)]);
+    if (tokenURIs.includes(undefined))
+      throw new Error("Missing tokenURI");
+
+    games.push({
+      id: nextId,
+      player1: creator.toLowerCase(),
+      player2: null,
+      stakeToken,
+      stakeAmount,
+      createdAt: new Date().toISOString(),
+      cancelled: false,
+      revealReady: false,
+      winner: null,
+      _player1: { tokenURIs },
+      _player2: null,
+      _reveal: {}
+    });
+
+    saveGames(games);
+    res.json({ success: true, gameId: nextId });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// ---------------- JOIN GAME ----------------
+router.post("/:id/join", (req, res) => {
   try {
     const gameId = Number(req.params.id);
     const { player2, nfts } = req.body;
 
-    if (!player2 || !Array.isArray(nfts) || nfts.length !== 3) {
-      return res.status(400).json({ error: "Invalid join payload" });
-    }
-
-    // Validate NFT shape
-    for (const nft of nfts) {
-      if (!nft.address || nft.tokenId == null || !nft.metadata) {
-        return res.status(400).json({ error: "Malformed NFT object" });
-      }
-    }
-
     const games = loadGames();
     const game = games.find(g => g.id === gameId);
     if (!game) return res.status(404).json({ error: "Game not found" });
-    if (game.player2) return res.status(400).json({ error: "Game already joined" });
+    if (game.cancelled) return res.status(400).json({ error: "Game cancelled" });
+    if (game.player2) return res.status(400).json({ error: "Already joined" });
 
-    // Merge tokenURI from CSV
-    const metadata = await fetchBackgrounds(nfts);
-    const tokenURIMapping = loadTokenURIMapping();
-    const teamData = metadata.map((m, i) => {
-      const tokenId = Number(nfts[i].tokenId);
-      const tokenURI = nfts[i].metadata?.tokenURI || tokenURIMapping[tokenId] || null;
-      if (!tokenURI) throw new Error(`NFT ${tokenId} is missing a tokenURI`);
-      return {
-        ...m,
-        tokenURI,
-        traits: [
-          Number(m.attack),
-          Number(m.defense),
-          Number(m.vitality),
-          Number(m.agility),
-          Number(m.core)
-        ]
-      };
-    });
+    const tokenURIs = nfts.map(n => loadTokenURIMapping()[Number(n.tokenId)]);
+    if (tokenURIs.includes(undefined))
+      throw new Error("Missing tokenURI");
 
-    const tokenURIs = teamData.map(m => m.tokenURI);
-
-    game.player2 = player2;
+    game.player2 = player2.toLowerCase();
+    game._player2 = { tokenURIs };
     game.player2JoinedAt = new Date().toISOString();
-    game._player2 = { tokenURIs, teamData, revealed: false };
 
     saveGames(games);
-
     res.json({ success: true });
   } catch (err) {
-    console.error("Join game failed:", err);
     res.status(400).json({ error: err.message });
   }
 });
 
-router.post("/reveal-backup", async (req, res) => {
-  try {
-    const { gameId, player, salt, nftContracts, tokenIds, backgrounds } = req.body;
-
-    if (
-      gameId === undefined ||
-      !player ||
-      !salt ||
-      !Array.isArray(nftContracts) ||
-      !Array.isArray(tokenIds) ||
-      !Array.isArray(backgrounds) ||
-      nftContracts.length !== 3 ||
-      tokenIds.length !== 3 ||
-      backgrounds.length !== 3
-    ) {
-      return res.status(400).json({ error: "Invalid reveal backup payload" });
-    }
-
-    const metadata = await fetchBackgrounds(
-        tokenIds.map(id => ({ tokenId: id }))
-    );
-
-const traits = metadata.map(m => m.traits);
-
-    // Correct Windows-compatible path
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const REVEAL_DIR = path.join(__dirname, "reveal-backups");
-    if (!fs.existsSync(REVEAL_DIR)) fs.mkdirSync(REVEAL_DIR, { recursive: true });
-
-    const filename = `game-${gameId}-${player}.json`;
-    const filepath = path.join(REVEAL_DIR, filename);
-
-    fs.writeFileSync(
-      filepath,
-      JSON.stringify({ gameId, player, salt, nftContracts, tokenIds, backgrounds }, null, 2)
-    );
-
-    console.log(`Reveal backup saved: ${filename}`);
-    res.json({ success: true, file: filename });
-  } catch (err) {
-    console.error("Save reveal backup failed:", err);
-    res.status(500).json({ error: err.message || "Server error" });
-  }
-});
-
-// ---------------- STORE PLAYER REVEAL ----------------
-router.post("/:id/reveal", async (req, res) => {
+// ---------------- CANCEL GAME ----------------
+router.post("/:id/cancel", (req, res) => {
   try {
     const gameId = Number(req.params.id);
-    const { player, salt, nftContracts, tokenIds, backgrounds } = req.body;
-
-    if (!player || !salt || !Array.isArray(nftContracts) || !Array.isArray(tokenIds) || !Array.isArray(backgrounds)) {
-      return res.status(400).json({ error: "Missing or invalid reveal data" });
-    }
-
-    if (nftContracts.length !== 3 || tokenIds.length !== 3 || backgrounds.length !== 3) {
-      return res.status(400).json({ error: "Exactly 3 NFTs required for reveal" });
-    }
+    const { player } = req.body;
 
     const games = loadGames();
     const game = games.find(g => g.id === gameId);
     if (!game) return res.status(404).json({ error: "Game not found" });
+    if (game.player2) return res.status(400).json({ error: "Already joined" });
+    if (game.cancelled) return res.status(400).json({ error: "Already cancelled" });
+    if (player.toLowerCase() !== game.player1)
+      return res.status(403).json({ error: "Only creator can cancel" });
 
-    if (!game._reveal) game._reveal = {};
-
-const tokenURIMapping = loadTokenURIMapping();
-const metadataWithTokenURI = metadata.map((m, i) => ({
-  ...m,
-  tokenURI: tokenURIMapping[nfts[i].tokenId] || null  // always get from CSV
-}));
-
-const missing = metadataWithTokenURI.filter(m => !m.tokenURI).map(m => m.tokenId);
-if (missing.length > 0) {
-  return res.status(400).json({ error: `NFTs missing tokenURI: ${missing.join(", ")}` });
-}
-
-return res.json({ metadata: metadataWithTokenURI });
-
-    game._reveal[player.toLowerCase()] = {
-      salt: salt.toString(),
-      nftContracts: nftContracts.map(addr => addr.toString()),
-      tokenIds: tokenIds.map(id => id.toString()),
-      backgrounds: backgrounds.map(bg => bg.toString()),
-      nfts
-    };
-
-    const p1Reveal = game._reveal[game.player1?.toLowerCase()];
-    const p2Reveal = game._reveal[game.player2?.toLowerCase()];
-    if (p1Reveal && p2Reveal) game.revealReady = true;
-
+    game.cancelled = true;
     saveGames(games);
-    res.json({ success: true, revealReady: game.revealReady });
+
+    res.json({ success: true });
   } catch (err) {
-    console.error("Reveal storage failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
+// ---------------- REVEAL ----------------
+router.post("/:id/reveal", async (req, res) => {
+  try {
+    const gameId = Number(req.params.id);
+    const { player, salt, nftContracts, tokenIds } = req.body;
+
+    const games = loadGames();
+    const game = games.find(g => g.id === gameId);
+    if (!game) return res.status(404).json({ error: "Game not found" });
+    if (game.cancelled) return res.status(400).json({ error: "Game cancelled" });
+
+    const nfts = nftContracts.map((a, i) => ({ address: a, tokenId: tokenIds[i] }));
+    const metadata = await fetchBackgrounds(nfts);
+    const backgrounds = metadata.map(m => m.background);
+
+    game._reveal[player.toLowerCase()] = {
+      salt,
+      nftContracts,
+      tokenIds,
+      teamData: metadata,
+      backgrounds
+    };
+
+    game.revealReady =
+      Boolean(game._reveal[game.player1]) &&
+      Boolean(game.player2 && game._reveal[game.player2]);
+
+    saveGames(games);
+
+    res.json({ success: true, revealReady: game.revealReady });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Express Endpoint Export
+router.get("/events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  clients.add(res);
+  req.on("close", () => clients.delete(res));
+});
+
 export default router;
+// export helper functions for backend use
+export { readGames, writeGames };

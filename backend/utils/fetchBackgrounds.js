@@ -3,14 +3,7 @@ import path from "path";
 import csv from "csv-parser";
 import { METADATA_JSON_DIR, MAPPING_FILE } from "../paths.js";
 
-/**
- * CONFIG
- */
 const RARE_BACKGROUNDS = ["Gold", "Silver", "Verdant Green", "Rose Gold"];
-
-/**
- * tokenId -> json filename
- */
 const tokenMap = new Map();
 
 /**
@@ -42,19 +35,16 @@ export async function loadMapping() {
 }
 
 /**
- * Load metadata JSON from local cache ONLY
+ * Load metadata JSON from local cache
  */
 async function fetchMetadata(tokenId) {
-  const tokenURI = tokenMap.get(String(tokenId));
+  await loadMapping();
 
-  if (!tokenURI) {
-    throw new Error(`Missing tokenURI for tokenId ${tokenId}`);
-  }
+  const jsonFile = tokenMap.get(String(tokenId));
+  if (!jsonFile) throw new Error(`Missing tokenURI mapping for tokenId ${tokenId}`);
 
   const filePath = path.join(METADATA_JSON_DIR, jsonFile);
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Metadata file missing: ${jsonFile}`);
-  }
+  if (!fs.existsSync(filePath)) throw new Error(`Metadata file missing: ${jsonFile}`);
 
   const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
@@ -73,50 +63,39 @@ async function fetchMetadata(tokenId) {
     vitality: attr.vitality ?? 0,
     agility: attr.agility ?? 0,
     core: attr.core ?? 0,
-    tokenURI // ✅ KEEP IT
+    tokenURI: jsonFile // keep the mapped file name as tokenURI
   };
 }
 
 /**
  * MAIN ENTRY
+ * @param {Array<{tokenId: number|string, address?: string}>} nfts
  */
-export async function fetchBackgrounds(tokenURIs) {
-  if (!Array.isArray(tokenURIs) || tokenURIs.length === 0) {
-    throw new Error("NFT array is empty or invalid");
-  }
-
-  await loadMapping();
-
+export async function fetchBackgrounds(nfts) {
   const metadataList = [];
   const names = new Set();
   const backgrounds = [];
 
-  for (const nft of tokenURIs) {
+  for (const nft of nfts) {
     if (!nft.tokenId || !nft.address) {
       throw new Error("NFT must have address and tokenId");
     }
 
-    const meta = loadLocalMetadata(nft.tokenId);
+    const meta = await fetchMetadata(nft.tokenId);
 
     if (names.has(meta.name)) {
       throw new Error(`Duplicate character detected: ${meta.name}`);
     }
     names.add(meta.name);
 
-metadataList.push({
-  name: meta.name,
-  background: meta.background,
-  address: nft.address,
-  tokenId: Number(nft.tokenId),
-  tokenURI: meta.tokenURI, // ✅ ADD THIS
-  traits: [
-    meta.attack,
-    meta.defense,
-    meta.vitality,
-    meta.agility,
-    meta.core
-  ]
-});
+    metadataList.push({
+      name: meta.name,
+      background: meta.background,
+      address: nft.address,
+      tokenId: Number(nft.tokenId),
+      tokenURI: meta.tokenURI,
+      traits: [meta.attack, meta.defense, meta.vitality, meta.agility, meta.core]
+    });
 
     backgrounds.push(meta.background);
   }

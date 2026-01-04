@@ -41,7 +41,7 @@ async function fetchWithRetry(contract, tokenId, retries = 5) {
 
 /* ------------------ Main ------------------ */
 export async function generateMapping(fullRefresh = false) {
-  ensureDirs();
+  METADATA_JSON_DIR;
 
   const provider = new ethers.JsonRpcProvider(RPC);
   const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
