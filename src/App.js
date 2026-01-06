@@ -10,9 +10,59 @@ const BACKEND_URL = "http://localhost:3001";
 
 export default function App() {
   /* ---------------- WALLET ---------------- */
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
-  const [account, setAccount] = useState(null);
+const [provider, setProvider] = useState(null);
+const [signer, setSigner] = useState(null);
+const [account, setAccount] = useState(null);
+const [walletError, setWalletError] = useState(null);
+
+const connectWallet = async () => {
+  if (!window.ethereum) {
+    alert("MetaMask not installed");
+    return;
+  }
+
+  try {
+    const prov = new ethers.BrowserProvider(window.ethereum);
+
+    // 👇 REQUIRED — user gesture
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+
+    const signer = await prov.getSigner();
+    const addr = await signer.getAddress();
+
+    setProvider(prov);
+    setSigner(signer);
+    setAccount(addr);
+    setWalletError(null);
+  } catch (err) {
+    console.error("MetaMask connect failed:", err);
+    setWalletError(err.message || "MetaMask connection failed");
+  }
+};
+
+useEffect(() => {
+  if (!window.ethereum) return;
+
+  const restore = async () => {
+    try {
+      const prov = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await window.ethereum.request({
+        method: "eth_accounts",
+      });
+
+      if (accounts.length === 0) return;
+
+      const signer = await prov.getSigner();
+      setProvider(prov);
+      setSigner(signer);
+      setAccount(accounts[0]);
+    } catch {
+      // silent fail is correct
+    }
+  };
+
+  restore();
+}, []);
 
   const [stakeToken, setStakeToken] = useState("");
   const [stakeAmount, setStakeAmount] = useState("");
@@ -115,6 +165,27 @@ const approveTokens = async () => {
   }
 };
 
+function downloadRevealBackup({ gameId, player, salt, nftContracts, tokenIds }) {
+  const payload = {
+    gameId: Number(gameId),
+    player,
+    salt,
+    nftContracts,
+    tokenIds,
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `coreclash-reveal-game-${payload.gameId}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
   /* ---------------- LOAD GAMES ---------------- */
   const loadGames = useCallback(async () => {
     if (!provider) return;
@@ -125,35 +196,36 @@ const approveTokens = async () => {
       const loaded = [];
       let i = 0;
 
-      while (true) {
-        try {
-          const g = await contract.games(i);
-          if (!g || g.player1 === ethers.ZeroAddress) break;
+while (true) {
+  try {
+    const g = await contract.games(i);
+    if (!g || !g.player1 || g.player1 === ethers.ZeroAddress) break;
 
-          const backendWinner = await contract.backendWinner(i);
+    const backendWinner = await contract.backendWinner(i);
 
-          loaded.push({
-            id: i,
-            player1: g.player1,
-            player2: g.player2,
-            stakeAmount: g.stakeAmount,
-            player1Revealed: g.player1Revealed,
-            player2Revealed: g.player2Revealed,
-            settled: g.settled,
-            winner: g.winner,
-            backendWinner,
-            player1TokenIds: [...g.player1TokenIds],
-            player2TokenIds: [...g.player2TokenIds],
-            player1Backgrounds: [...g.player1Backgrounds],
-            player2Backgrounds: [...g.player2Backgrounds],
-            roundResults: [...g.roundResults],
-          });
+    loaded.push({
+      id: i,
+      player1: g.player1,
+      player2: g.player2,
+      stakeAmount: g.stakeAmount,
+      player1Revealed: g.player1Revealed,
+      player2Revealed: g.player2Revealed,
+      settled: g.settled,
+      winner: g.winner,
+      backendWinner,
+      player1TokenIds: g.player1TokenIds ? [...g.player1TokenIds] : [],
+      player2TokenIds: g.player2TokenIds ? [...g.player2TokenIds] : [],
+      player1Backgrounds: g.player1Backgrounds ? [...g.player1Backgrounds] : [],
+      player2Backgrounds: g.player2Backgrounds ? [...g.player2Backgrounds] : [],
+      roundResults: g.roundResults ? [...g.roundResults] : [],
+    });
 
-          i++;
-        } catch {
-          break;
-        }
-      }
+    i++;
+  } catch (err) {
+    console.error(`Failed to load game ${i}:`, err);
+    break;
+  }
+}
 
       setGames(loaded);
     } catch (err) {
@@ -223,7 +295,7 @@ const approveTokens = async () => {
     }
   }, [nfts, userOwnsNFT]);
 
-  /* ---------------- CREATE GAME ---------------- */
+/* ---------------- CREATE GAME ---------------- */
 const createGame = useCallback(async () => {
   if (!validated || !signer || !gameContract) {
     alert("Wallet not connected or team not validated");
@@ -236,17 +308,19 @@ const createGame = useCallback(async () => {
   }
 
   try {
-    // ---------------- Approve ERC20 ----------------
+    /* ---------- Approve ERC20 ---------- */
     const erc20 = new ethers.Contract(stakeToken, ERC20ABI, signer);
     const stakeWei = ethers.parseUnits(stakeAmount, 18);
+
     const allowance = await erc20.allowance(account, GAME_ADDRESS);
     if (allowance < stakeWei) {
-      const tx = await erc20.approve(GAME_ADDRESS, stakeWei);
-      await tx.wait();
+      const approveTx = await erc20.approve(GAME_ADDRESS, stakeWei);
+      await approveTx.wait();
     }
 
-    // ---------------- Prepare commit ----------------
+    /* ---------- Prepare commit ---------- */
     const salt = ethers.toBigInt(ethers.randomBytes(32));
+
     const nftContracts = nfts.map(n => n.address);
     const tokenIds = nfts.map(n => BigInt(n.tokenId));
 
@@ -255,62 +329,72 @@ const createGame = useCallback(async () => {
       [salt, ...nftContracts, ...tokenIds]
     );
 
-    // ---------------- On-chain create ----------------
+    /* ---------- Create game on-chain ---------- */
     const tx = await gameContract.createGame(stakeToken, stakeWei, commit);
     const receipt = await tx.wait();
 
-    const event = receipt.logs
-      .map(l => { 
-        try { return gameContract.interface.parseLog(l); } 
-        catch { return null; } 
+    /* ---------- Extract gameId from event ---------- */
+    const parsedLogs = receipt.logs
+      .map(log => {
+        try {
+          return gameContract.interface.parseLog(log);
+        } catch {
+          return null;
+        }
       })
-      .find(e => e?.name === "GameCreated");
+      .filter(Boolean);
 
-    if (!event) throw new Error("GameCreated event not found");
-    const gameId = Number(event.args.gameId);
+    const createdEvent = parsedLogs.find(e => e.name === "GameCreated");
+    if (!createdEvent) {
+      throw new Error("GameCreated event not found in transaction receipt");
+    }
 
-    // ---------------- Download reveal backup ----------------
-    const downloadRevealBackup = ({ gameId, player, salt, nftContracts, tokenIds }) => {
-      const payload = { gameId, player, salt, nftContracts, tokenIds };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `coreclash-reveal-game-${gameId}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    };
+    const gameId = Number(createdEvent.args.gameId);
+    if (!Number.isInteger(gameId)) {
+      throw new Error("Invalid gameId extracted from event");
+    }
 
+    /* ---------- Download reveal backup ---------- */
     downloadRevealBackup({
       gameId,
-      player: account,
+      player: account.toLowerCase(),
       salt: salt.toString(),
       nftContracts,
       tokenIds: tokenIds.map(t => t.toString()),
     });
 
-    alert("Game created successfully! Reveal JSON downloaded.");
+    alert(`Game #${gameId} created successfully!\nReveal file downloaded.`);
 
-    // Refresh UI
+    /* ---------- Refresh UI ---------- */
     await loadGames();
+
   } catch (err) {
     console.error("Create game failed:", err);
     alert(err.reason || err.message || "Create game failed");
   }
 }, [validated, signer, gameContract, stakeToken, stakeAmount, nfts, account, loadGames]);
 
-/* ---------------- Join Game ---------------- */
+/* ---------------- JOIN GAME ---------------- */
 const joinGame = async (gameId) => {
   if (!signer || !account || !gameContract) {
     alert("Wallet not connected");
     return;
   }
 
+  if (nfts.length !== 3 || nfts.some(n => !n.address || !n.tokenId)) {
+    alert("You must select exactly 3 NFTs");
+    return;
+  }
+
   try {
-    // ---------------- Prepare on-chain commit ----------------
+    const numericGameId = Number(gameId);
+    if (!Number.isInteger(numericGameId)) {
+      throw new Error("Invalid gameId");
+    }
+
+    /* ---------- Prepare commit ---------- */
     const salt = ethers.toBigInt(ethers.randomBytes(32));
+
     const nftContracts = nfts.map(n => n.address);
     const tokenIds = nfts.map(n => BigInt(n.tokenId));
 
@@ -319,59 +403,26 @@ const joinGame = async (gameId) => {
       [salt, ...nftContracts, ...tokenIds]
     );
 
-    // ---------------- On-chain join ----------------
-    const tx = await gameContract.joinGame(gameId, commit);
+    /* ---------- Join on-chain ---------- */
+    const tx = await gameContract.joinGame(numericGameId, commit);
     await tx.wait();
 
-    // ---------------- Backend sync ----------------
-    const joinPayload = {
-      player2: account,
-      salt: salt.toString(),
-      nfts: nfts.map(n => ({
-        address: n.address,
-        tokenId: n.tokenId.toString()
-      }))
-    };
-
-    const res = await fetch(`${BACKEND_URL}/games/${gameId}/join`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(joinPayload)
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Backend joinGame failed");
-
-    console.log("Player 2 joined game on backend:", data);
-
-    // ---------------- Download reveal backup ----------------
-    const downloadRevealBackup = ({ gameId, player, salt, nftContracts, tokenIds }) => {
-      const payload = { gameId, player, salt, nftContracts, tokenIds };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `coreclash-reveal-game-${gameId}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    };
-
+    /* ---------- Save reveal backup ---------- */
     downloadRevealBackup({
-      gameId,
-      player: account,
+      gameId: numericGameId,
+      player: account.toLowerCase(),
       salt: salt.toString(),
       nftContracts,
       tokenIds: tokenIds.map(t => t.toString()),
     });
 
-    alert("Joined game successfully! Reveal JSON downloaded.");
+    alert(`Joined game #${numericGameId} successfully!\nReveal file downloaded.`);
 
-    await loadGames(); // refresh UI
+    await loadGames();
+
   } catch (err) {
     console.error("Join game failed:", err);
-    alert(err.message || "Join failed");
+    alert(err.reason || err.message || "Join failed");
   }
 };
 
@@ -417,8 +468,7 @@ const joinGame = async (gameId) => {
     }
   }, [signer, account, gameContract, loadGames]);
 
-  /* ---------------- HANDLE REVEAL FILE ---------------- */
-  async function handleRevealFile(e) {
+async function handleRevealFile(e) {
   const file = e.target.files[0];
   if (!file) return;
 
@@ -436,27 +486,25 @@ const joinGame = async (gameId) => {
       throw new Error("Wallet not connected");
     }
 
-    // ------------------- POST reveal to backend FIRST -------------------
-    const res = await fetch(`${BACKEND_URL}/games/${gameId}/reveal`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        player: account.toLowerCase(),
-        salt,
-        nftContracts,
-        tokenIds
-      })
-    });
+// ------------------- POST reveal to backend FIRST -------------------
+const res = await fetch(`${BACKEND_URL}/games/${gameId}/reveal`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    player: account.toLowerCase(),
+    salt,
+    nftContracts,
+    tokenIds
+  })
+});
 
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "Backend reveal failed");
-    }
+const backendData = await res.json();
 
-    const { savedReveal } = await res.json();
-    if (!savedReveal) {
-      throw new Error("Backend did not return reveal data");
-    }
+if (!res.ok) {
+  throw new Error(backendData.error || "Backend reveal failed");
+}
+
+const { savedReveal } = backendData;
 
     // ------------------- Extract NFT data -------------------
     const contracts = savedReveal.nftContracts;
@@ -480,8 +528,7 @@ const joinGame = async (gameId) => {
       BigInt(gameId),
       BigInt(savedReveal.salt), // use backend-saved salt (canonical)
       contracts,
-      ids,
-      backgrounds
+      ids
     );
 
     await tx.wait();
@@ -524,6 +571,19 @@ return (
     <button onClick={debugGamesLength}>
       Check on-chain games length
     </button>
+    {!account ? (
+  <button onClick={connectWallet}>
+    Connect Wallet
+  </button>
+) : (
+  <p>Connected: {account}</p>
+)}
+
+{walletError && (
+  <div style={{ color: "red", marginBottom: 10 }}>
+    Wallet error: {walletError}
+  </div>
+)}
 
     {/* ================= CREATE GAME ================= */}
     <h2>Create Game</h2>
@@ -596,6 +656,15 @@ return (
       const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
       const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
 
+    const bothRevealed =
+      g.player1Revealed === true &&
+      g.player2Revealed === true;
+
+    const canSettle =
+      bothRevealed &&
+      !g.settled &&
+      (isPlayer1 || isPlayer2);
+      
       return (
         <div
           key={g.id}
@@ -653,6 +722,34 @@ return (
               />
             </label>
           )}
+
+{/* Settle Game */}
+{canSettle && (
+  <button
+    style={{ marginLeft: 8, background: "#8b5cf6", color: "white" }}
+onClick={async () => {
+  try {
+    // 1️⃣ backend posts winner
+    const res = await fetch(`${BACKEND_URL}/games/${g.id}/post-winner`, {
+      method: "POST"
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    // 2️⃣ now settle on-chain
+    const tx = await gameContract.settleGame(g.id);
+    await tx.wait();
+
+    await loadGames();
+  } catch (err) {
+    alert(err.message || "Settle failed");
+  }
+}}
+  >
+    Settle Game
+  </button>
+)}
 
           {/* Settled result */}
           {g.settled && (

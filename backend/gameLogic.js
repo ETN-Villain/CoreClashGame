@@ -8,25 +8,45 @@ import axios from "axios";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const GAMES_FILE = path.join(__dirname, "games.json");
+export const GAMES_FILE = path.join(__dirname, "games", "games.json");
 
-// Load games from file
+// loadGames
 export const loadGames = () => {
   if (!fs.existsSync(GAMES_FILE)) return [];
-  return JSON.parse(fs.readFileSync(GAMES_FILE, "utf8"));
+  try {
+    const games = JSON.parse(fs.readFileSync(GAMES_FILE, "utf8"));
+    return games.map(g => ({
+      ...g,
+      id: Number(g.id),
+      _reveal: g._reveal ?? { player1: null, player2: null },
+      cancelled: Boolean(g.cancelled),
+      settled: Boolean(g.settled),
+    }));
+  } catch {
+    return [];
+  }
 };
 
-// Save games to file
+// saveGames
 export const saveGames = (games) => {
   fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2));
 };
 
 // Fetch NFT metadata from IPFS
+const METADATA_CACHE = path.join(__dirname, "metadata-cache", "json");
+
+// Fetch NFT metadata from local cache
 export const fetchNFT = async (tokenURI) => {
   try {
-    const url = tokenURI.replace("ipfs://", "https://ipfs.io/ipfs/");
-    const res = await axios.get(url);
-    return res.data;
+    // tokenURI may be just a filename like "378.json"
+    const filePath = path.join(METADATA_CACHE, tokenURI);
+
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    const raw = fs.readFileSync(filePath, "utf8");
+    return JSON.parse(raw);
   } catch (err) {
     console.error("Failed to fetch NFT metadata:", tokenURI, err.message);
     return null;
@@ -117,42 +137,47 @@ export function computeWinner(traits1Arr, traits2Arr) {
  */
 export const resolveGame = async (game) => {
   if (!game.player2) return null;
-  if (!game._player1?.tokenURIs || !game._player2?.tokenURIs) return null;
+  if (!game._reveal?.player1?.tokenURIs || !game._reveal?.player2?.tokenURIs) return null;
 
   const traits1 = [];
-  for (let i = 0; i < 3; i++) {
-    const nftData = await fetchNFT(game._player1.tokenURIs[i]);
-    if (!nftData) {
-      console.error("Missing metadata for P1 token", game._player1.tokenURIs[i]);
-      return null;
-    }
-
-    traits1.push([
-      nftData.traits1[0],
-      nftData.traits1[1],
-      nftData.traits1[2],
-      nftData.traits1[3],
-      nftData.traits1[4],
-    ]);
-  }
-
   const traits2 = [];
+
+  // Helper to extract traits from attributes array
+  const extractTraits = (nftData) => {
+    const findValue = (name) => {
+      const trait = nftData.attributes.find(a => a.trait_type.toLowerCase() === name.toLowerCase());
+      return trait ? Number(trait.value) : 0;
+    };
+    return [
+      findValue("Attack"),
+      findValue("Defense"),
+      findValue("Vitality"),
+      findValue("Agility"),
+      findValue("CORE")
+    ];
+  };
+
+  // Player 1 traits
   for (let i = 0; i < 3; i++) {
-    const nftData = await fetchNFT(game._player2.tokenURIs[i]);
+    const nftData = await fetchNFT(game._reveal.player1.tokenURIs[i]);
     if (!nftData) {
-      console.error("Missing metadata for P2 token", game._player2.tokenURIs[i]);
+      console.error("Missing metadata for P1 token", game._reveal.player1.tokenURIs[i]);
       return null;
     }
-
-    traits2.push([
-      nftData.traits2[0],
-      nftData.traits2[1],
-      nftData.traits2[2],
-      nftData.traits2[3],
-      nftData.traits2[4],
-    ]);
+    traits1.push(extractTraits(nftData));
   }
 
+  // Player 2 traits
+  for (let i = 0; i < 3; i++) {
+    const nftData = await fetchNFT(game._reveal.player2.tokenURIs[i]);
+    if (!nftData) {
+      console.error("Missing metadata for P2 token", game._reveal.player2.tokenURIs[i]);
+      return null;
+    }
+    traits2.push(extractTraits(nftData));
+  }
+
+  // Compute winner
   const winnerKey = computeWinner(traits1, traits2);
 
   if (winnerKey === "tie") {

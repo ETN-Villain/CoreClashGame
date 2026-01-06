@@ -1,0 +1,18 @@
+[
+  {
+    "id": 0,
+    "player1": "0x3Fd2e5B4AC0efF6DFDF2446abddAB3f66B425099",
+    "player2": "0x0000000000000000000000000000000000000000",
+    "stakeAmount": "100000000000000000",
+    "player1Revealed": false,
+    "player2Revealed": false,
+    "settled": false,
+    "backendWinner": "0x0000000000000000000000000000000000000000",
+    "player1TokenIds": [],
+    "player2TokenIds": [],
+    "player1Backgrounds": [],
+    "player2Backgrounds": [],
+    "roundResults": [],
+    "cancelled": false
+  }
+]

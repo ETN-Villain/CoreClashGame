@@ -1,12 +1,12 @@
 // backend/routes/sse.js
 import express from "express";
-import { readGames } from "./games.js";
+import { readGames } from "../gamesStore.js";
 
 const router = express.Router();
 let clients = [];
 
 // SSE endpoint
-router.get("/", (req, res) => {
+router.get("/stream", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
