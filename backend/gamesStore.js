@@ -17,3 +17,5 @@ export function readGames() {
 export function writeGames(games) {
   fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), "utf8");
 }
+
+export default { readGames, writeGames };

@@ -1,5 +1,5 @@
 // backend/utils/handleEvent.js
-import { readGames, writeGames } from "../routes/games.js";
+import { readGames, writeGames } from "../gamesStore.js";
 import { broadcast } from "../routes/events.js";
 
 export async function handleEvent(e) {

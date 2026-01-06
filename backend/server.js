@@ -1,24 +1,74 @@
 import express from "express";
-import cors from "cors"; // ✅ import cors
+import cors from "cors";
 import fs from "fs";
 import path from "path";
+
 import { generateMapping } from "./utils/generateMapping.js";
+import { loadMapping, METADATA_JSON_DIR } from "./paths.js";
+
 import gamesRouter from "./routes/games.js";
-import { METADATA_JSON_DIR, REVEAL_DIR } from "../backend/paths.js";
 import sseRouter from "./routes/sse.js";
 
 const app = express();
 
 // ---------------- MIDDLEWARE ----------------
-app.use(cors({ origin: "http://localhost:3000" })); // allow requests from your React app
+app.use(cors({ origin: "http://localhost:3000" }));
 app.use(express.json());
 
 // ---------------- ROUTES ----------------
-app.use("/", sseRouter);
+app.use("/games", gamesRouter);
+app.use("/events", sseRouter);
 
-// ---------------- INIT ----------------
+// ---------------- METADATA ----------------
+app.get("/metadata/:tokenId", (req, res) => {
+  const { tokenId } = req.params;
+
+  const mapping = loadMapping();
+  const jsonFile = mapping[tokenId];
+  if (!jsonFile) {
+    return res.status(404).json({ error: "Token not found" });
+  }
+
+  const filePath = path.join(METADATA_JSON_DIR, jsonFile);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "File missing" });
+  }
+
+  const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+  res.json(data);
+});
+
+// ---------------- START SERVER ----------------
 await generateMapping();
-app.listen(3001, () => console.log("Backend running"));
+
+app.listen(3001, () => {
+  console.log("✅ Backend running on http://localhost:3001");
+});
+
+// ---------------- DEBUG ROUTE LOGGING ----------------
+console.log("✅ games.js router loaded");
+
+// log mounted routes AFTER registration
+setTimeout(() => {
+  console.log(
+    app._router.stack
+      .filter(r => r.route)
+      .map(
+        r =>
+          Object.keys(r.route.methods)[0].toUpperCase() +
+          " " +
+          r.route.path
+      )
+  );
+}, 0);
+
+// ---------------- ROUTES ----------------
+console.log("✅ games.js router loaded");
+console.log(
+  app._router.stack
+    .filter(r => r.route)
+    .map(r => Object.keys(r.route.methods)[0].toUpperCase() + " " + r.route.path)
+);
 
 // GET metadata for a tokenId
 app.get("/metadata/:tokenId", (req, res) => {
@@ -62,22 +112,4 @@ app.post("/games/validate", (req, res) => {
   });
 
   res.json({ metadata });
-});
-
-// GET /reveal-backup/:gameId/:account
-app.get("/reveal-backup/:gameId/:account", (req, res) => {
-  try {
-    const { gameId, account } = req.params;
-    const filePath = path.join(REVEAL_DIR, `${gameId}_${account}.json`);
-
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Reveal backup not found" });
-
-    const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    res.json(data);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
-  }
-
-app.use("/events", sseRouter);
 });

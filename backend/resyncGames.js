@@ -1,6 +1,6 @@
 // resyncGames.js (CommonJS)
-const fs = require("fs");
-const path = require("path");
+const fs = "fs";
+const path = "path";
 
 // Path to games.json
 const DB_FILE = path.join(__dirname, "games.json");
