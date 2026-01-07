@@ -4,18 +4,45 @@ import { ethers } from "ethers";
 import GameABI from "./abis/GameABI.json";
 import ERC20ABI from "./abis/ERC20ABI.json";
 
-import { GAME_ADDRESS } from "./config.js";
+import { GAME_ADDRESS, WHITELISTED_TOKENS, WHITELISTED_NFTS } from "./config.js";
 
 const BACKEND_URL = "http://localhost:3001";
 
+const renderTeamImages = (playerReveal) => {
+  if (!playerReveal?.tokenURIs) return null;
+
+  return (
+    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+      {playerReveal.tokenURIs.map((uri, i) => {
+        const id = uri.replace(".json", "");
+        return (
+          <img
+            key={i}
+            src={`${BACKEND_URL}/images/${id}.png`}
+            alt={`NFT ${id}`}
+            style={{
+              width: 80,
+              height: 80,
+              objectFit: "cover",
+              border: "1px solid #333",
+              borderRadius: 6,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
 export default function App() {
-  /* ---------------- WALLET ---------------- */
+/* ---------------- WALLET ---------------- */
 const [provider, setProvider] = useState(null);
 const [signer, setSigner] = useState(null);
 const [account, setAccount] = useState(null);
 const [walletError, setWalletError] = useState(null);
+const [ownedNFTs, setOwnedNFTs] = useState([]);
 
-const connectWallet = async () => {
+const connectWallet = useCallback(async () => {
   if (!window.ethereum) {
     alert("MetaMask not installed");
     return;
@@ -24,7 +51,7 @@ const connectWallet = async () => {
   try {
     const prov = new ethers.BrowserProvider(window.ethereum);
 
-    // 👇 REQUIRED — user gesture
+    // 👇 User must approve connection
     await window.ethereum.request({ method: "eth_requestAccounts" });
 
     const signer = await prov.getSigner();
@@ -38,18 +65,16 @@ const connectWallet = async () => {
     console.error("MetaMask connect failed:", err);
     setWalletError(err.message || "MetaMask connection failed");
   }
-};
+}, []);
 
+/* ---------------- RESTORE WALLET ---------------- */
 useEffect(() => {
   if (!window.ethereum) return;
 
-  const restore = async () => {
+  const restoreWallet = async () => {
     try {
       const prov = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await window.ethereum.request({
-        method: "eth_accounts",
-      });
-
+      const accounts = await window.ethereum.request({ method: "eth_accounts" });
       if (accounts.length === 0) return;
 
       const signer = await prov.getSigner();
@@ -57,13 +82,73 @@ useEffect(() => {
       setSigner(signer);
       setAccount(accounts[0]);
     } catch {
-      // silent fail is correct
+      // silent fail
     }
   };
 
-  restore();
+  restoreWallet();
+
+  // Listen for account changes (user switches wallet)
+  window.ethereum.on("accountsChanged", (accounts) => {
+    if (accounts.length === 0) {
+      setAccount(null);
+      setOwnedNFTs([]);
+    } else {
+      setAccount(accounts[0]);
+    }
+  });
+
+  // Optional: listen for network changes
+  window.ethereum.on("chainChanged", () => {
+    window.location.reload();
+  });
+
+  // Cleanup listeners on unmount
+  return () => {
+    window.ethereum.removeAllListeners("accountsChanged");
+    window.ethereum.removeAllListeners("chainChanged");
+  };
 }, []);
 
+/* ---------------- FETCH OWNED NFTS ---------------- */
+useEffect(() => {
+  if (!account) {
+    setOwnedNFTs([]);
+    return;
+  }
+
+  let cancelled = false; // prevent setting state if component unmounted
+
+  const fetchOwnedNFTs = async () => {
+    try {
+      // fetch owned NFTs from backend
+      const res = await fetch(`http://localhost:3001/nfts/owned/${account}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      // normalize tokenId to string and ensure metadata
+      const normalized = data.map((nft) => ({
+        ...nft,
+        tokenId: nft.tokenId.toString(),
+        name: nft.name || `Token #${nft.tokenId}`,
+        background: nft.background || "Unknown",
+      }));
+
+      if (!cancelled) setOwnedNFTs(normalized);
+    } catch (err) {
+      console.error("Failed to load owned NFTs:", err);
+      if (!cancelled) setOwnedNFTs([]);
+    }
+  };
+
+  fetchOwnedNFTs();
+
+  return () => {
+    cancelled = true;
+  };
+}, [account]);
+
+/* ---------------- GAME SETUP ---------------- */
   const [stakeToken, setStakeToken] = useState("");
   const [stakeAmount, setStakeAmount] = useState("");
   const [nfts, setNfts] = useState([
@@ -117,12 +202,15 @@ useEffect(() => {
       ["function ownerOf(uint256) view returns (address)"],
       provider
     );
-    const owner = await nft.ownerOf(tokenId);
+const owner = await nft.ownerOf(BigInt(tokenId));
     return owner.toLowerCase() === account.toLowerCase();
   }, [provider, account]);
 
+// eslint-disable-next-line no-unused-vars
   const debugGamesLength = async () => {
   if (!provider) return alert("Provider not ready");
+
+  console.log("Checking on-chain games length...", debugGamesLength);
 
   try {
     const contract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
@@ -187,19 +275,19 @@ function downloadRevealBackup({ gameId, player, salt, nftContracts, tokenIds }) 
 }
 
   /* ---------------- LOAD GAMES ---------------- */
-  const loadGames = useCallback(async () => {
-    if (!provider) return;
-    setLoadingGames(true);
+const loadGames = useCallback(async () => {
+  if (!provider) return;
+  setLoadingGames(true);
 
-    try {
-      const contract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
-      const loaded = [];
-      let i = 0;
-
-while (true) {
   try {
-    const g = await contract.games(i);
-    if (!g || !g.player1 || g.player1 === ethers.ZeroAddress) break;
+    const contract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
+    const loaded = [];
+    let i = 0;
+
+    while (true) {
+      try {
+        const g = await contract.games(i);
+        if (!g || g.player1 === ethers.ZeroAddress) break;
 
     const backendWinner = await contract.backendWinner(i);
 
@@ -227,13 +315,25 @@ while (true) {
   }
 }
 
-      setGames(loaded);
-    } catch (err) {
-      console.error("loadGames failed", err);
-    } finally {
-      setLoadingGames(false);
-    }
-  }, [provider]);
+    // 🔽 FETCH BACKEND GAMES (THIS IS THE KEY)
+    const res = await fetch(`${BACKEND_URL}/games`);
+    const backendGames = await res.json();
+
+    const merged = loaded.map(g => {
+      const backend = backendGames.find(bg => bg.id === g.id);
+      return {
+        ...g,
+        _reveal: backend?._reveal || null,
+      };
+    });
+
+    setGames(merged);
+  } catch (err) {
+    console.error("loadGames failed", err);
+  } finally {
+    setLoadingGames(false);
+  }
+}, [provider]);
 
   useEffect(() => {
     loadGames();
@@ -566,85 +666,154 @@ const { savedReveal } = backendData;
 return (
   <div style={{ padding: 20, maxWidth: 900 }}>
     <h1>Core Clash</h1>
-    <p>Connected: {account || "Not connected"}</p>
 
-    <button onClick={debugGamesLength}>
-      Check on-chain games length
-    </button>
     {!account ? (
-  <button onClick={connectWallet}>
-    Connect Wallet
-  </button>
-) : (
-  <p>Connected: {account}</p>
-)}
+      <button onClick={connectWallet}>Connect Wallet</button>
+    ) : (
+      <p>Connected: {account}</p>
+    )}
 
-{walletError && (
-  <div style={{ color: "red", marginBottom: 10 }}>
-    Wallet error: {walletError}
-  </div>
-)}
+    {walletError && (
+      <div style={{ color: "red", marginBottom: 10 }}>
+        Wallet error: {walletError}
+      </div>
+    )}
 
     {/* ================= CREATE GAME ================= */}
     <h2>Create Game</h2>
 
-    <label>Stake Token</label>
-    <input
-      value={stakeToken}
-      onChange={e => setStakeToken(e.target.value)}
-      style={{ width: "100%", marginBottom: 6 }}
-    />
+<label>Stake Token</label>
+<select
+  value={stakeToken}
+  onChange={(e) => setStakeToken(e.target.value)}
+  style={{ width: "100%", marginBottom: 6 }}
+>
+  {WHITELISTED_TOKENS.map((t) => (
+    <option key={t.address} value={t.address}>
+      {t.label}
+    </option>
+  ))}
+</select>
 
-    <label>Stake Amount</label>
-    <input
-      value={stakeAmount}
-      onChange={e => setStakeAmount(e.target.value)}
-      style={{ width: "100%", marginBottom: 12 }}
-    />
+<label>Stake Amount</label>
+<input
+  value={stakeAmount}
+  onChange={(e) => setStakeAmount(e.target.value)}
+  style={{ width: "100%", marginBottom: 12 }}
+/>
 
-    <h3>NFT Team (3)</h3>
-    {nfts.map((n, i) => (
-      <div key={i} style={{ marginBottom: 10 }}>
-        <input
-          placeholder="NFT Address"
-          value={n.address}
-          onChange={e => updateNFT(i, "address", e.target.value.trim())}
+<h3>NFT Team (3)</h3>
+{nfts.map((n, i) => (
+  <div key={i} style={{ marginBottom: 12 }}>
+    {/* NFT Collection Dropdown */}
+    <select
+      value={n.address}
+      onChange={(e) => updateNFT(i, "address", e.target.value)}
+      style={{ width: "40%", marginRight: 8 }}
+    >
+      <option value="">Select NFT</option>
+      {WHITELISTED_NFTS.map((nft) => (
+        <option key={nft.address} value={nft.address}>
+          {nft.label}
+        </option>
+      ))}
+    </select>
+
+    {/* Token ID Dropdown */}
+    <label style={{ marginLeft: 8 }}>Token ID</label>
+    <select
+      value={n.tokenId}
+      onChange={(e) => {
+        const tokenId = e.target.value;
+        const selected = ownedNFTs.find((nft) => nft.tokenId === tokenId);
+
+        setNfts((prev) =>
+          prev.map((slot, idx) =>
+            idx === i
+              ? {
+                  ...slot,
+                  tokenId,
+                  metadata: selected || null,
+                  address: selected?.nftAddress || slot.address
+                }
+              : slot
+          )
+        );
+      }}
+      style={{ width: "55%", marginLeft: 8 }}
+    >
+      <option value="">Select your NFT</option>
+      {ownedNFTs
+        // Filter out NFTs already selected in other slots
+        .filter((nft) => !nfts.some((s, idx) => idx !== i && s.tokenId === nft.tokenId))
+        .map((nft) => (
+          <option key={nft.tokenId} value={nft.tokenId}>
+            #{nft.tokenId} — {nft.name} ({nft.background})
+          </option>
+        ))}
+    </select>
+
+    {/* NFT Metadata Preview */}
+    {n.metadata && (
+      <div
+        style={{
+          marginTop: 8,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          background: "#0f0f0f",
+          padding: 8,
+          borderRadius: 8,
+          border: "1px solid #333",
+        }}
+      >
+        {/* NFT Image */}
+        <img
+          src={`${BACKEND_URL}/images/${n.metadata.tokenURI
+            ?.replace("metadata/", "")
+            ?.replace(".json", "")}.png`}
+          alt={n.metadata.name}
+          style={{
+            width: 72,
+            height: 72,
+            objectFit: "cover",
+            borderRadius: 6,
+            border: "1px solid #444",
+          }}
         />
-        <input
-          placeholder="Token ID"
-          value={n.tokenId}
-          onChange={e => updateNFT(i, "tokenId", e.target.value.trim())}
-        />
 
-        {n.metadata && (
-          <div style={{ marginTop: 5, fontSize: 14 }}>
-            <b>{n.metadata.name}</b>
-            <div>Background: {n.metadata.background}</div>
+        {/* Metadata */}
+        <div style={{ fontSize: 14 }}>
+          <div style={{ fontWeight: "bold" }}>{n.metadata.name}</div>
+          <div style={{ opacity: 0.85 }}>
+            Background: {n.metadata.background}
           </div>
-        )}
+        </div>
       </div>
-    ))}
+    )}
+  </div>
+))}
 
-    <button disabled={validating} onClick={validateTeam}>
-      {validating ? "Validating..." : "Validate Team"}
-    </button>
+<button disabled={validating} onClick={validateTeam}>
+  {validating ? "Validating..." : "Validate Team"}
+</button>
 
-    <div style={{ marginTop: 12 }}>
-      <button
-        onClick={approveTokens}
-        disabled={!stakeToken || !stakeAmount || !signer}
-      >
-        Approve Tokens
-      </button>
+<div style={{ marginTop: 12 }}>
+  <button
+    onClick={approveTokens}
+    disabled={!stakeToken || !stakeAmount || !signer}
+  >
+    Approve Tokens
+  </button>
 
-      <button
-        onClick={createGame}
-        disabled={!validated || !stakeToken || !stakeAmount || !signer}
-        style={{ marginLeft: 8 }}
-      >
-        Create Game
-      </button>
-    </div>
+  <button
+    onClick={createGame}
+    disabled={!validated || !stakeToken || !stakeAmount || !signer}
+    style={{ marginLeft: 8 }}
+  >
+    Create Game
+  </button>
+</div>
 
     {/* ================= GAMES ================= */}
     <h2 style={{ marginTop: 40 }}>Games</h2>
@@ -652,131 +821,153 @@ return (
     {loadingGames && <p>Loading games…</p>}
     {!loadingGames && games.length === 0 && <p>No games yet</p>}
 
-    {[...games].sort((a, b) => b.id - a.id).map((g) => {
-      const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
-      const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
+    {[...games]
+      .sort((a, b) => b.id - a.id)
+      .map((g) => {
+        const isPlayer1 =
+          g.player1?.toLowerCase() === account?.toLowerCase();
+        const isPlayer2 =
+          g.player2?.toLowerCase() === account?.toLowerCase();
 
-    const bothRevealed =
-      g.player1Revealed === true &&
-      g.player2Revealed === true;
+        const bothRevealed =
+          g.player1Revealed === true &&
+          g.player2Revealed === true;
 
-    const canSettle =
-      bothRevealed &&
-      !g.settled &&
-      (isPlayer1 || isPlayer2);
-      
-      return (
-        <div
-          key={g.id}
-          style={{ border: "1px solid #444", padding: 14, marginBottom: 14 }}
-        >
-          <h3>Game #{g.id}</h3>
+        const canSettle =
+          bothRevealed && !g.settled && (isPlayer1 || isPlayer2);
 
-          <div>🟥 Player 1: {g.player1}</div>
-          <div>🟦 Player 2: {g.player2 ?? "Waiting for opponent"}</div>
+        return (
+          <div
+            key={g.id}
+            style={{
+              border: "1px solid #444",
+              padding: 14,
+              marginBottom: 14,
+            }}
+          >
+            <h3>Game #{g.id}</h3>
 
-          <div style={{ marginTop: 6 }}>
-            Stake: {ethers.formatUnits(g.stakeAmount || "0", 18)}
-          </div>
+            <div>🟥 Player 1: {g.player1}</div>
+            {g._reveal?.player1 && renderTeamImages(g._reveal.player1)}
 
-          {/* Cancel button */}
-          {g.player2 === ethers.ZeroAddress && isPlayer1 && (
-            <button
-              onClick={async () => {
-                try {
-                  const gameContract = new ethers.Contract(
-                    GAME_ADDRESS,
-                    GameABI,
-                    signer
-                  );
-                  const tx = await gameContract.cancelGame(g.id);
-                  await tx.wait();
-                  await fetch(`${BACKEND_URL}/games/${g.id}/cancel`, {
-                    method: "POST",
-                  });
-                  await loadGames();
-                } catch (err) {
-                  alert(err.message || "Cancel failed");
-                }
-              }}
-            >
-              Cancel Game
-            </button>
-          )}
-
-          {/* Join button */}
-          {g.player2 === ethers.ZeroAddress && !isPlayer1 && (
-            <button onClick={() => joinGame(g.id)}>Join Game</button>
-          )}
-
-          {/* Reveal upload */}
-          {((isPlayer1 && !g.player1Revealed) ||
-            (isPlayer2 && !g.player2Revealed)) && (
-            <label style={{ marginLeft: 8, cursor: "pointer" }}>
-              Upload Reveal
-              <input
-                type="file"
-                accept=".json"
-                style={{ display: "none" }}
-                onChange={handleRevealFile}
-              />
-            </label>
-          )}
-
-{/* Settle Game */}
-{canSettle && (
-  <button
-    style={{ marginLeft: 8, background: "#8b5cf6", color: "white" }}
-onClick={async () => {
-  try {
-    // 1️⃣ backend posts winner
-    const res = await fetch(`${BACKEND_URL}/games/${g.id}/post-winner`, {
-      method: "POST"
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-
-    // 2️⃣ now settle on-chain
-    const tx = await gameContract.settleGame(g.id);
-    await tx.wait();
-
-    await loadGames();
-  } catch (err) {
-    alert(err.message || "Settle failed");
-  }
-}}
-  >
-    Settle Game
-  </button>
-)}
-
-          {/* Settled result */}
-          {g.settled && (
-            <div
-              style={{
-                marginTop: 14,
-                padding: 12,
-                background: "#111",
-                border: "1px solid #333",
-              }}
-            >
-              <h3>
-                🏆 Result:{" "}
-                {g.winner === ethers.ZeroAddress
-                  ? "Draw"
-                  : g.winner?.toLowerCase() === g.player1?.toLowerCase()
-                  ? "Player 1 wins"
-                  : "Player 2 wins"}
-              </h3>
-              <div style={{ fontSize: 14, marginTop: 6 }}>
-                Winner address: {g.winner ?? "—"}
-              </div>
+            <div style={{ marginTop: 8 }}>
+              🟦 Player 2: {g.player2 ?? "Waiting for opponent"}
             </div>
-          )}
-        </div>
-      );
-    })}
-  </div>
-);
+            {g._reveal?.player2 && renderTeamImages(g._reveal.player2)}
+
+            <div style={{ marginTop: 8 }}>
+              Stake: {ethers.formatUnits(g.stakeAmount || "0", 18)}
+            </div>
+
+            {/* Cancel */}
+            {g.player2 === ethers.ZeroAddress && isPlayer1 && (
+              <button
+                onClick={async () => {
+                  try {
+                    const gameContract = new ethers.Contract(
+                      GAME_ADDRESS,
+                      GameABI,
+                      signer
+                    );
+                    const tx = await gameContract.cancelGame(g.id);
+                    await tx.wait();
+                    await fetch(
+                      `${BACKEND_URL}/games/${g.id}/cancel`,
+                      { method: "POST" }
+                    );
+                    await loadGames();
+                  } catch (err) {
+                    alert(err.message || "Cancel failed");
+                  }
+                }}
+              >
+                Cancel Game
+              </button>
+            )}
+
+            {/* Join */}
+            {g.player2 === ethers.ZeroAddress && !isPlayer1 && (
+              <button onClick={() => joinGame(g.id)}>
+                Join Game
+              </button>
+            )}
+
+            {/* Reveal upload */}
+            {((isPlayer1 && !g.player1Revealed) ||
+              (isPlayer2 && !g.player2Revealed)) && (
+              <label style={{ marginLeft: 8, cursor: "pointer" }}>
+                Upload Reveal
+                <input
+                  type="file"
+                  accept=".json"
+                  style={{ display: "none" }}
+                  onChange={handleRevealFile}
+                />
+              </label>
+            )}
+
+            {/* Settle */}
+            {canSettle && (
+              <button
+                style={{
+                  marginLeft: 8,
+                  background: "#8b5cf6",
+                  color: "white",
+                }}
+                onClick={async () => {
+                  try {
+                    const res = await fetch(
+                      `${BACKEND_URL}/games/${g.id}/post-winner`,
+                      { method: "POST" }
+                    );
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error);
+
+                    const gameContract = new ethers.Contract(
+                      GAME_ADDRESS,
+                      GameABI,
+                      signer
+                    );
+                    const tx = await gameContract.settleGame(g.id);
+                    await tx.wait();
+
+                    await loadGames();
+                  } catch (err) {
+                    alert(err.message || "Settle failed");
+                  }
+                }}
+              >
+                Settle Game
+              </button>
+            )}
+
+            {/* Result */}
+            {g.settled && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: 12,
+                  background: "#111",
+                  border: "1px solid #333",
+                }}
+              >
+                <h3>
+                  🏆 Result:{" "}
+                  {g.winner === ethers.ZeroAddress
+                    ? "Draw"
+                    : g.winner?.toLowerCase() ===
+                      g.player1?.toLowerCase()
+                    ? "Player 1 wins"
+                    : "Player 2 wins"}
+                </h3>
+                <div style={{ fontSize: 14, marginTop: 6 }}>
+                  Winner address: {g.winner ?? "—"}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }

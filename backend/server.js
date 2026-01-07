@@ -2,14 +2,20 @@ import express from "express";
 import cors from "cors";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import { generateMapping } from "./utils/generateMapping.js";
 import { loadMapping, METADATA_JSON_DIR } from "./paths.js";
 
 import gamesRouter from "./routes/games.js";
 import sseRouter from "./routes/sse.js";
+import nftsRouter from "./routes/nfts.js";
 
 const app = express();
+const GAMES_FILE = path.join(__dirname, "games", "games.json");
 
 // ---------------- MIDDLEWARE ----------------
 app.use(cors({ origin: "http://localhost:3000" }));
@@ -18,6 +24,7 @@ app.use(express.json());
 // ---------------- ROUTES ----------------
 app.use("/games", gamesRouter);
 app.use("/events", sseRouter);
+app.use("/nfts", nftsRouter);
 
 // ---------------- METADATA ----------------
 app.get("/metadata/:tokenId", (req, res) => {
@@ -70,21 +77,6 @@ console.log(
     .map(r => Object.keys(r.route.methods)[0].toUpperCase() + " " + r.route.path)
 );
 
-// GET metadata for a tokenId
-app.get("/metadata/:tokenId", (req, res) => {
-  const { tokenId } = req.params;
-  const mapping = loadMapping(); // from your existing paths.js
-  const jsonFile = mapping[tokenId];
-  if (!jsonFile) return res.status(404).json({ error: "Token not found" });
-
-  const filePath = path.join(METADATA_JSON_DIR, jsonFile);
-  if (!fs.existsSync(filePath))
-    return res.status(404).json({ error: "File missing" });
-
-  const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
-  res.json(data);
-});
-
 // POST endpoint for validation
 app.post("/games/validate", (req, res) => {
   const { nfts } = req.body; // [{ address, tokenId }]
@@ -112,4 +104,20 @@ app.post("/games/validate", (req, res) => {
   });
 
   res.json({ metadata });
+});
+
+app.use(
+  "/images",
+  express.static(path.join(__dirname, "metadata-cache/images"))
+);
+
+app.get("/games", (req, res) => {
+  try {
+    const raw = fs.readFileSync(GAMES_FILE, "utf8");
+    const games = JSON.parse(raw);
+    res.json(games);
+  } catch (err) {
+    console.error("Failed to read games.json", err);
+    res.status(500).json({ error: "Failed to load games" });
+  }
 });
