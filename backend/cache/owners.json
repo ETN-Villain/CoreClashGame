@@ -1,0 +1,600 @@
+{
+  "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099": [
+    {
+      "tokenId": "379",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "292",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "290",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Verdant Green"
+    },
+    {
+      "tokenId": "59",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Silver"
+    },
+    {
+      "tokenId": "61",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Verdant Green"
+    },
+    {
+      "tokenId": "259",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "374",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "373",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "377",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "252",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "370",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Verdant Green"
+    },
+    {
+      "tokenId": "266",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Verdant Green"
+    },
+    {
+      "tokenId": "255",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Verdant Green"
+    },
+    {
+      "tokenId": "395",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "396",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "445",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "446",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Verdant Green"
+    },
+    {
+      "tokenId": "447",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "448",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Silver"
+    },
+    {
+      "tokenId": "449",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "450",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "451",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "452",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "453",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "454",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Silver"
+    },
+    {
+      "tokenId": "455",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "456",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "457",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "458",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "459",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "460",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "461",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "462",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "463",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "464",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "465",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "466",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "467",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "468",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Verdant Green"
+    },
+    {
+      "tokenId": "469",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Silver"
+    },
+    {
+      "tokenId": "470",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "471",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Verdant Green"
+    },
+    {
+      "tokenId": "472",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "473",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "474",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "67",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "226",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "243",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "245",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "247",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "250",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "316",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "335",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "336",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "337",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "338",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "339",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "340",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "341",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "342",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "347",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "353",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "354",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "357",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "358",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "359",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "360",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "362",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "364",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "397",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "399",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "400",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "405",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "408",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "409",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "410",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "413",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "414",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "417",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "419",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "420",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "422",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "423",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "424",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "426",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "427",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "430",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "439",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Sylor",
+      "background": "Forest of Globes"
+    },
+    {
+      "tokenId": "440",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Energy Vein Canyons"
+    },
+    {
+      "tokenId": "441",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Zephyros Surface"
+    },
+    {
+      "tokenId": "444",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Kaelth",
+      "background": "Energy Vein Canyons"
+    }
+  ],
+  "0x2871835ca982f248f61c3a1995931e205c9d5243": [
+    {
+      "tokenId": "416",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Veyra",
+      "background": "Gold"
+    },
+    {
+      "tokenId": "429",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Silver"
+    },
+    {
+      "tokenId": "418",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Silver"
+    },
+    {
+      "tokenId": "443",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Silver"
+    },
+    {
+      "tokenId": "442",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Aurelia",
+      "background": "Verdant Green"
+    },
+    {
+      "tokenId": "421",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Verdant Green"
+    },
+    {
+      "tokenId": "425",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Lumora",
+      "background": "Silver"
+    },
+    {
+      "tokenId": "428",
+      "nftAddress": "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+      "name": "Verdant Core",
+      "background": "Gold"
+    }
+  ]
+}

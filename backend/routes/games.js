@@ -5,7 +5,7 @@ import { parse } from "csv-parse/sync";
 import { ethers } from "ethers";
 import { fileURLToPath } from "url";
 import { METADATA_JSON_DIR, REVEAL_DIR, MAPPING_FILE, loadMapping } from "../paths.js";
-import { RPC_URL, BACKEND_PRIVATE_KEY, GAME_ADDRESS, VKIN_CONTRACT_ADDRESS } from "../config.js";
+import { RPC_URL, BACKEND_PRIVATE_KEY, GAME_ADDRESS } from "../config.js";
 import { loadGames, saveGames, resolveGame } from "../gameLogic.js";
 import GameABI from "../../src/abis/GameABI.json" assert { type: "json" };
 
@@ -30,65 +30,6 @@ function loadTokenURIMapping() {
   for (const r of records) map[Number(r.token_id)] = r.token_uri;
   return map;
 }
-
-// ---------------- GET OWNED NFTs ----------------
-const VKIN_ABI = [
-  "function ownerOf(uint256 tokenId) view returns (address)",
-  "function totalSupply() view returns (uint256)",
-  "function tokenURI(uint256 tokenId) view returns (string)"
-];
-
-router.get("/owned/:wallet", async (req, res) => {
-  const { wallet } = req.params;
-  const provider = new ethers.JsonRpcProvider(RPC_URL);
-  const nftContract = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
-
-  try {
-    const totalSupply = Number(await nftContract.totalSupply());
-    const ownedNFTs = [];
-
-    for (let tokenId = 1; tokenId <= totalSupply; tokenId++) {
-      let owner;
-      try {
-        owner = await nftContract.ownerOf(tokenId);
-      } catch {
-        continue; // skip burned/nonexistent
-      }
-
-      if (owner.toLowerCase() !== wallet.toLowerCase()) continue;
-
-      // get tokenURI from contract
-      let uri;
-      try {
-        uri = await nftContract.tokenURI(tokenId);
-      } catch {
-        uri = null;
-      }
-
-      let metadata = {};
-      if (uri) {
-        const fileName = path.basename(uri); // "44.json", etc
-        const filePath = path.join(METADATA_JSON_DIR, fileName);
-        if (fs.existsSync(filePath)) {
-          metadata = JSON.parse(fs.readFileSync(filePath, "utf8"));
-        }
-      }
-
-      ownedNFTs.push({
-        tokenId: tokenId.toString(),
-        name: metadata.name || `Token #${tokenId}`,
-        background: metadata.attributes?.find(a => a.trait_type === "Background")?.value || "Unknown",
-        nftAddress: VKIN_CONTRACT_ADDRESS
-      });
-    }
-
-    console.log(`Owned NFTs for ${wallet}:`, ownedNFTs.map(n => n.tokenId));
-    res.json(ownedNFTs);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch owned NFTs" });
-  }
-});
 
 // ---------------- CREATE GAME ----------------
 router.post("/", (req, res) => {

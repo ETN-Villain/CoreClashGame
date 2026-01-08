@@ -1,12 +1,17 @@
 // backend/utils/handleEvent.js
 import { readGames, writeGames } from "../gamesStore.js";
 import { broadcast } from "../routes/events.js";
+  import { deleteCache } from "../utils/ownerCache.js";
 
 export async function handleEvent(e) {
   const games = readGames();
-
   const eventName = e.eventName;
   const args = e.args;
+
+  if (event.event === "Transfer") {
+    const from = event.args.from?.toLowerCase();
+    const to = event.args.to?.LowerCase();
+
 
   if (!args || args.length === 0) return;
 
@@ -76,4 +81,14 @@ switch (eventName) {
       typeof a === "bigint" ? a.toString() : a
     )
   });
+
+    if (from && from !== ethers.ZeroAddress) {
+      deleteCache(`vkin_owned_${from}`);
+    }
+    if (to && to !== ethers.ZeroAddress) {
+      deleteCache(`vkin_owned_${to}`);
+    }
+
+    console.log("♻️ NFT ownership cache invalidated");
+  }
 }
