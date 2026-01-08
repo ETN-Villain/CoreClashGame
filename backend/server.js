@@ -3,6 +3,7 @@ import cors from "cors";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { readOwnerCache, writeOwnerCache } from "./utils/ownerCache.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -121,3 +122,5 @@ app.get("/games", (req, res) => {
     res.status(500).json({ error: "Failed to load games" });
   }
 });
+
+console.log("Owner cache file path will be:", path.join(__dirname, "cache/owners.json"));

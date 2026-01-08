@@ -5,8 +5,18 @@ import GameABI from "./abis/GameABI.json";
 import ERC20ABI from "./abis/ERC20ABI.json";
 
 import { GAME_ADDRESS, WHITELISTED_TOKENS, WHITELISTED_NFTS } from "./config.js";
+import mapping from "./mapping.json";
 
 const BACKEND_URL = "http://localhost:3001";
+
+/**
+ * @typedef {Object} OwnedNFT
+ * @property {string} tokenId
+ * @property {string} nftAddress
+ * @property {string} name
+ * @property {string} background
+ * @property {string} tokenURI
+ */
 
 const renderTeamImages = (playerReveal) => {
   if (!playerReveal?.tokenURIs) return null;
@@ -40,6 +50,7 @@ const [provider, setProvider] = useState(null);
 const [signer, setSigner] = useState(null);
 const [account, setAccount] = useState(null);
 const [walletError, setWalletError] = useState(null);
+/** @type {[OwnedNFT[], Function]} */
 const [ownedNFTs, setOwnedNFTs] = useState([]);
 
 const connectWallet = useCallback(async () => {
@@ -119,43 +130,44 @@ useEffect(() => {
 
   let cancelled = false; // prevent setting state if component unmounted
 
-  const fetchOwnedNFTs = async () => {
-    try {
-      // fetch owned NFTs from backend
-      const res = await fetch(`http://localhost:3001/nfts/owned/${account}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+const fetchOwnedNFTs = async () => {
+  try {
+    // fetch owned NFTs from backend
+    const res = await fetch(`http://localhost:3001/nfts/owned/${account}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
 
-      // normalize tokenId to string and ensure metadata
-      const normalized = data.map((nft) => ({
-        ...nft,
-        tokenId: nft.tokenId.toString(),
-        name: nft.name || `Token #${nft.tokenId}`,
-        background: nft.background || "Unknown",
-      }));
+// normalize tokenId to string and ensure metadata
+const normalized = data.map((nft) => ({
+  ...nft,
+  tokenId: nft.tokenId.toString(),
+  name: nft.name || nft.metadata?.name || `Token #${nft.tokenId}`,
+  background: nft.background || nft.metadata?.background || "Unknown",
+  nftAddress: nft.address || nft.nftAddress, // optional
+}));
 
-      if (!cancelled) setOwnedNFTs(normalized);
-    } catch (err) {
-      console.error("Failed to load owned NFTs:", err);
-      if (!cancelled) setOwnedNFTs([]);
-    }
-  };
+    if (!cancelled) setOwnedNFTs(normalized);
+  } catch (err) {
+    console.error("Failed to load owned NFTs:", err);
+    if (!cancelled) setOwnedNFTs([]);
+  }
+};
 
-  fetchOwnedNFTs();
+fetchOwnedNFTs();
 
-  return () => {
-    cancelled = true;
-  };
+return () => {
+  cancelled = true;
+};
 }, [account]);
 
 /* ---------------- GAME SETUP ---------------- */
   const [stakeToken, setStakeToken] = useState("");
   const [stakeAmount, setStakeAmount] = useState("");
-  const [nfts, setNfts] = useState([
-    { address: "", tokenId: "", metadata: null },
-    { address: "", tokenId: "", metadata: null },
-    { address: "", tokenId: "", metadata: null },
-  ]);
+const [nfts, setNfts] = useState([
+  { address: "", tokenId: "", tokenURI: null, metadata: null },
+  { address: "", tokenId: "", tokenURI: null, metadata: null },
+  { address: "", tokenId: "", tokenURI: null, metadata: null },
+]);
 
   const [validated, setValidated] = useState(false);
   const [validating, setValidating] = useState(false);
@@ -721,87 +733,103 @@ return (
 
     {/* Token ID Dropdown */}
     <label style={{ marginLeft: 8 }}>Token ID</label>
-    <select
-      value={n.tokenId}
-      onChange={(e) => {
-        const tokenId = e.target.value;
-        const selected = ownedNFTs.find((nft) => nft.tokenId === tokenId);
-
-        setNfts((prev) =>
-          prev.map((slot, idx) =>
-            idx === i
-              ? {
-                  ...slot,
-                  tokenId,
-                  metadata: selected || null,
-                  address: selected?.nftAddress || slot.address
-                }
-              : slot
-          )
-        );
-      }}
-      style={{ width: "55%", marginLeft: 8 }}
-    >
-      <option value="">Select your NFT</option>
-      {ownedNFTs
-        // Filter out NFTs already selected in other slots
-        .filter((nft) => !nfts.some((s, idx) => idx !== i && s.tokenId === nft.tokenId))
-        .map((nft) => (
-          <option key={nft.tokenId} value={nft.tokenId}>
-            #{nft.tokenId} — {nft.name} ({nft.background})
-          </option>
-        ))}
-    </select>
+<select
+  value={n.tokenId}
+  onChange={(e) => {
+    const tokenId = e.target.value;
+    const selected = ownedNFTs.find(
+      (nft) =>
+        nft.tokenId === tokenId &&
+        nft.nftAddress?.toLowerCase() === n.address?.toLowerCase()
+    );
+    setNfts((prev) =>
+      prev.map((slot, idx) =>
+        idx === i
+          ? {
+              ...slot,
+              tokenId,
+              metadata: selected
+                ? { name: selected.name, background: selected.background }
+                : null,
+              tokenURI: selected?.tokenURI,
+              address: selected?.nftAddress || slot.address,
+            }
+          : slot
+      )
+    );
+  }}
+  style={{ width: "55%", marginLeft: 8 }}
+>
+  <option value="">Select your NFT</option>
+  {ownedNFTs
+    .filter(
+      (nft) =>
+        nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
+        !nfts.some((s, idx) => idx !== i && s.tokenId === nft.tokenId)
+    )
+    .map((nft) => (
+      <option key={nft.tokenId} value={nft.tokenId}>
+        #{nft.tokenId} — {nft.name} ({nft.background})
+      </option>
+    ))}
+</select>
 
     {/* NFT Metadata Preview */}
-    {n.metadata && (
-      <div
-        style={{
-          marginTop: 8,
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          background: "#0f0f0f",
-          padding: 8,
-          borderRadius: 8,
-          border: "1px solid #333",
-        }}
-      >
-        {/* NFT Image */}
-        <img
-          src={`${BACKEND_URL}/images/${n.metadata.tokenURI
-            ?.replace("metadata/", "")
-            ?.replace(".json", "")}.png`}
-          alt={n.metadata.name}
-          style={{
-            width: 72,
-            height: 72,
-            objectFit: "cover",
-            borderRadius: 6,
-            border: "1px solid #444",
-          }}
-        />
+{n.metadata && (
+  <div
+    style={{
+      marginTop: 8,
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      background: "#0f0f0f",
+      padding: 8,
+      borderRadius: 8,
+      border: "1px solid #333",
+    }}
+  >
+    {/* NFT Image */}
+<img
+  src={
+    mapping[n.tokenId]
+      ? `${BACKEND_URL}/images/${mapping[n.tokenId].replace(".json", "")}.png`
+      : "/placeholder.png"
+  }
+  alt={n.metadata.name || `Token #${n.tokenId}`}
+      style={{
+        width: 72,
+        height: 72,
+        objectFit: "cover",
+        borderRadius: 6,
+        border: "1px solid #444",
+      }}
+      onError={(e) => {
+        e.currentTarget.src = "/placeholder.png"; // fallback
+      }}
+    />
 
-        {/* Metadata */}
-        <div style={{ fontSize: 14 }}>
-          <div style={{ fontWeight: "bold" }}>{n.metadata.name}</div>
-          <div style={{ opacity: 0.85 }}>
-            Background: {n.metadata.background}
-          </div>
-        </div>
+    {/* Metadata */}
+    <div style={{ fontSize: 14 }}>
+      <div style={{ fontWeight: "bold" }}>{n.metadata.name}</div>
+      <div style={{ opacity: 0.85 }}>
+        Background: {n.metadata.background}
       </div>
-    )}
+    </div>
+  </div>
+)}
   </div>
 ))}
 
-<button disabled={validating} onClick={validateTeam}>
-  {validating ? "Validating..." : "Validate Team"}
-</button>
-
+{/* ---------------- Buttons ---------------- */}
 <div style={{ marginTop: 12 }}>
+  <button disabled={validating} onClick={validateTeam}>
+    {validating ? "Validating..." : "Validate Team"}
+  </button>
+
   <button
     onClick={approveTokens}
     disabled={!stakeToken || !stakeAmount || !signer}
+    style={{ marginLeft: 8 }}
   >
     Approve Tokens
   </button>
@@ -960,9 +988,6 @@ return (
                     ? "Player 1 wins"
                     : "Player 2 wins"}
                 </h3>
-                <div style={{ fontSize: 14, marginTop: 6 }}>
-                  Winner address: {g.winner ?? "—"}
-                </div>
               </div>
             )}
           </div>
