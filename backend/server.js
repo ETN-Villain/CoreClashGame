@@ -49,8 +49,10 @@ app.get("/metadata/:tokenId", (req, res) => {
 // ---------------- START SERVER ----------------
 await generateMapping();
 
-app.listen(3001, () => {
-  console.log("✅ Backend running on http://localhost:3001");
+const PORT = 3001;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Backend server running at http://localhost:${PORT}`);
 });
 
 // ---------------- DEBUG ROUTE LOGGING ----------------

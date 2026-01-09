@@ -29,7 +29,12 @@ export const loadGames = () => {
 
 // saveGames
 export const saveGames = (games) => {
-  fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2));
+  // Ensure the directory exists
+  fs.mkdirSync(path.dirname(GAMES_FILE), { recursive: true });
+
+  // Write the file
+  fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), "utf8");
+  console.log("💾 Games saved:", GAMES_FILE, "Total games:", games.length);
 };
 
 // Fetch NFT metadata from IPFS

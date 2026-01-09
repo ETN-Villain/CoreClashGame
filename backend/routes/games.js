@@ -6,20 +6,17 @@ import { ethers } from "ethers";
 import { fileURLToPath } from "url";
 import { METADATA_JSON_DIR, REVEAL_DIR, MAPPING_FILE, loadMapping } from "../paths.js";
 import { RPC_URL, BACKEND_PRIVATE_KEY, GAME_ADDRESS } from "../config.js";
-import { loadGames, saveGames, resolveGame } from "../gameLogic.js";
 import GameABI from "../../src/abis/GameABI.json" assert { type: "json" };
+import { loadGames, saveGames, resolveGame } from "../gameLogic.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const TOKEN_URI_MAP = loadTokenURIMapping();
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const signer = new ethers.Wallet(BACKEND_PRIVATE_KEY, provider);
 const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
-
-const GAMES_FILE = path.join(__dirname, "..", "games", "games.json");
-fs.mkdirSync(path.dirname(GAMES_FILE), { recursive: true });
-fs.mkdirSync(REVEAL_DIR, { recursive: true });
 
 // ---------------- HELPERS ----------------
 function loadTokenURIMapping() {
@@ -31,77 +28,90 @@ function loadTokenURIMapping() {
   return map;
 }
 
-// ---------------- CREATE GAME ----------------
 router.post("/", (req, res) => {
-  const { creator, stakeToken, stakeAmount, nfts } = req.body;
-  if (!creator || !stakeToken || !stakeAmount || !Array.isArray(nfts) || nfts.length !== 3)
+  console.log("🔥 CREATE GAME HIT", req.body);
+
+  const { gameId, creator, stakeToken, stakeAmount } = req.body;
+
+  if (!creator || !stakeToken || !stakeAmount)
     return res.status(400).json({ error: "Invalid payload" });
 
+  if (typeof gameId !== "number")
+    return res.status(400).json({ error: "gameId required" });
+
   const games = loadGames();
-  const nextId = games.length ? Math.max(...games.map(g => g.id)) + 1 : 0;
-  const tokenURIs = nfts.map(n => loadTokenURIMapping()[Number(n.tokenId)]);
-  if (tokenURIs.includes(undefined)) return res.status(400).json({ error: "Missing tokenURI" });
+
+  if (games.some(g => g.id === gameId))
+    return res.status(409).json({ error: "Game already exists" });
 
   games.push({
-    id: nextId,
+    id: gameId,
     player1: creator.toLowerCase(),
     player2: null,
     stakeToken,
     stakeAmount,
     createdAt: new Date().toISOString(),
     cancelled: false,
-    revealReady: false,
     winner: null,
-    _player1: { tokenURIs },
-    _player2: null,
-    _reveal: {}
+    tie: false,
+    _reveal: {
+      player1: null,
+      player2: null
+    }
   });
 
   saveGames(games);
-  res.json({ success: true, gameId: nextId });
+  console.log("✅ Game created:", gameId);
+  res.json({ success: true, gameId });
 });
 
 // ---------------- JOIN GAME ----------------
 router.post("/:id/join", (req, res) => {
+  console.log("🔥 JOIN GAME HIT", req.params, req.body);
+
   const gameId = Number(req.params.id);
-  const { player2, nfts } = req.body;
+  const { player2 } = req.body;
+
+  if (!Number.isInteger(gameId) || !player2) {
+    return res.status(400).json({ error: "Invalid payload" });
+  }
 
   const games = loadGames();
   const game = games.find(g => g.id === gameId);
-  if (!game) return res.status(404).json({ error: "Game not found" });
 
-  if (game.player2) return res.json({ success: true, alreadyJoined: true });
-  if (game.cancelled) return res.status(400).json({ error: "Game cancelled" });
+  if (!game) {
+    return res.status(404).json({ error: "Game not found" });
+  }
 
-  const tokenURIs = nfts.map(n => loadTokenURIMapping()[Number(n.tokenId)]);
-  if (tokenURIs.includes(undefined)) return res.status(400).json({ error: "Missing tokenURI" });
+  if (game.player2) {
+    return res.status(409).json({ error: "Game already joined" });
+  }
+
+  if (game.player1 === player2.toLowerCase()) {
+    return res.status(403).json({ error: "Creator cannot join own game" });
+  }
 
   game.player2 = player2.toLowerCase();
-  game._player2 = { tokenURIs };
   game.player2JoinedAt = new Date().toISOString();
 
   saveGames(games);
+
+  console.log("✅ Game joined:", gameId);
   res.json({ success: true });
 });
 
-// ---------------- REVEAL GAME ----------------
-console.log("✅ reveal route registered");
 router.post("/:id/reveal", (req, res) => {
   try {
     const gameId = Number(req.params.id);
-    console.log("Reveal request received", { gameId, body: req.body });
-
     const { player, salt, nftContracts, tokenIds } = req.body;
-    if (!player || !salt || !nftContracts || !tokenIds) return res.status(400).json({ error: "Missing reveal data" });
+
+    if (!player || !salt || !Array.isArray(tokenIds)) {
+      return res.status(400).json({ error: "Missing reveal data" });
+    }
 
     const games = loadGames();
-    console.log("Loaded games IDs:", games.map(g => g.id));
-
     const game = games.find(g => g.id === gameId);
-    if (!game) {
-      console.log("Game not found!");
-      return res.status(404).json({ error: "Game not found" });
-    }
+    if (!game) return res.status(404).json({ error: "Game not found" });
 
     const playerLc = player.toLowerCase();
     let slot;
@@ -110,33 +120,47 @@ router.post("/:id/reveal", (req, res) => {
     else return res.status(403).json({ error: "Not a game participant" });
 
     game._reveal ??= {};
-    if (game._reveal[slot]) return res.status(400).json({ error: "Reveal already submitted" });
+    if (game._reveal[slot]) {
+      return res.status(400).json({ error: "Reveal already submitted" });
+    }
 
+    // ---- resolve tokenURIs via mapping.csv/json ----
     const mapping = loadMapping();
     const tokenURIs = tokenIds.map(id => mapping[Number(id)]);
-    if (tokenURIs.some(u => !u)) throw new Error("Missing tokenURI");
+    if (tokenURIs.some(u => !u)) {
+      return res.status(400).json({ error: "Missing tokenURI" });
+    }
 
-    game._reveal[slot] = { salt, nftContracts, tokenIds, tokenURIs };
-    saveGames(games);
-
-    const backgrounds = tokenIds.map(id => {
-      const file = mapping[Number(id)];
-      const json = JSON.parse(fs.readFileSync(path.join(METADATA_JSON_DIR, file)));
+    // ---- extract backgrounds (backend authoritative) ----
+    const backgrounds = tokenURIs.map(uri => {
+      const json = JSON.parse(
+        fs.readFileSync(path.join(METADATA_JSON_DIR, uri), "utf8")
+      );
       const bg = json.attributes.find(a => a.trait_type === "Background");
       return bg?.value ?? "Unknown";
     });
 
-    res.json({ savedReveal: { salt, nftContracts, tokenIds, backgrounds } });
+    // ---- save reveal ----
+    game._reveal[slot] = { salt, nftContracts, tokenIds, tokenURIs };
+    game.player1Revealed = !!game._reveal.player1;
+    game.player2Revealed = !!game._reveal.player2;
+
+    saveGames(games);
+
+    return res.json({
+      savedReveal: {
+        salt,
+        nftContracts,
+        tokenIds,
+        tokenURIs,
+        backgrounds
+      }
+    });
+
   } catch (err) {
     console.error("Reveal error:", err);
-    res.status(400).json({ error: err.message });
+    return res.status(400).json({ error: err.message });
   }
-
-  game.player1Revealed = !!game._reveal.player1;
-  game.player2Revealed = !!game._reveal.player2;
-
-  saveGames(games);
-
 });
 
 /* ---------------- POST WINNER ---------------- */
