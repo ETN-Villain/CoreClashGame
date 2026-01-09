@@ -5,7 +5,7 @@ import { loadLastBlock, saveLastBlock } from "./utils/blockState.js";
 import { handleEvent } from "./utils/handleEvent.js";
 import VKINABI from "../src/abis/VKINABI.json" assert { type: "json" };
 import { VKIN_CONTRACT_ADDRESS } from "./config.js";
-import { clearCache } from "./utils/ownerCache.js";
+import { deleteCache } from "./utils/ownerCache.js";
 
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -95,10 +95,10 @@ setInterval(async () => {
         const to = parsed.args.to.toLowerCase();
 
         if (from !== ethers.ZeroAddress) {
-          clearCache(`vkin_owned_${from}`);
+          deleteCache(`vkin_owned_${from}`);
         }
         if (to !== ethers.ZeroAddress) {
-          clearCache(`vkin_owned_${to}`);
+          deleteCache(`vkin_owned_${to}`);
         }
 
         console.log(

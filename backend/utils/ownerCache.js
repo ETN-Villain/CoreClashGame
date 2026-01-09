@@ -31,3 +31,10 @@ export function writeOwnerCache(cache) {
   );
   console.log("💾 Owner cache written");
 }
+
+export function deleteCache() {
+  if (fs.existsSync(CACHE_FILE)) {
+    fs.unlinkSync(CACHE_FILE);
+    console.log("🗑️ Owner cache deleted");
+  }
+}
