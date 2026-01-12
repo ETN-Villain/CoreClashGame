@@ -280,36 +280,50 @@ const approveTokens = async () => {
   }
 };
 
-/* ---------------- HELPERS ---------------- */
 const downloadRevealBackup = useCallback(
-({ gameId, player, salt, nftContracts, tokenIds, backgrounds }, account) => {
-  const payload = {
-    gameId: Number(gameId),
-    player,
-    salt: salt.toString(),
-    nftContracts,
-    tokenIds: tokenIds.map(t => t.toString()),
-    backgrounds: backgrounds || [],
-  };
+  ({ gameId, player, salt, nftContracts, tokenIds, backgrounds }) => {
+    const payload = {
+      gameId: Number(gameId),
+      player,
+      salt: salt.toString(),
+      nftContracts,
+      tokenIds: tokenIds.map(t => t.toString()),
+      backgrounds: backgrounds || [],
+    };
 
-  // --- Save to localStorage for auto-reveal ---
-  const playerKey = player.toLowerCase() === account?.toLowerCase() ? "p1" : `p2_${gameId}`;
-  localStorage.setItem(`${playerKey}_salt`, payload.salt);
-  localStorage.setItem(`${playerKey}_nftContracts`, JSON.stringify(payload.nftContracts));
-  localStorage.setItem(`${playerKey}_tokenIds`, JSON.stringify(payload.tokenIds));
-  localStorage.setItem(`${playerKey}_backgrounds`, JSON.stringify(payload.backgrounds));
+    const playerKey =
+      player.toLowerCase() === account.toLowerCase()
+        ? "p1"
+        : `p2_${gameId}`;
 
-  // --- Trigger download as JSON ---
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `coreclash-reveal-game-${payload.gameId}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}, []);
+    localStorage.setItem(`${playerKey}_salt`, payload.salt);
+    localStorage.setItem(
+      `${playerKey}_nftContracts`,
+      JSON.stringify(payload.nftContracts)
+    );
+    localStorage.setItem(
+      `${playerKey}_tokenIds`,
+      JSON.stringify(payload.tokenIds)
+    );
+    localStorage.setItem(
+      `${playerKey}_backgrounds`,
+      JSON.stringify(payload.backgrounds)
+    );
 
-  /* ---------------- LOAD GAMES ---------------- */
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `coreclash-reveal-game-${payload.gameId}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+  [account]
+);
+
+// ---------------- LOAD GAMES ----------------
 const loadGames = useCallback(async () => {
   if (!provider) return;
   setLoadingGames(true);
@@ -324,41 +338,41 @@ const loadGames = useCallback(async () => {
         const g = await contract.games(i);
         if (!g || g.player1 === ethers.ZeroAddress) break;
 
-    const backendWinner = await contract.backendWinner(i);
+        loaded.push({
+          id: i,
+          player1: g.player1,
+          player2: g.player2,
+          stakeAmount: g.stakeAmount,
+          settled: g.settled,
+          winner: g.winner,
+          // ✅ backendWinner will come from backend
+          player1TokenIds: g.player1TokenIds ? [...g.player1TokenIds] : [],
+          player2TokenIds: g.player2TokenIds ? [...g.player2TokenIds] : [],
+          player1Backgrounds: g.player1Backgrounds ? [...g.player1Backgrounds] : [],
+          player2Backgrounds: g.player2Backgrounds ? [...g.player2Backgrounds] : [],
+          roundResults: g.roundResults ? [...g.roundResults] : [],
+        });
 
-    loaded.push({
-      id: i,
-      player1: g.player1,
-      player2: g.player2,
-      stakeAmount: g.stakeAmount,
-      player1Revealed: g.player1Revealed,
-      player2Revealed: g.player2Revealed,
-      settled: g.settled,
-      winner: g.winner,
-      backendWinner,
-      player1TokenIds: g.player1TokenIds ? [...g.player1TokenIds] : [],
-      player2TokenIds: g.player2TokenIds ? [...g.player2TokenIds] : [],
-      player1Backgrounds: g.player1Backgrounds ? [...g.player1Backgrounds] : [],
-      player2Backgrounds: g.player2Backgrounds ? [...g.player2Backgrounds] : [],
-      roundResults: g.roundResults ? [...g.roundResults] : [],
-    });
+        i++;
+      } catch (err) {
+        console.error(`Failed to load game ${i}:`, err);
+        break;
+      }
+    }
 
-    i++;
-  } catch (err) {
-    console.error(`Failed to load game ${i}:`, err);
-    break;
-  }
-}
-
-    // 🔽 FETCH BACKEND GAMES (THIS IS THE KEY)
+    // 🔽 Fetch authoritative backend data
     const res = await fetch(`${BACKEND_URL}/games`);
     const backendGames = await res.json();
 
     const merged = loaded.map(g => {
       const backend = backendGames.find(bg => bg.id === g.id);
+
       return {
         ...g,
         _reveal: backend?._reveal || null,
+        player1Revealed: backend?.player1Revealed === true || !!backend?._reveal?.player1,
+        player2Revealed: backend?.player2Revealed === true || !!backend?._reveal?.player2,
+        backendWinner: backend?.backendWinner || null, // ✅ Add this
       };
     });
 
@@ -371,14 +385,8 @@ const loadGames = useCallback(async () => {
 }, [provider]);
 
 useEffect(() => {
-  loadGames();
-
-  const interval = setInterval(() => {
-    loadGames();
-  }, 60000); // every 60s (safe, not spammy)
-
-  return () => clearInterval(interval);
-}, [loadGames]);
+  window.__GAMES__ = games;
+}, [games]);
 
   /* ---------------- SSE CONNECTION ---------------- */
   useEffect(() => {
@@ -531,15 +539,6 @@ const createGame = useCallback(async () => {
       }),
     });
 
-    /* ---------- Save reveal locally for auto-reveal ---------- */
-    localStorage.setItem("p1_salt", salt.toString());
-    localStorage.setItem("p1_nftContracts", JSON.stringify(nftContracts));
-    localStorage.setItem("p1_tokenIds", JSON.stringify(tokenIds.map(t => t.toString())));
-    localStorage.setItem(
-      "p1_backgrounds",
-      JSON.stringify(nfts.map(n => n.metadata?.background || "unknown"))
-    );
-
     /* ---------- Download reveal backup ---------- */
     downloadRevealBackup({
       gameId,
@@ -640,24 +639,40 @@ const autoRevealIfPossible = useCallback(
     if (!saltStr || !nftContractsStr || !tokenIdsStr) return;
 
     try {
-      const salt = BigInt(saltStr);
-      const nftContracts = JSON.parse(nftContractsStr);
-      const tokenIds = JSON.parse(tokenIdsStr).map(BigInt);
+ const salt = BigInt(saltStr);
+ const tokenIds = JSON.parse(tokenIdsStr).map(BigInt);
 
+      /* ---------------- BACKEND PRE-REVEAL (🔥 THIS WAS MISSING) ---------------- */
+      const preRes = await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          player: account.toLowerCase(),
+          salt,
+          nftContractsStr,
+          tokenIds,
+        }),
+      });
+
+      const preData = await preRes.json();
+      if (!preRes.ok) throw new Error(preData.error);
+
+      /* ---------------- ON-CHAIN REVEAL ---------------- */
       const tx = await gameContract.reveal(
         BigInt(g.id),
-        salt,
-        nftContracts,
-        tokenIds
+        BigInt(preData.savedReveal.salt),
+        preData.savedReveal.nftContracts,
+        preData.savedReveal.tokenIds.map(BigInt)
       );
-
       await tx.wait();
 
-      // ✅ Confirm with backend AFTER success
+      /* ---------------- BACKEND CONFIRM ---------------- */
       await fetch(`${BACKEND_URL}/games/${g.id}/reveal-confirmed`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ player: account.toLowerCase() }),
+        body: JSON.stringify({
+          player: account.toLowerCase(),
+        }),
       });
 
       await loadGames();
@@ -769,8 +784,9 @@ const autoSettleIfPossible = useCallback(
     try {
       const tx = await gameContract.settleGame(BigInt(g.id));
       await tx.wait();
+      
 
-      // Optional backend post-settle sync
+      // 🔥 BACKEND SYNC
       await fetch(`${BACKEND_URL}/games/${g.id}/post-winner`, {
         method: "POST",
       });
@@ -782,6 +798,7 @@ const autoSettleIfPossible = useCallback(
   },
   [signer, account, gameContract, loadGames]
 );
+
 /* --------- TRIGGER AUTO-REVEAL AND AUTO-SETTLE ON GAMES LOAD --------- */
 useEffect(() => {
   if (!games.length || !account) return;
@@ -791,6 +808,58 @@ useEffect(() => {
     autoSettleIfPossible(g);
   });
 }, [games, account, autoRevealIfPossible, autoSettleIfPossible]);
+
+const manualSettleGame = useCallback(
+  async (gameId) => {
+    try {
+      if (!signer || !account || !gameContract) {
+        alert("Wallet not ready");
+        return;
+      }
+
+      const g = games.find(x => x.id === gameId);
+      if (!g) {
+        alert("Game not found");
+        return;
+      }
+
+      if (!g.player1Revealed || !g.player2Revealed) {
+        alert("Both players must reveal first");
+        return;
+      }
+
+      if (g.settled) {
+        alert("Game already settled");
+        return;
+      }
+
+      // 🔹 STEP 1: Ensure winner is posted (backend authoritative)
+      const res = await fetch(`${BACKEND_URL}/games/${gameId}/post-winner`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to post winner");
+      }
+
+      console.log("Winner posted:", data.winner);
+
+      // 🔹 STEP 2: Settle on-chain
+      const tx = await gameContract.settleGame(BigInt(gameId));
+      await tx.wait();
+
+      alert("Game settled successfully!");
+      await loadGames();
+
+    } catch (err) {
+      console.error("Manual settle failed:", err);
+      alert(err.message || "Manual settle failed");
+    }
+  },
+  [games, signer, account, gameContract, loadGames]
+);
 
 /* ---------------- UI ---------------- */
 return (
@@ -1003,14 +1072,15 @@ return (
     {[...games]
       .sort((a, b) => b.id - a.id)
       .map((g) => {
-        const isPlayer1 =
-          g.player1?.toLowerCase() === account?.toLowerCase();
-        const isPlayer2 =
-          g.player2?.toLowerCase() === account?.toLowerCase();
+const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
+  const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
+const bothRevealed =
+  g.player1Revealed === true &&
+  g.player2Revealed === true;
 
-        const bothRevealed =
-          g.player1Revealed === true &&
-          g.player2Revealed === true;
+const canSettle =
+  bothRevealed &&
+  !g.settled;
 
         return (
           <div
@@ -1106,6 +1176,22 @@ return (
                 />
               </label>
             )}
+
+{canSettle && (
+  <button
+    onClick={() => manualSettleGame(g.id)}
+    style={{
+      marginTop: 8,
+      background: "#4caf50",
+      color: "#fff",
+      padding: "6px 10px",
+      borderRadius: 4,
+      cursor: "pointer",
+    }}
+  >
+    Settle Game
+  </button>
+)}
 
             {/* Result */}
             {g.settled && (
