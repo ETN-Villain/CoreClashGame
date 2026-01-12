@@ -167,65 +167,73 @@ router.post("/:id/reveal", (req, res) => {
 router.post("/:id/post-winner", async (req, res) => {
   try {
     const gameId = Number(req.params.id);
-console.log("Game ID:", gameId);
-    if (isNaN(gameId)) return res.status(400).json({ error: "Invalid game ID" });
+    if (!Number.isInteger(gameId)) {
+      return res.status(400).json({ error: "Invalid game ID" });
+    }
 
-    // Load games and find the one we want
     const games = loadGames();
     const game = games.find(g => g.id === gameId);
     if (!game) return res.status(404).json({ error: "Game not found" });
 
-    // Require both reveals
+    // 🔒 Idempotency guard
+    if (game.backendWinner) {
+      return res.json({
+        success: true,
+        gameId,
+        winner: game.backendWinner,
+        alreadyPosted: true,
+      });
+    }
+
+    // 🔒 Require both reveals
     if (!game._reveal?.player1 || !game._reveal?.player2) {
       return res.status(400).json({ error: "Both players must reveal" });
     }
 
-    // Resolve winner using gameLogic
+    // 🎯 Resolve game
     const resolved = await resolveGame(game);
-    if (!resolved) return res.status(400).json({ error: "Game could not be resolved" });
+    if (!resolved) {
+      return res.status(400).json({ error: "Game could not be resolved" });
+    }
 
-    // Determine Solidity-compatible winner
-    let winnerAddress = ethers.ZeroAddress; // tie by default
+    // 🧠 Determine Solidity-compatible winner
+    let winnerAddress = ethers.ZeroAddress;
+
     if (!resolved.tie && resolved.winner) {
-      // normalize winner address to match exactly one of the on-chain players
       const winnerLc = resolved.winner.toLowerCase();
-      if (winnerLc === game.player1.toLowerCase()) winnerAddress = game.player1;
-      else if (winnerLc === game.player2.toLowerCase()) winnerAddress = game.player2;
-      else {
-        // fallback: tie if winner is somehow invalid
-        console.warn("Resolved winner does not match any player, defaulting to tie");
-        winnerAddress = ethers.ZeroAddress;
-console.log("Player1:", game.player1);
-console.log("Player2:", game.player2);
+
+      if (winnerLc === game.player1.toLowerCase()) {
+        winnerAddress = game.player1;
+      } else if (winnerLc === game.player2.toLowerCase()) {
+        winnerAddress = game.player2;
       }
     }
 
-    console.log("Posting winner:", { gameId, winnerAddress, player1: game.player1, player2: game.player2 });
+    console.log("Posting winner:", {
+      gameId,
+      winnerAddress,
+      player1: game.player1,
+      player2: game.player2,
+    });
 
-    // ------------------ Setup provider and wallet ------------------
-    if (!BACKEND_PRIVATE_KEY.startsWith("0x")) {
-      throw new Error("Backend private key must start with 0x");
-    }
-    const provider = new ethers.JsonRpcProvider(RPC_URL);
-    const signer = new ethers.Wallet(BACKEND_PRIVATE_KEY, provider);
-
-    // ------------------ Connect to contract ------------------
-    const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
-
-    // ------------------ Call postWinner on-chain ------------------
+    // ⛓️ Post on-chain
     const tx = await contract.postWinner(gameId, winnerAddress);
     await tx.wait();
 
-    // ------------------ Persist locally ------------------
+    // 💾 Persist canonical backend state
     game.backendWinner = winnerAddress;
+    game.tie = resolved.tie;
+    game.player1Revealed = true;
+    game.player2Revealed = true;
+    game.winnerResolvedAt = new Date().toISOString();
+
     saveGames(games);
 
-    // ------------------ Response ------------------
     res.json({
       success: true,
       gameId,
       winner: winnerAddress,
-      tie: resolved.tie
+      tie: resolved.tie,
     });
 
   } catch (err) {
@@ -233,6 +241,11 @@ console.log("Player2:", game.player2);
     res.status(500).json({ error: err.message });
   }
 });
+
+    // ------------------ Setup provider and wallet ------------------
+    if (!BACKEND_PRIVATE_KEY.startsWith("0x")) {
+      throw new Error("Backend private key must start with 0x");
+    }
 
 // ---------------- CANCEL GAME ----------------
 router.post("/:id/cancel", (req, res) => {

@@ -233,10 +233,29 @@
     "winner": null,
     "tie": false,
     "_reveal": {
-      "player1": null,
+      "player1": {
+        "salt": "112454866996478832835870759000403772604158155898621556142814816186908617228025",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "59",
+          "266",
+          "395"
+        ],
+        "tokenURIs": [
+          "378.json",
+          "403.json",
+          "178.json"
+        ]
+      },
       "player2": null
     },
-    "settled": false
+    "settled": false,
+    "player1Revealed": true,
+    "player2Revealed": false
   },
   {
     "id": 13,
@@ -378,5 +397,110 @@
     },
     "settled": false,
     "player2JoinedAt": "2026-01-09T16:33:53.101Z"
+  },
+  {
+    "id": 17,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": null,
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.1",
+    "createdAt": "2026-01-09T21:54:31.797Z",
+    "cancelled": false,
+    "winner": null,
+    "tie": false,
+    "_reveal": {
+      "player1": null,
+      "player2": null
+    },
+    "settled": false
+  },
+  {
+    "id": 18,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.1",
+    "createdAt": "2026-01-09T21:58:54.416Z",
+    "cancelled": false,
+    "winner": null,
+    "tie": false,
+    "_reveal": {
+      "player1": null,
+      "player2": null
+    },
+    "settled": false,
+    "player2JoinedAt": "2026-01-09T22:00:37.946Z"
+  },
+  {
+    "id": 19,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": null,
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.1",
+    "createdAt": "2026-01-09T22:10:31.896Z",
+    "cancelled": false,
+    "winner": null,
+    "tie": false,
+    "_reveal": {
+      "player1": null,
+      "player2": null
+    },
+    "settled": false
+  },
+  {
+    "id": 20,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.1",
+    "createdAt": "2026-01-09T22:14:32.185Z",
+    "cancelled": false,
+    "winner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "tie": false,
+    "_reveal": {
+      "player1": {
+        "salt": "44494207178369679334872887709384760396892439468272188229165651337276179974577",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "59",
+          "370",
+          "460"
+        ],
+        "tokenURIs": [
+          "378.json",
+          "419.json",
+          "94.json"
+        ]
+      },
+      "player2": {
+        "salt": "38130395610939210034833886986095775410054964693703158556346699879059055046100",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "428",
+          "442",
+          "425"
+        ],
+        "tokenURIs": [
+          "455.json",
+          "421.json",
+          "332.json"
+        ]
+      }
+    },
+    "settled": false,
+    "player2JoinedAt": "2026-01-09T22:16:19.652Z",
+    "player1Revealed": true,
+    "player2Revealed": true,
+    "settledAt": "2026-01-12T11:47:30.478Z",
+    "backendWinner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "winnerResolvedAt": "2026-01-12T11:47:36.578Z"
   }
 ]
