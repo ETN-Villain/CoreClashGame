@@ -36,3 +36,25 @@
     transform: rotate(360deg);
   }
 }
+
+.round-tooltip-trigger {
+  position: relative;
+  cursor: pointer;
+}
+
+.round-tooltip {
+  display: none;
+  position: absolute;
+  top: 130%;
+  left: 0;
+  background: #111;
+  border: 1px solid #333;
+  padding: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 9999;
+}
+
+.round-tooltip-trigger:hover .round-tooltip {
+  display: block;
+}

@@ -63,13 +63,15 @@ if (cache[wallet]) {
 
       // Metadata
       let metadata = {};
+      let fileName = null;
       try {
         const uri = await nft.tokenURI(tokenId);
         const fileName = path.basename(uri);
         const jsonPath = path.join(METADATA_JSON_DIR, fileName);
         if (fs.existsSync(jsonPath)) metadata = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
-      } catch {}
-
+} catch (err) {
+  console.warn(`⚠️ Failed to load metadata for token ${tokenId}:`, err.message);
+}
       ownedNFTs.push({
         tokenId: tokenId.toString(),
         tokenURI: fileName,
@@ -79,7 +81,7 @@ if (cache[wallet]) {
       });
 
       // Short delay to prevent RPC rate limit
-      await delay(50);
+      await delay(250);
     }
 
     cache[wallet] = ownedNFTs;
