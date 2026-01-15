@@ -220,15 +220,6 @@ router.post("/:id/post-winner", async (req, res) => {
     const tx = await contract.postWinner(gameId, winnerAddress);
     await tx.wait();
 
-    // ------------------ Mark game settled (canonical) ------------------
-game.settled = true;
-game.settledAt = new Date().toISOString();
-
-// Optional but recommended: mirror chain winner
-game.winner = winnerAddress;
-
-saveGames(games);
-
     // 💾 Persist canonical backend state
     game.backendWinner = winnerAddress;
     game.tie = resolved.tie;
@@ -245,6 +236,48 @@ saveGames(games);
 
   } catch (err) {
     console.error("post-winner error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ---------------- FINALIZE SETTLE ---------------- */
+router.post("/:id/finalize-settle", (req, res) => {
+  try {
+    const gameId = Number(req.params.id);
+    const { txHash } = req.body;
+
+    if (!txHash) {
+      return res.status(400).json({ error: "Missing txHash" });
+    }
+
+    const games = loadGames();
+    const game = games.find(g => g.id === gameId);
+    if (!game) return res.status(404).json({ error: "Game not found" });
+
+    if (game.settled) {
+      return res.json({ success: true, alreadySettled: true });
+    }
+
+    if (!game.backendWinner && !game.tie) {
+      return res.status(400).json({ error: "Winner not posted yet" });
+    }
+
+    // ✅ Canonical settlement
+    game.settled = true;
+    game.settleTxHash = txHash;
+    game.settledAt = new Date().toISOString();
+    game.winner = game.backendWinner ?? ethers.ZeroAddress;
+
+    saveGames(games);
+
+    res.json({
+      success: true,
+      gameId,
+      txHash,
+    });
+
+  } catch (err) {
+    console.error("finalize-settle error:", err);
     res.status(500).json({ error: err.message });
   }
 });

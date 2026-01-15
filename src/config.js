@@ -1,4 +1,4 @@
-export const GAME_ADDRESS = "0x21CF93CAC2AceA9f505a64A2126C1Bdc5C5F5836";
+export const GAME_ADDRESS = "0x113129F0865058A840d7ad78A655735A590C7c03";
 export const CHAIN_ID = 52014; // Electroneum mainnet (example)
 export const RPC_URL = "https://rpc.ankr.com/electroneum";
 export const IPFS_BASE = "https://ipfs.io/ipfs/QmZMPmh6qg31NqH5tFKoQ5k3uMDBNMxkQUS7tyqCZstUNv/";
