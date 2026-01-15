@@ -7,7 +7,12 @@ import { GAME_ADDRESS, WHITELISTED_TOKENS, WHITELISTED_NFTS, RARE_BACKGROUNDS,
          ADMIN_ADDRESS } from "./config.js";
 import mapping from "./mapping.json";
 
+import { CoreClashLogo, AppBackground, PlanetZephyrosAE } from "./appMedia/media.js";
+import GameCard from "./gameCard.jsx";
+
 const BACKEND_URL = "http://localhost:3001";
+
+export default function App() {
 
 /**
  * @typedef {Object} OwnedNFT
@@ -44,8 +49,7 @@ const renderTeamImages = (playerReveal) => {
   );
 };
 
-export default function App() {
-/* ---------------- WALLET ---------------- */
+ /* ---------------- WALLET ---------------- */
 const [provider, setProvider] = useState(null);
 const [signer, setSigner] = useState(null);
 const [account, setAccount] = useState(null);
@@ -62,8 +66,14 @@ const connectWallet = useCallback(async () => {
   try {
     const prov = new ethers.BrowserProvider(window.ethereum);
 
-    // 👇 User must approve connection
-    await window.ethereum.request({ method: "eth_requestAccounts" });
+    // 👇 Only request accounts when user clicks
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+
+    if (!accounts || accounts.length === 0) {
+      // User rejected or no accounts
+      setWalletError("Wallet connection rejected.");
+      return;
+    }
 
     const signer = await prov.getSigner();
     const addr = await signer.getAddress();
@@ -72,9 +82,18 @@ const connectWallet = useCallback(async () => {
     setSigner(signer);
     setAccount(addr);
     setWalletError(null);
-  } catch (err) {
-    console.error("MetaMask connect failed:", err);
-    setWalletError(err.message || "MetaMask connection failed");
+} catch (err) {
+    // 🔥 USER REJECTED CONNECTION (MetaMask code 4001 / ethers ACTION_REJECTED)
+    if (
+      err?.code === 4001 ||
+      err?.code === "ACTION_REJECTED"
+    ) {
+      setWalletError("Connect wallet to play");
+      return;
+    }
+
+    console.error("Wallet connection failed:", err);
+    setWalletError("Wallet connection failed");
   }
 }, []);
 
@@ -86,37 +105,42 @@ useEffect(() => {
     try {
       const prov = new ethers.BrowserProvider(window.ethereum);
       const accounts = await window.ethereum.request({ method: "eth_accounts" });
-      if (accounts.length === 0) return;
 
+      if (accounts.length === 0) {
+        // No wallet connected — do nothing
+        setAccount(null);
+        return;
+      }
+
+      // Wallet previously connected, restore state silently
       const signer = await prov.getSigner();
       setProvider(prov);
       setSigner(signer);
       setAccount(accounts[0]);
+      setWalletError(null);
     } catch {
-      // silent fail
+      // Silent fail, do not block app
+      setAccount(null);
     }
   };
 
   restoreWallet();
 
-  // Listen for account changes (user switches wallet)
-  window.ethereum.on("accountsChanged", (accounts) => {
+  // Listen for account changes
+  const handleAccountsChanged = (accounts) => {
     if (accounts.length === 0) {
       setAccount(null);
       setOwnedNFTs([]);
     } else {
       setAccount(accounts[0]);
     }
-  });
+  };
 
-  // Optional: listen for network changes
-  window.ethereum.on("chainChanged", () => {
-    window.location.reload();
-  });
+  window.ethereum.on("accountsChanged", handleAccountsChanged);
+  window.ethereum.on("chainChanged", () => window.location.reload());
 
-  // Cleanup listeners on unmount
   return () => {
-    window.ethereum.removeAllListeners("accountsChanged");
+    window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
     window.ethereum.removeAllListeners("chainChanged");
   };
 }, []);
@@ -364,17 +388,21 @@ const loadGames = useCallback(async () => {
     const res = await fetch(`${BACKEND_URL}/games`);
     const backendGames = await res.json();
 
-    const merged = loaded.map(g => {
-      const backend = backendGames.find(bg => bg.id === g.id);
+const merged = loaded.map(g => {
+  const backend = backendGames.find(bg => bg.id === g.id);
 
-      return {
-        ...g,
-        _reveal: backend?._reveal || null,
-        player1Revealed: backend?.player1Revealed === true || !!backend?._reveal?.player1,
-        player2Revealed: backend?.player2Revealed === true || !!backend?._reveal?.player2,
-        backendWinner: backend?.backendWinner || null, // ✅ Add this
-      };
-    });
+  return {
+    ...g,
+    _reveal: backend?._reveal || null,
+    player1Revealed: backend?.player1Revealed === true || !!backend?._reveal?.player1,
+    player2Revealed: backend?.player2Revealed === true || !!backend?._reveal?.player2,
+    backendWinner: backend?.backendWinner || null,
+
+    // ✅ Add this to populate team images after reveal
+    player1Reveal: backend?._reveal?.player1 || null,
+    player2Reveal: backend?._reveal?.player2 || null,
+  };
+});
 
     setGames(merged);
   } catch (err) {
@@ -383,6 +411,13 @@ const loadGames = useCallback(async () => {
     setLoadingGames(false);
   }
 }, [provider]);
+
+// 🔥 Auto-load games when provider becomes available
+useEffect(() => {
+  if (provider) {
+    loadGames();
+  }
+}, [provider, loadGames]);
 
 useEffect(() => {
   window.__GAMES__ = games;
@@ -582,6 +617,7 @@ const joinGame = async (gameId) => {
     const nftContracts = nfts.map(n => n.address);
     const tokenIds = nfts.map(n => BigInt(n.tokenId));
 
+    // Solidity commit hash
     const commit = ethers.solidityPackedKeccak256(
       ["uint256", "address", "address", "address", "uint256", "uint256", "uint256"],
       [salt, ...nftContracts, ...tokenIds]
@@ -592,15 +628,23 @@ const joinGame = async (gameId) => {
     await tx.wait();
 
     /* ---------- Notify backend ---------- */
-    await fetch(`http://localhost:3001/games/${numericGameId}/join`, {
+    await fetch(`${BACKEND_URL}/games/${numericGameId}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        player2: account,
-      }),
+      body: JSON.stringify({ player2: account.toLowerCase() }),
     });
 
-    /* ---------- Save reveal backup ---------- */
+    /* ---------- Save reveal backup in localStorage for auto-reveal ---------- */
+const prefix = `${account.toLowerCase()}_${numericGameId}`;
+
+localStorage.setItem(`${prefix}_salt`, salt.toString());
+localStorage.setItem(`${prefix}_nftContracts`, JSON.stringify(nftContracts));
+localStorage.setItem(
+  `${prefix}_tokenIds`,
+  JSON.stringify(tokenIds.map(t => t.toString()))
+);
+
+    // Optional downloadable backup
     downloadRevealBackup({
       gameId: numericGameId,
       player: account.toLowerCase(),
@@ -610,7 +654,9 @@ const joinGame = async (gameId) => {
     });
 
     alert(`Joined game #${numericGameId} successfully!`);
-    await loadGames();
+
+    /* ---------- Reload games and trigger auto-reveal ---------- */
+    await loadGames(); // refresh window.__GAMES__
 
   } catch (err) {
     console.error("Join game failed:", err);
@@ -627,33 +673,47 @@ const autoRevealIfPossible = useCallback(
     const isP2 = g.player2?.toLowerCase() === account.toLowerCase();
     if (!isP1 && !isP2) return;
 
-    if ((isP1 && g.player1Revealed) || (isP2 && g.player2Revealed)) return;
-    if (isP1 && g.player2 === ethers.ZeroAddress) return;
+    // Already revealed? Nothing to do
+    if ((isP1 && g.player1Revealed) || (isP2 && g.player2Revealed)) {
+      console.log("Auto-reveal skipped: already revealed", g.id);
+      return;
+    }
 
-    const prefix = isP1 ? "p1" : `p2_${g.id}`;
+    // Player 1 cannot reveal before Player 2 has joined
+    if (isP1 && g.player2 === ethers.ZeroAddress) {
+      console.log("Auto-reveal skipped: waiting for Player 2 to join", g.id);
+      return;
+    }
+
+const prefix = `${account.toLowerCase()}_${g.id}`;
 
     const saltStr = localStorage.getItem(`${prefix}_salt`);
     const nftContractsStr = localStorage.getItem(`${prefix}_nftContracts`);
     const tokenIdsStr = localStorage.getItem(`${prefix}_tokenIds`);
 
-    if (!saltStr || !nftContractsStr || !tokenIdsStr) return;
+    if (!saltStr || !nftContractsStr || !tokenIdsStr) {
+      console.log("Auto-reveal skipped: missing localStorage", {
+        saltStr, nftContractsStr, tokenIdsStr
+      });
+      return;
+    }
 
     try {
- const salt = BigInt(saltStr);
- const tokenIds = JSON.parse(tokenIdsStr).map(BigInt);
+      const salt = BigInt(saltStr);
+      const nftContracts = JSON.parse(nftContractsStr);
+      const tokenIds = JSON.parse(tokenIdsStr).map(BigInt);
 
-      /* ---------------- BACKEND PRE-REVEAL (🔥 THIS WAS MISSING) ---------------- */
-      const preRes = await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          player: account.toLowerCase(),
-          salt,
-          nftContractsStr,
-          tokenIds,
-        }),
-      });
-
+      /* ---------------- BACKEND PRE-REVEAL ---------------- */
+const preRes = await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    player: account.toLowerCase(),
+    salt: salt.toString(),              // convert BigInt → string
+    nftContracts,                        // array of addresses is fine
+    tokenIds: tokenIds.map(t => t.toString()), // convert each BigInt → string
+  }),
+});
       const preData = await preRes.json();
       if (!preRes.ok) throw new Error(preData.error);
 
@@ -666,16 +726,11 @@ const autoRevealIfPossible = useCallback(
       );
       await tx.wait();
 
-      /* ---------------- BACKEND CONFIRM ---------------- */
-      await fetch(`${BACKEND_URL}/games/${g.id}/reveal-confirmed`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          player: account.toLowerCase(),
-        }),
-      });
+      console.log("Auto-reveal completed for game", g.id);
 
+      // 🔥 Reload games immediately to update UI
       await loadGames();
+
     } catch (err) {
       console.error("Auto-reveal failed:", err);
     }
@@ -749,16 +804,6 @@ const handleRevealFile = useCallback(async (e) => {
 
     await tx.wait();
 
-    // ------------------- Confirm reveal in backend -------------------
-    const confirmRes = await fetch(`${BACKEND_URL}/games/${gameId}/reveal-confirmed`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ player: account.toLowerCase() }),
-    });
-
-    const confirmData = await confirmRes.json();
-    if (!confirmRes.ok) throw new Error(confirmData.error || "Reveal confirmation failed");
-
     alert("Reveal successful!");
     await loadGames(); // refresh UI
 
@@ -805,7 +850,11 @@ useEffect(() => {
 
   games.forEach((g) => {
     autoRevealIfPossible(g);
-    autoSettleIfPossible(g);
+
+    // ⛔ NEVER try to settle unless reveals are complete
+    if (g.player1Revealed && g.player2Revealed) {
+      autoSettleIfPossible(g);
+    }
   });
 }, [games, account, autoRevealIfPossible, autoSettleIfPossible]);
 
@@ -861,363 +910,404 @@ const manualSettleGame = useCallback(
   [games, signer, account, gameContract, loadGames]
 );
 
-/* ---------------- UI ---------------- */
-return (
-  <div style={{ padding: 20, maxWidth: 900 }}>
-    <h1>Core Clash</h1>
+/* ---------------- BACKGROUND PRIORITY ---------------- */
+const backgroundPriority = {
+  Gold: 0,
+  "Verdant Green": 1,
+  Silver: 2,
+};
 
-    {!account ? (
-      <button onClick={connectWallet}>Connect Wallet</button>
-    ) : (
-      <p>Connected: {account}</p>
-    )}
+/* ---------------- FILTERED + SORTED GAMES ---------------- */
+const openGames = [...games]
+  .filter(g => g.player2 === ethers.ZeroAddress)
+  .sort((a, b) => b.id - a.id);
 
-    {walletError && (
-      <div style={{ color: "red", marginBottom: 10 }}>
-        Wallet error: {walletError}
-      </div>
-    )}
+const activeGames = [...games]
+  .filter(g => g.player2 !== ethers.ZeroAddress && !g.settled)
+  .sort((a, b) => b.id - a.id);
 
-    {/* ================= CREATE GAME ================= */}
-    <h2>Create Game</h2>
+const settledGames = [...games]
+  .filter(g => g.settled)
+  .sort((a, b) => b.id - a.id);
 
-<label>Stake Token</label>
-<select
-  value={stakeToken}
-  onChange={(e) => setStakeToken(e.target.value)}
-  style={{ width: "100%", marginBottom: 6 }}
->
-  {WHITELISTED_TOKENS.map((t) => (
-    <option key={t.address} value={t.address}>
-      {t.label}
-    </option>
+/* ---------------- RENDER GAME CARD ---------------- */
+<>
+{openGames.map((g) => (
+    <GameCard
+      key={g.id}
+      g={g}
+      account={account}
+      signer={signer}
+      approveTokens={approveTokens}
+      joinGame={joinGame}
+      manualSettleGame={manualSettleGame}
+      handleRevealFile={handleRevealFile}
+      renderTeamImages={renderTeamImages}
+    />
   ))}
-</select>
+</>
+  /* ---------------- GAME CARD PROPS ---------------- */
+const gameCardProps = {
+  account,
+  signer,
+  approveTokens,
+  joinGame,
+  manualSettleGame,
+  handleRevealFile,
+  renderTeamImages,
+};
 
-<label>Stake Amount</label>
-<input
-  value={stakeAmount}
-  onChange={(e) => setStakeAmount(e.target.value)}
-  style={{ width: "100%", marginBottom: 12 }}
-/>
+/* ---------------- UI ---------------- */
+const [loading, setLoading] = useState(true);
+const [countdown, setCountdown] = useState(5);
 
-<h3>NFT Team (3)</h3>
-{nfts.map((n, i) => (
-  <div key={i} style={{ marginBottom: 12 }}>
-    {/* NFT Collection Dropdown */}
-    <select
-      value={n.address}
-      onChange={(e) => updateNFT(i, "address", e.target.value)}
-      style={{ width: "40%", marginRight: 8 }}
-    >
-      <option value="">Select NFT</option>
-      {WHITELISTED_NFTS.map((nft) => (
-        <option key={nft.address} value={nft.address}>
-          {nft.label}
-        </option>
-      ))}
-    </select>
+// Countdown effect
+useEffect(() => {
+  if (!loading) return;
 
-    {/* Token ID Dropdown */}
-    <label style={{ marginLeft: 8 }}>Token ID</label>
-<select
-  value={n.tokenId}
-  onChange={(e) => {
-    const tokenId = e.target.value;
-    const selected = ownedNFTs.find(
-      (nft) =>
-        nft.tokenId === tokenId &&
-        nft.nftAddress?.toLowerCase() === n.address?.toLowerCase()
-    );
-    setNfts((prev) =>
-      prev.map((slot, idx) =>
-        idx === i
-          ? {
-              ...slot,
-              tokenId,
-              metadata: selected
-                ? { name: selected.name, background: selected.background }
-                : null,
-              tokenURI: selected?.tokenURI,
-              address: selected?.nftAddress || slot.address,
-            }
-          : slot
-      )
-    );
-  }}
-  style={{ width: "55%", marginLeft: 8 }}
->
-  <option value="">Select your NFT</option>
-  {ownedNFTs
-    .filter(
-      (nft) =>
-        nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
-        !nfts.some((s, idx) => idx !== i && s.tokenId === nft.tokenId)
-    )
-    .map((nft) => (
-      <option key={nft.tokenId} value={nft.tokenId}>
-        #{nft.tokenId} — {nft.name} ({nft.background})
-      </option>
-    ))}
-</select>
+  const timer = setInterval(() => {
+    setCountdown((prev) => {
+      if (prev === 1) {
+        clearInterval(timer);
+        setLoading(false);
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
 
-    {/* NFT Metadata Preview */}
-{n.metadata && (
-  <div
-    style={{
-      marginTop: 8,
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-      background: "#0f0f0f",
-      padding: 8,
-      borderRadius: 8,
-      border: "1px solid #333",
-    }}
-  >
-    {/* NFT Image */}
-<img
-  src={
-    mapping[n.tokenId]
-      ? `${BACKEND_URL}/images/${mapping[n.tokenId].replace(".json", "")}.png`
-      : "/placeholder.png"
-  }
-  alt={n.metadata.name || `Token #${n.tokenId}`}
+  return () => clearInterval(timer);
+}, [loading]);
+
+if (loading) {
+  // Loading screen with watermark
+  return (
+    <div style={{ minHeight: "100vh", position: "relative" }}>
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#18bb1a",
+        }}
+      >
+        <img
+          src={CoreClashLogo}
+          alt="Core Clash"
+          style={{
+            width: 800,
+            height: "auto",
+            marginBottom: 0,
+          }}
+        />
+        <p style={{ fontSize: 28, margin: 2 }}>Loading...</p>
+        <p style={{ fontSize: 24, fontWeight: "bold" }}>{countdown}</p>
+      </div>
+    </div>
+  );
+}
+
+// Main app UI
+return (
+  <div style={{ position: "relative", minHeight: "100vh", padding: 20, maxWidth: 900 }}>
+    {/* ---------------- WATERMARK ---------------- */}
+    <div
       style={{
-        width: 72,
-        height: 72,
-        objectFit: "cover",
-        borderRadius: 6,
-        border: "1px solid #444",
-      }}
-      onError={(e) => {
-        e.currentTarget.src = "/placeholder.png"; // fallback
+        position: "fixed",
+        inset: 0,
+        backgroundImage: `url(${AppBackground})`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "center",
+        backgroundSize: "cover",
+        opacity: 0.3,
+        pointerEvents: "none",
+        zIndex: 0,
       }}
     />
 
-    {/* Metadata */}
-    <div style={{ fontSize: 14 }}>
-      <div style={{ fontWeight: "bold" }}>{n.metadata.name}</div>
-      <div style={{ opacity: 0.85 }}>
-        Background: {n.metadata.background}
+    {/* ---------------- APP CONTENT ---------------- */}
+    <div style={{ position: "relative", zIndex: 1 }}>
+      {/* ---------------- WALLET SECTION ---------------- */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          marginBottom: 12,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          {/* LEFT: Logo */}
+          <img
+            src={CoreClashLogo}
+            alt="Core Clash"
+            style={{ height: 120, width: "auto", pointerEvents: "none" }}
+          />
+
+          {/* CENTER: Connect Wallet / Status */}
+          {!account ? (
+            <button
+              onClick={() => {
+                setWalletError(null);
+                connectWallet();
+              }}
+              style={{
+                backgroundColor: "#18bb1a",
+                color: "#fff",
+                border: "none",
+                padding: "12px 24px",
+                fontSize: 18,
+                fontWeight: "bold",
+                borderRadius: 12,
+                cursor: "pointer",
+                boxShadow: "0 0 10px rgba(24,187,26,0.6)",
+                transition: "all 0.2s ease",
+                whiteSpace: "nowrap",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.boxShadow = "0 0 20px rgba(24,187,26,0.9)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.boxShadow = "0 0 10px rgba(24,187,26,0.6)")
+              }
+            >
+              Connect Wallet
+            </button>
+          ) : (
+            <div style={{ fontSize: 16, fontWeight: "bold", padding: "12px 24px" }}>
+              Connected:
+              <div style={{ fontSize: 10, opacity: 0.85 }}>{account}</div>
+            </div>
+          )}
+
+          {/* RIGHT: Video */}
+          <video
+            src={PlanetZephyrosAE}
+            autoPlay
+            loop
+            muted
+            playsInline
+            style={{
+              width: 30,
+              height: 30,
+              objectFit: "cover",
+              borderRadius: 10,
+              pointerEvents: "none",
+            }}
+          />
+        </div>
+
+        {walletError && (
+          <div style={{ fontSize: 14, opacity: 0.7 }}>{walletError}</div>
+        )}
+      </div>
+
+      {/* ---------------- CREATE GAME ---------------- */}
+      <h2>Create Game</h2>
+      <label>Stake Token: </label>
+      <select
+        value={stakeToken}
+        onChange={(e) => setStakeToken(e.target.value)}
+        style={{ width: "20%", marginBottom: 6 }}
+      >
+        {WHITELISTED_TOKENS.map((t) => (
+          <option key={t.address} value={t.address}>
+            {t.label}
+          </option>
+        ))}
+      </select>
+
+      <label> Stake Amount: </label>
+      <input
+        value={stakeAmount}
+        onChange={(e) => setStakeAmount(e.target.value)}
+        style={{ width: "30%", marginBottom: 12 }}
+      />
+
+      <h3>Your Clash Team (3)</h3>
+      {nfts.map((n, i) => (
+        <div key={i} style={{ marginBottom: 12 }}>
+          {/* NFT Collection Dropdown */}
+          <label style={{ marginLeft: 8 }}>NFT Collection: </label>
+          <select
+            value={n.address}
+            onChange={(e) => updateNFT(i, "address", e.target.value)}
+            style={{ width: "20%", marginRight: 8 }}
+          >
+            <option value="">Select NFT Collection</option>
+            {WHITELISTED_NFTS.map((nft) => (
+              <option key={nft.address} value={nft.address}>
+                {nft.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Token ID Dropdown */}
+          <label style={{ marginLeft: 8 }}>Token ID</label>
+          <select
+            value={n.tokenId}
+            onChange={(e) => {
+              const tokenId = e.target.value;
+              const selected = ownedNFTs.find(
+                (nft) =>
+                  nft.tokenId === tokenId &&
+                  nft.nftAddress?.toLowerCase() === n.address?.toLowerCase()
+              );
+              setNfts((prev) =>
+                prev.map((slot, idx) =>
+                  idx === i
+                    ? {
+                        ...slot,
+                        tokenId,
+                        metadata: selected
+                          ? { name: selected.name, background: selected.background }
+                          : null,
+                        tokenURI: selected?.tokenURI,
+                        address: selected?.nftAddress || slot.address,
+                      }
+                    : slot
+                )
+              );
+            }}
+            style={{ width: "30%", marginLeft: 8 }}
+          >
+            <option value="">Select NFT</option>
+            {ownedNFTs
+              .filter(
+                (nft) =>
+                  nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
+                  !nfts.some((s, idx) => idx !== i && s.tokenId === nft.tokenId)
+              )
+              .slice()
+              .sort((a, b) => {
+                const bgA = backgroundPriority[a.background] ?? 99;
+                const bgB = backgroundPriority[b.background] ?? 99;
+                if (bgA !== bgB) return bgA - bgB;
+                const nameCompare = (a.name || "").localeCompare(b.name || "");
+                if (nameCompare !== 0) return nameCompare;
+                return Number(a.tokenId) - Number(b.tokenId);
+              })
+              .map((nft) => (
+                <option key={nft.tokenId} value={nft.tokenId}>
+                  #{nft.tokenId} — {nft.name} ({nft.background})
+                </option>
+              ))}
+          </select>
+
+          {/* NFT Metadata Preview */}
+          {n.metadata && (
+            <div
+              style={{
+                marginTop: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                background: "#0f0f0f",
+                padding: 8,
+                borderRadius: 8,
+                border: "1px solid #333",
+              }}
+            >
+              <img
+                src={
+                  mapping[n.tokenId]
+                    ? `${BACKEND_URL}/images/${mapping[n.tokenId].replace(".json", "")}.png`
+                    : "/placeholder.png"
+                }
+                alt={n.metadata.name || `Token #${n.tokenId}`}
+                style={{
+                  width: 72,
+                  height: 72,
+                  objectFit: "cover",
+                  borderRadius: 6,
+                  border: "1px solid #444",
+                }}
+                onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+              />
+              <div style={{ fontSize: 14 }}>
+                <div style={{ fontWeight: "bold" }}>{n.metadata.name}</div>
+                <div style={{ opacity: 0.85 }}>Background: {n.metadata.background}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <button
+        onClick={loadGames}
+        style={{
+          marginBottom: 12,
+          padding: "6px 12px",
+          border: "1px solid #444",
+          background: "#111",
+          color: "#ddd",
+          cursor: "pointer",
+        }}
+      >
+        🔄 Refresh Games
+      </button>
+
+      {account?.toLowerCase() === ADMIN_ADDRESS && (
+        <button
+          onClick={async () => {
+            await fetch(`${BACKEND_URL}/admin/resync-games`, { method: "POST" });
+            await loadGames();
+            alert("Resync complete");
+          }}
+        >
+          🛠 Resync from Chain
+        </button>
+      )}
+
+      {/* ---------------- STATUS ---------------- */}
+      <div style={{ fontSize: 12, color: "#aaa", marginTop: 12 }}>
+        signer: {signer ? "✅" : "❌"} | validated: {validated ? "✅" : "❌"} | stakeToken:{" "}
+        {stakeToken || "❌"} | stakeAmount: {stakeAmount || "❌"}
+      </div>
+
+      {/* ---------------- ACTION BUTTONS ---------------- */}
+      <div style={{ marginTop: 12 }}>
+        <button disabled={validating} onClick={validateTeam}>
+          {validating ? "Validating..." : "Validate Team"}
+        </button>
+        <button
+          onClick={createGame}
+          disabled={!validated || !stakeToken || !stakeAmount || !signer}
+          style={{ marginLeft: 8 }}
+        >
+          Create Game
+        </button>
+      </div>
+
+      {/* ---------------- GAMES GRID ---------------- */}
+      <h2 style={{ marginTop: 40 }}>Games</h2>
+      {loadingGames && <p>Loading games…</p>}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
+        <div>
+          <h3>🟢 Open</h3>
+          {openGames.map((g) => (
+            <GameCard key={g.id} g={g} {...gameCardProps} />
+          ))}
+        </div>
+        <div>
+          <h3>🟡 In Progress</h3>
+          {activeGames.map((g) => (
+            <GameCard key={g.id} g={g} {...gameCardProps} />
+          ))}
+        </div>
+        <div>
+          <h3>🔵 Settled</h3>
+          {settledGames.map((g) => (
+            <GameCard key={g.id} g={g} {...gameCardProps} />
+          ))}
+        </div>
       </div>
     </div>
-  </div>
-)}
-  </div>
-))}
-
-<button
-  onClick={loadGames}
-  style={{
-    marginBottom: 12,
-    padding: "6px 12px",
-    border: "1px solid #444",
-    background: "#111",
-    color: "#ddd",
-    cursor: "pointer",
-  }}
->
-  🔄 Refresh Games
-</button>
-
-{account?.toLowerCase() === ADMIN_ADDRESS && (
-  <button
-    onClick={async () => {
-      await fetch(`${BACKEND_URL}/admin/resync-games`, { method: "POST" });
-      await loadGames();
-      alert("Resync complete");
-    }}
-  >
-    🛠 Resync from Chain
-  </button>
-)}
-
-{/* ---------------- STATUS ---------------- */}
-<div style={{ fontSize: 12, color: "#aaa" }}>
-  signer: {signer ? "✅" : "❌"} |
-  validated: {validated ? "✅" : "❌"} |
-  stakeToken: {stakeToken || "❌"} |
-  stakeAmount: {stakeAmount || "❌"}
-</div>
-{/* ---------------- Buttons ---------------- */}
-<div style={{ marginTop: 12 }}>
-  <button disabled={validating} onClick={validateTeam}>
-    {validating ? "Validating..." : "Validate Team"}
-  </button>
-
-  <button
-    onClick={approveTokens}
-    disabled={!stakeToken || !stakeAmount || !signer}
-    style={{ marginLeft: 8 }}
-  >
-    Approve Tokens
-  </button>
-
-  <button
-    onClick={createGame}
-    disabled={!validated || !stakeToken || !stakeAmount || !signer}
-    style={{ marginLeft: 8 }}
-  >
-    Create Game
-  </button>
-</div>
-
-    {/* ================= GAMES ================= */}
-    <h2 style={{ marginTop: 40 }}>Games</h2>
-
-    {loadingGames && <p>Loading games…</p>}
-    {!loadingGames && games.length === 0 && <p>No games yet</p>}
-
-    {[...games]
-      .sort((a, b) => b.id - a.id)
-      .map((g) => {
-const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
-  const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
-const bothRevealed =
-  g.player1Revealed === true &&
-  g.player2Revealed === true;
-
-const canSettle =
-  bothRevealed &&
-  !g.settled;
-
-        return (
-          <div
-            key={g.id}
-            style={{
-              border: "1px solid #444",
-              padding: 14,
-              marginBottom: 14,
-            }}
-          >
-            <h3>Game #{g.id}</h3>
-
-<div>🟥 Player 1: {g.player1}</div>
-
-<div style={{ marginTop: 8 }}>
-  🟦 Player 2: {g.player2 ?? "Waiting for opponent"}
-</div>
-
-<div style={{ fontSize: 11, color: "#888" }}>
-  bothRevealed: {String(bothRevealed)} | 
-  isP1: {String(isPlayer1)} | 
-  isP2: {String(isPlayer2)} | 
-  account: {account}
-</div>
-
-{bothRevealed ? (
-  <>
-    <div style={{ marginTop: 10 }}>
-      {renderTeamImages(g._reveal.player1)}
-    </div>
-
-    <div style={{ marginTop: 10 }}>
-      {renderTeamImages(g._reveal.player2)}
-    </div>
-  </>
-) : (
-  <div style={{ marginTop: 10, fontSize: 12, color: "#888" }}>
-    🔒 Teams are hidden until both players reveal
-  </div>
-)}
-
-<div style={{ fontSize: 12, color: "#aaa", marginTop: 6 }}>
-  Reveals: {g.player1Revealed ? "🟥" : "⬜"} / {g.player2Revealed ? "🟦" : "⬜"}
-</div>
-
-            <div style={{ marginTop: 8 }}>
-              Stake: {ethers.formatUnits(g.stakeAmount || "0", 18)}
-            </div>
-
-            {/* Cancel */}
-            {g.player2 === ethers.ZeroAddress && isPlayer1 && (
-              <button
-                onClick={async () => {
-                  try {
-                    const gameContract = new ethers.Contract(
-                      GAME_ADDRESS,
-                      GameABI,
-                      signer
-                    );
-                    const tx = await gameContract.cancelGame(g.id);
-                    await tx.wait();
-                    await fetch(
-                      `${BACKEND_URL}/games/${g.id}/cancel`,
-                      { method: "POST" }
-                    );
-                    await loadGames();
-                  } catch (err) {
-                    alert(err.message || "Cancel failed");
-                  }
-                }}
-              >
-                Cancel Game
-              </button>
-            )}
-
-{/* Join */}
-{g.player2 === ethers.ZeroAddress && g.player1.toLowerCase() !== account.toLowerCase() && (
-  <button onClick={() => joinGame(g.id)}>
-    Join Game
-  </button>
-)}
-
-            {/* Reveal upload */}
-            {((isPlayer1 && !g.player1Revealed) ||
-              (isPlayer2 && !g.player2Revealed)) && (
-              <label style={{ marginLeft: 8, cursor: "pointer" }}>
-                Upload Reveal
-                <input
-                  type="file"
-                  accept=".json"
-                  style={{ display: "none" }}
-                  onChange={handleRevealFile}
-                />
-              </label>
-            )}
-
-{canSettle && (
-  <button
-    onClick={() => manualSettleGame(g.id)}
-    style={{
-      marginTop: 8,
-      background: "#4caf50",
-      color: "#fff",
-      padding: "6px 10px",
-      borderRadius: 4,
-      cursor: "pointer",
-    }}
-  >
-    Settle Game
-  </button>
-)}
-
-            {/* Result */}
-            {g.settled && (
-              <div
-                style={{
-                  marginTop: 14,
-                  padding: 12,
-                  background: "#111",
-                  border: "1px solid #333",
-                }}
-              >
-                <h3>
-                  🏆 Result:{" "}
-                  {g.winner === ethers.ZeroAddress
-                    ? "Draw"
-                    : g.winner?.toLowerCase() ===
-                      g.player1?.toLowerCase()
-                    ? "Player 1 wins"
-                    : "Player 2 wins"}
-                </h3>
-              </div>
-            )}
-          </div>
-        );
-      })}
-
   </div>
 );
 }

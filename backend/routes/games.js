@@ -220,14 +220,21 @@ router.post("/:id/post-winner", async (req, res) => {
     const tx = await contract.postWinner(gameId, winnerAddress);
     await tx.wait();
 
+    // ------------------ Mark game settled (canonical) ------------------
+game.settled = true;
+game.settledAt = new Date().toISOString();
+
+// Optional but recommended: mirror chain winner
+game.winner = winnerAddress;
+
+saveGames(games);
+
     // 💾 Persist canonical backend state
     game.backendWinner = winnerAddress;
     game.tie = resolved.tie;
     game.player1Revealed = true;
     game.player2Revealed = true;
     game.winnerResolvedAt = new Date().toISOString();
-
-    saveGames(games);
 
     res.json({
       success: true,

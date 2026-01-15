@@ -109,31 +109,35 @@ export function computeWinner(traits1Arr, traits2Arr) {
   let player2Points = 0;
   let totalDiff = 0;
 
+  const roundResults = [];
+
   for (let i = 0; i < 3; i++) {
     const { p1_wins, p2_wins, round_diff } = getRoundResult(
       traits1Arr[i],
       traits2Arr[i]
     );
 
-    console.log(`Slot ${i + 1} results:`);
-    console.log("  P1 traits:", traits1Arr[i]);
-    console.log("  P2 traits:", traits2Arr[i]);
-    console.log(`  p1_wins: ${p1_wins}, p2_wins: ${p2_wins}, round_diff: ${round_diff}`);
-
     player1Points += p1_wins;
     player2Points += p2_wins;
     totalDiff += round_diff;
+
+    roundResults.push({
+      round: i + 1,
+      winner:
+        p1_wins ? "player1" :
+        p2_wins ? "player2" :
+        "tie",
+      diff: round_diff
+    });
   }
 
-  console.log(`Total points: P1=${player1Points}, P2=${player2Points}, totalDiff=${totalDiff}`);
+  let winner = "tie";
+  if (player1Points > player2Points) winner = "player1";
+  else if (player2Points > player1Points) winner = "player2";
+  else if (totalDiff > 0) winner = "player1";
+  else if (totalDiff < 0) winner = "player2";
 
-  if (player1Points > player2Points) return "player1";
-  if (player2Points > player1Points) return "player2";
-  if (totalDiff > 0) return "player1";
-  if (totalDiff < 0) return "player2";
-
-  console.log("Final outcome: tie");
-  return "tie";
+  return { winner, roundResults };
 }
 
 /**
@@ -183,15 +187,17 @@ export const resolveGame = async (game) => {
   }
 
   // Compute winner
-  const winnerKey = computeWinner(traits1, traits2);
+const { winner, roundResults } = computeWinner(traits1, traits2);
 
-  if (winnerKey === "tie") {
-    game.winner = null;
-    game.tie = true;
-  } else {
-    game.winner = game[winnerKey];
-    game.tie = false;
-  }
+game.roundResults = roundResults;
+
+if (winner === "tie") {
+  game.winner = null;
+  game.tie = true;
+} else {
+  game.winner = game[winner];
+  game.tie = false;
+}
 
   game.settledAt = new Date().toISOString();
   return game;
