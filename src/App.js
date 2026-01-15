@@ -717,13 +717,13 @@ const preRes = await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
       const preData = await preRes.json();
       if (!preRes.ok) throw new Error(preData.error);
 
-      /* ---------------- ON-CHAIN REVEAL ---------------- */
-      const tx = await gameContract.reveal(
-        BigInt(g.id),
-        BigInt(preData.savedReveal.salt),
-        preData.savedReveal.nftContracts,
-        preData.savedReveal.tokenIds.map(BigInt)
-      );
+const tx = await gameContract.reveal(
+  BigInt(g.id),
+  BigInt(preData.savedReveal.salt),
+  preData.savedReveal.nftContracts,
+  preData.savedReveal.tokenIds.map(BigInt),
+  preData.savedReveal.backgrounds // <-- this is mandatory now
+);
       await tx.wait();
 
       console.log("Auto-reveal completed for game", g.id);
@@ -737,6 +737,19 @@ const preRes = await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
   },
   [signer, account, gameContract, loadGames]
 );
+
+// 🔧 DEBUG ONLY — expose contract + helpers to console
+useEffect(() => {
+  if (gameContract && signer && account) {
+    window.__coreClash = {
+      gameContract,
+      signer,
+      account,
+    };
+    console.log("🧪 Debug helpers exposed as window.__coreClash");
+  }
+}, [gameContract, signer, account]);
+
 
 /* ---------------- REVEAL FILE UPLOAD ---------------- */
 const handleRevealFile = useCallback(async (e) => {
@@ -799,7 +812,8 @@ const handleRevealFile = useCallback(async (e) => {
       BigInt(gameId),
       BigInt(savedReveal.salt),
       savedReveal.nftContracts,
-      savedReveal.tokenIds.map((id) => BigInt(id))
+      savedReveal.tokenIds.map((id) => BigInt(id)),
+      savedReveal.backgrounds // <-- mandatory now
     );
 
     await tx.wait();
@@ -877,34 +891,62 @@ const manualSettleGame = useCallback(
         return;
       }
 
+      if (!g.backendWinner && !g.tie) {
+        alert("Winner not posted yet");
+        return;
+      }
+
       if (g.settled) {
         alert("Game already settled");
         return;
       }
 
-      // 🔹 STEP 1: Ensure winner is posted (backend authoritative)
-      const res = await fetch(`${BACKEND_URL}/games/${gameId}/post-winner`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      /* ---------------- DRY-RUN (CATCH REVERTS EARLY) ---------------- */
+      try {
+        await gameContract.callStatic.settleGame(BigInt(gameId));
+      } catch (simErr) {
+        console.error("Settle simulation failed:", simErr);
+        throw new Error(
+          simErr.reason ||
+          "Settle would revert on-chain (invalid game state)"
+        );
+      }
+
+      /* ---------------- ON-CHAIN SETTLE (SOURCE OF TRUTH) ---------------- */
+      const tx = await gameContract.settleGame(BigInt(gameId));
+      const receipt = await tx.wait();
+
+      console.log("Game settled on-chain:", {
+        gameId,
+        txHash: receipt.hash,
       });
+
+      /* ---------------- BACKEND FINALIZATION ---------------- */
+      const res = await fetch(
+        `${BACKEND_URL}/games/${gameId}/finalize-settle`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            txHash: receipt.hash,
+          }),
+        }
+      );
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to post winner");
+        console.warn("Backend finalize failed:", data);
+        alert(
+          "On-chain settle succeeded, but backend sync failed. Refreshing…"
+        );
       }
-
-      console.log("Winner posted:", data.winner);
-
-      // 🔹 STEP 2: Settle on-chain
-      const tx = await gameContract.settleGame(BigInt(gameId));
-      await tx.wait();
 
       alert("Game settled successfully!");
       await loadGames();
 
     } catch (err) {
       console.error("Manual settle failed:", err);
-      alert(err.message || "Manual settle failed");
+      alert(err.reason || err.message || "Manual settle failed");
     }
   },
   [games, signer, account, gameContract, loadGames]
@@ -1092,8 +1134,8 @@ return (
             muted
             playsInline
             style={{
-              width: 30,
-              height: 30,
+              width: 50,
+              height: 50,
               objectFit: "cover",
               borderRadius: 10,
               pointerEvents: "none",
