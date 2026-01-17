@@ -4,6 +4,12 @@ import mapping from "./mapping.json"; // Frontend mapping
 
 const BACKEND_URL = "http://localhost:3001";
 
+const addressToCollection = {
+  "0x3fc7665b1f6033ff901405cddf31c2e04b8a2ab4": "VKIN",
+  "0x8cfb04c54d35e2e8471ad9040d40d73c08136f0": "VQLE",
+  // add more if needed
+};
+
 /* ---------------- Stable Image Component ---------------- */
 export const StableImage = ({ src, alt }) => {
   const [status, setStatus] = React.useState('loading');
@@ -71,69 +77,104 @@ export default function GameCard({
     !!account &&
     !!signer;
 
-  const bothRevealed = g.player1Revealed && g.player2Revealed;
-  const canSettle = bothRevealed && !g.settled;
+const bothRevealed = g.player1Revealed && g.player2Revealed;
+const canSettle = bothRevealed && !g.settled;
+
+// ← Add this
+console.log(`Game #${g.id} reveal status:`, {
+  bothRevealed,
+  p1Revealed: g.player1Revealed,
+  p2Revealed: g.player2Revealed,
+  p1RevealExists: !!g.player1Reveal,
+  p2RevealExists: !!g.player2Reveal,
+  p1TokenURIs: g.player1Reveal?.tokenURIs,
+  p2TokenURIs: g.player2Reveal?.tokenURIs,
+});
 
   /* ---------------- Render Token Images ---------------- */
-const renderTokenImages = (tokens = []) => {
-  if (!Array.isArray(tokens) || tokens.length === 0) return null;
+const renderTokenImages = (input = []) => {
+  let tokens = [];
+
+  if (Array.isArray(input)) {
+    tokens = input;
+  } else if (input && typeof input === 'object') {
+    const { nftContracts = [], tokenIds = [], tokenURIs = [] } = input;
+
+    console.log("[renderTokenImages] Backend reveal data:", {
+      tokenIds,
+      tokenURIs,
+      nftContracts
+    });
+
+    tokens = tokenIds.map((id, idx) => {
+      const addr = nftContracts[idx];
+      const collection = addressToCollection[addr?.toLowerCase()] || "VKIN";
+
+      let imageFile = `${id}.png`; // only as absolute fallback
+
+      // Trust backend tokenURIs first (this is the remapped name)
+      if (tokenURIs[idx]) {
+        imageFile = tokenURIs[idx]
+          .replace(/\.json$/i, ".png")
+          .toLowerCase();
+        console.log(`Slot ${idx}: Using backend remapped name → ${imageFile}`);
+      } 
+      // Optional: client fallback if backend didn't provide tokenURIs
+      else if (id && mapping[collection]?.[String(id)]) {
+        imageFile = mapping[collection][String(id)]
+          .replace(/\.json$/i, ".png")
+          .toLowerCase();
+        console.log(`Slot ${idx}: Client fallback mapping → ${imageFile}`);
+      }
+
+      return {
+        collection,
+        tokenId: id,
+        imageFile
+      };
+    });
+  }
+
+  if (!tokens.length) {
+    console.log("[renderTokenImages] No tokens to render");
+    return null;
+  }
 
   return (
     <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-{tokens.map((token, i) => {
-  const { collection, tokenId, metadata } = token || {};
+      {tokens.map((token, i) => {
+        const { collection, tokenId, imageFile } = token;
 
-  // ── Log at the very start of each iteration ──
-  console.log(`Processing slot ${i}:`, { 
-    hasToken: !!token, 
-    collection, 
-    tokenId, 
-    tokenIdType: typeof tokenId,
-    metadataExists: !!metadata 
-  });
+        console.log(`Preparing slot ${i}:`, { collection, tokenId, imageFile });
 
-  if (!collection || !tokenId) {
-    console.log(`Slot ${i} → skeleton (missing collection or tokenId)`);
-    return <div key={`skeleton-${i}`} style={{width:80, height:80, background:'#111', border:'1px solid #333', borderRadius:6}} />;
-  }
+        if (!collection || !imageFile) {
+          console.log(`Slot ${i} → using skeleton`);
+          return (
+            <div
+              key={`skeleton-${i}`}
+              style={{
+                width: 80,
+                height: 80,
+                background: "#111",
+                border: "1px solid #333",
+                borderRadius: 6
+              }}
+            />
+          );
+        }
 
-  const lookupId = String(tokenId); // ← already fixed to string
+        const src = `${BACKEND_URL}/images/${collection}/${imageFile}`;
 
-  let jsonFile = null;
-  let imageFile = null;
+        console.log(`Rendering slot ${i}: ${src}`);
 
-  if (collection === "VKIN") {
-    const mapped = mapping[collection]?.[lookupId];
-    if (mapped) {
-      jsonFile = mapped;
-      imageFile = mapped.replace(/\.json$/i, ".png").toLowerCase();
-      console.log(`VKIN hit mapping: ${lookupId} → ${jsonFile} → ${imageFile}`);
-    } else {
-      imageFile = `${tokenId}.png`.toLowerCase();
-      console.log(`VKIN fallback: ${imageFile}`);
-    }
-  } else if (collection === "VQLE") {
-    // ... your VQLE logic ...
-    imageFile = (metadata?.image?.split("/").pop() || `${tokenId}.png`).toLowerCase();
-  } else {
-    imageFile = `${tokenId}.png`.toLowerCase();
-  }
-
-  const src = `${BACKEND_URL}/images/${collection}/${imageFile}`;
-
-  // ── This should now appear if we reach here ──
-  console.log(`Rendering ${collection} #${tokenId} → ${src}`);
-
-  const key = `${collection}-${tokenId}-${i}`;
-
-return (
-  <StableImage
-    key={key}
-    src={src}
-    alt={token.metadata?.name || `${collection} #${tokenId}`}
-  />
-);
-})}
+        return (
+          <StableImage
+            key={`${collection}-${tokenId || i}-${i}`}
+            src={src}
+            alt={`${collection} #${tokenId || '?'}`}
+          />
+        );
+      })}
     </div>
   );
 };
@@ -143,25 +184,58 @@ return (
     <div style={{ border: "1px solid #444", padding: 14, marginBottom: 14 }}>
       <h3 style={{ marginTop: 0, marginBottom: 6 }}>Game #{g.id}</h3>
 
-      {/* PLAYER 1 */}
-      <div>
-        🟥 Player 1: {g.player1 ? `0x...${g.player1.slice(-5)}` : "Waiting for opponent"}
-      </div>
-      <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0}
-      </div>
-{g.player1Revealed && renderTokenImages(g.player1Reveal?.tokenURIs || [])}
-console.log("Passing to renderTokenImages (P1):", g.player1Reveal?.tokenURIs);
+{/* PLAYER 1 */}
+<div>
+  🟥 Player 1: {g.player1 ? `0x...${g.player1.slice(-5)}` : "Waiting for opponent"}
+</div>
+<div style={{ fontSize: 14, marginTop: 2 }}>
+  Stake: {g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0}
+</div>
 
-      {/* PLAYER 2 */}
-      <div style={{ marginTop: 6 }}>
-        🟦 Player 2: {g.player2 && g.player2 !== ethers.ZeroAddress ? `0x...${g.player2.slice(-5)}` : "Waiting for opponent"}
+{/* PLAYER 2 */}
+<div style={{ marginTop: 6 }}>
+  🟦 Player 2: {g.player2 && g.player2 !== ethers.ZeroAddress ? `0x...${g.player2.slice(-5)}` : "Waiting for opponent"}
+</div>
+<div style={{ fontSize: 14, marginTop: 2 }}>
+  Stake: {g.player2 !== ethers.ZeroAddress && g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0}
+</div>
+
+{/* ── TEAM IMAGES + WINNER / RESULTS ── */}
+{bothRevealed ? (
+  <div style={{ marginTop: 16 }}>
+    {/* Winner / Draw announcement (already at top for settled games) */}
+    {g.settled && g.winner && (
+      <div style={{ marginBottom: 12, fontWeight: "bold", fontSize: 18, textAlign: "center" }}>
+        🏆{" "}
+        {g.winner === ethers.ZeroAddress
+          ? "It's a Draw!"
+          : g.winner.toLowerCase() === g.player1?.toLowerCase()
+          ? "Player 1 Wins!"
+          : "Player 2 Wins!"}
       </div>
-      <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {g.player2 !== ethers.ZeroAddress && g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0}
-      </div>
-{g.player2Revealed && renderTokenImages(g.player2Reveal?.tokenURIs || [])}
-console.log("Passing to renderTokenImages (P2):", g.player2Reveal?.tokenURIs);
+    )}
+
+{/* Player 1 Team */}
+<div style={{ marginBottom: 16 }}>
+  <div style={{ fontWeight: "bold", color: "#ff5555", marginBottom: 6 }}>
+    Player 1 Team
+  </div>
+  {renderTokenImages(g.player1Reveal)}   {/* ← pass full object, not .tokenURIs */}
+</div>
+
+{/* Player 2 Team */}
+<div>
+  <div style={{ fontWeight: "bold", color: "#4da3ff", marginBottom: 6 }}>
+    Player 2 Team
+  </div>
+  {renderTokenImages(g.player2Reveal)}   {/* ← same */}
+</div>
+  </div>
+) : (
+  <div style={{ fontSize: 12, color: "#888", marginTop: 12, textAlign: "center" }}>
+    🔒 Teams hidden until both players reveal
+  </div>
+)}
 
       {/* TOTAL POT */}
       {g.player2 !== ethers.ZeroAddress && g.stakeAmount && (

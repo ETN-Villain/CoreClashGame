@@ -47,7 +47,7 @@
         ]
       }
     },
-    "settled": false,
+    "settled": true,
     "player2JoinedAt": "2026-01-15T14:26:15.459Z",
     "player1Revealed": true,
     "player2Revealed": true,
