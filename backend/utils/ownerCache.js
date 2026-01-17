@@ -17,21 +17,37 @@ function ensureCacheDir() {
   }
 }
 
+/**
+ * Read owner cache from disk
+ * Returns: { [wallet]: { VKIN: [], VQLE: [] } }
+ */
 export function readOwnerCache() {
   if (!fs.existsSync(CACHE_FILE)) return {};
-  return JSON.parse(fs.readFileSync(CACHE_FILE, "utf8"));
+  const raw = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8"));
+
+  // Normalize old cache format (wallet -> array) to new structure
+  for (const wallet of Object.keys(raw)) {
+    if (!raw[wallet].VKIN && !raw[wallet].VQLE) {
+      raw[wallet] = { VKIN: raw[wallet] || [], VQLE: [] };
+    }
+  }
+
+  return raw;
 }
 
+/**
+ * Write owner cache to disk
+ * cache: { [wallet]: { VKIN: [], VQLE: [] } }
+ */
 export function writeOwnerCache(cache) {
-  fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
-  fs.writeFileSync(
-    CACHE_FILE,
-    JSON.stringify(cache, null, 2),
-    "utf8"
-  );
+  ensureCacheDir();
+  fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2), "utf8");
   console.log("💾 Owner cache written");
 }
 
+/**
+ * Delete entire owner cache
+ */
 export function deleteCache() {
   if (fs.existsSync(CACHE_FILE)) {
     fs.unlinkSync(CACHE_FILE);

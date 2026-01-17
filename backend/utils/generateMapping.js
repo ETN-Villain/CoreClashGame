@@ -3,117 +3,181 @@ import fs from "fs";
 import path from "path";
 import axios from "axios";
 import { fileURLToPath } from "url";
-import { IPFS_GATEWAY } from "../config.js";
-import { METADATA_JSON_DIR, MAPPING_FILE } from "../paths.js";
 
-/* ------------------ Paths ------------------ */
+import {
+  IPFS_GATEWAYS,
+  VKIN_CONTRACT_ADDRESS,
+  VQLE_IPFS_BASE,
+  RPC_URL,
+} from "../config.js";
+
+import {
+  METADATA_JSON_DIR,
+  METADATA_IMAGES_DIR,
+  MAPPING_FILE,
+} from "../paths.js";
+
+/* ---------------- Paths ---------------- */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const JSON_DIR = METADATA_JSON_DIR;
-const IMAGE_DIR = path.join(JSON_DIR, "images");
-const OUTPUT_CSV = MAPPING_FILE;
+const VKIN_JSON_DIR = path.join(METADATA_JSON_DIR, "VKIN");
+const VKIN_IMAGE_DIR = path.join(METADATA_IMAGES_DIR, "VKIN");
+const VQLE_JSON_DIR = path.join(METADATA_JSON_DIR, "VQLE");
+const VQLE_IMAGE_DIR = path.join(METADATA_IMAGES_DIR, "VQLE");
 
-/* ------------------ Config ------------------ */
-const RPC = "https://rpc.ankr.com/electroneum";
-const CONTRACT_ADDRESS = "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4";
-const MAX_SUPPLY = 474;
-const ABI = ["function tokenURI(uint256 tokenId) view returns (string)"];
+/* ---------------- Config ---------------- */
+const VKIN_MAX_SUPPLY = 474;
+const VQLE_MAX_SUPPLY = 30;
+const VKIN_ABI = ["function tokenURI(uint256 tokenId) view returns (string)"];
 
-/* ------------------ Helpers ------------------ */
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+/* ---------------- Helpers ---------------- */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function fetchWithRetry(contract, tokenId, retries = 5) {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const uri = await contract.tokenURI(tokenId);
-      if (uri && typeof uri === "string" && uri.length > 0) {
-        return uri;
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+async function fetchWithRetries(
+  ipfsUri,
+  retriesPerGateway = 3,
+  retryDelayMs = 5000,
+  responseType = "arraybuffer"
+) {
+  const cidPath = ipfsUri.replace("ipfs://", "");
+
+  for (const gateway of IPFS_GATEWAYS) {
+    const url = `${gateway}/${cidPath}`;
+    console.log(`🌐 Trying: ${url}`);
+
+    for (let attempt = 1; attempt <= retriesPerGateway; attempt++) {
+      try {
+        const res = await axios.get(url, { responseType, timeout: 30_000 });
+        return res.data;
+      } catch (err) {
+        if (err.code === "ENOTFOUND") break; // move to next gateway
+        console.warn(
+          `Attempt ${attempt}/${retriesPerGateway} failed for ${url}: ${err.message}`
+        );
+        if (attempt < retriesPerGateway) await sleep(retryDelayMs);
       }
-      throw new Error("Empty URI");
-    } catch (err) {
-      console.log(`Token ${tokenId}: attempt ${attempt} failed (${err.message})`);
-      if (attempt < retries) await sleep(500);
     }
   }
+
+  console.warn(`❌ All gateways failed for ${ipfsUri}`);
   return null;
 }
 
-/* ------------------ Main ------------------ */
-export async function generateMapping(fullRefresh = false) {
-  METADATA_JSON_DIR;
+/* ---------------- VKIN ---------------- */
+async function generateVKIN(rows, provider) {
+  ensureDir(VKIN_JSON_DIR);
+  ensureDir(VKIN_IMAGE_DIR);
 
-  const provider = new ethers.JsonRpcProvider(RPC);
-  const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+  const contract = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
 
-  const rows = ["token_id,token_uri"];
+  for (let tokenId = 1; tokenId <= VKIN_MAX_SUPPLY; tokenId++) {
+    let jsonFile;
+    let metadata;
 
-  // Load existing CSV if not full refresh
-  if (!fullRefresh && fs.existsSync(OUTPUT_CSV)) {
-    const existing = fs.readFileSync(OUTPUT_CSV, "utf8").split("\n").slice(1).filter(Boolean);
-    rows.push(...existing);
-  }
-
-  for (let tokenId = 1; tokenId <= MAX_SUPPLY; tokenId++) {
-    console.log(`Processing token ${tokenId}/${MAX_SUPPLY}`);
-
-    // Skip if already in CSV
-    if (rows.some(r => r.startsWith(`${tokenId},`))) continue;
-
-    let tokenURI;
+    // Fetch tokenURI from contract
     try {
-      tokenURI = await contract.tokenURI(tokenId);
-    } catch {
-      console.warn(`⚠️ token ${tokenId} not found on chain → skipping`);
-      continue;
+      const tokenURI = await contract.tokenURI(tokenId);
+      if (!tokenURI?.startsWith("ipfs://")) continue;
+
+      // Determine JSON filename from IPFS path
+      jsonFile = path.basename(tokenURI);
+
+      const jsonPath = path.join(VKIN_JSON_DIR, jsonFile);
+
+      if (fs.existsSync(jsonPath)) {
+        metadata = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+      } else {
+        const rawJson = await fetchWithRetries(tokenURI, 3, 5000, "arraybuffer");
+        if (!rawJson) continue;
+
+        metadata = JSON.parse(rawJson.toString());
+        fs.writeFileSync(jsonPath, JSON.stringify(metadata, null, 2));
+        console.log(`💾 Saved VKIN JSON ${jsonFile}`);
+      }
+
+      // Download image
+      if (metadata.image?.startsWith("ipfs://")) {
+        const imageFile = path.basename(metadata.image);
+        const imagePath = path.join(VKIN_IMAGE_DIR, imageFile);
+        if (!fs.existsSync(imagePath)) {
+          const img = await fetchWithRetries(metadata.image, 3, 5000, "arraybuffer");
+          if (img) {
+            fs.writeFileSync(imagePath, img);
+            console.log(`🖼️ Downloaded VKIN image ${imageFile}`);
+          }
+        }
+      }
+
+      rows.push(`VKIN,${tokenId},${jsonFile}`);
+    } catch (err) {
+      console.warn(`⚠️ VKIN tokenId ${tokenId} skipped: ${err.message}`);
     }
 
-    if (!tokenURI?.startsWith("ipfs://")) {
-      console.warn(`⚠️ token ${tokenId} has invalid URI → skipping`);
-      continue;
+    await sleep(100);
+  }
+}
+
+/* ---------------- VQLE ---------------- */
+async function generateVQLE(rows) {
+  ensureDir(VQLE_JSON_DIR);
+  ensureDir(VQLE_IMAGE_DIR);
+
+  const baseCid = VQLE_IPFS_BASE.replace(/https?:\/\/[^/]+\//, "");
+
+  for (let tokenId = 1; tokenId <= VQLE_MAX_SUPPLY; tokenId++) {
+    const jsonFile = `${tokenId}.json`;
+    const jsonPath = path.join(VQLE_JSON_DIR, jsonFile);
+    let metadata;
+
+    if (fs.existsSync(jsonPath)) {
+      metadata = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+    } else {
+      const jsonUri = `ipfs://${baseCid}${jsonFile}`;
+      const rawJson = await fetchWithRetries(jsonUri, 3, 5000, "arraybuffer");
+      if (!rawJson) continue;
+
+      metadata = JSON.parse(rawJson.toString());
+      fs.writeFileSync(jsonPath, JSON.stringify(metadata, null, 2));
+      console.log(`💾 Saved VQLE JSON ${jsonFile}`);
     }
 
-    const jsonFile = tokenURI.split("/").pop();
-    const jsonPath = path.join(JSON_DIR, jsonFile);
-
-    // Skip if JSON already exists
-    if (!fullRefresh && fs.existsSync(jsonPath)) {
-      console.log(`✔ JSON exists → skipping fetch`);
-      rows.push(`${tokenId},${jsonFile}`);
-      continue;
-    }
-
-    // Fetch JSON
-    const rawJson = await fetchFromIPFS(tokenURI, "arraybuffer");
-    if (!rawJson) {
-      console.warn(`⚠️ token ${tokenId} JSON fetch failed → skipping`);
-      continue;
-    }
-
-    const metadata = JSON.parse(rawJson.toString());
-    fs.writeFileSync(jsonPath, JSON.stringify(metadata, null, 2));
-
-    // Fetch image if present
+    // Download image from metadata.image
     if (metadata.image?.startsWith("ipfs://")) {
-      const imageFile = metadata.image.split("/").pop();
-      const imagePath = path.join(IMAGE_DIR, imageFile);
+      const imageFile = path.basename(metadata.image);
+      const imagePath = path.join(VQLE_IMAGE_DIR, imageFile);
 
-      if (fullRefresh || !fs.existsSync(imagePath)) {
-        const rawImage = await fetchFromIPFS(metadata.image, "arraybuffer");
-        if (rawImage) fs.writeFileSync(imagePath, rawImage);
+      if (!fs.existsSync(imagePath)) {
+        const img = await fetchWithRetries(metadata.image, 3, 5000, "arraybuffer");
+        if (img) {
+          fs.writeFileSync(imagePath, img);
+          console.log(`🖼️ Downloaded VQLE image ${imageFile}`);
+        }
       }
     }
 
-    rows.push(`${tokenId},${jsonFile}`);
-    await sleep(400);
+    rows.push(`VQLE,${tokenId},${jsonFile}`);
+    await sleep(100);
   }
-
-  fs.writeFileSync(OUTPUT_CSV, rows.join("\n"));
-  console.log("✅ mapping.csv + JSON + images cached");
 }
 
-/* ------------------ CLI ------------------ */
+/* ---------------- Main ---------------- */
+export async function generateMapping() {
+  const rows = ["collection,token_id,token_uri"];
+  const provider = new ethers.JsonRpcProvider(RPC_URL);
+
+  await generateVKIN(rows, provider);
+  await generateVQLE(rows);
+
+  fs.writeFileSync(MAPPING_FILE, rows.join("\n"));
+  console.log("✅ mapping.csv + metadata + images complete");
+}
+
+/* ---------------- CLI ---------------- */
 if (process.argv[1].endsWith("generateMapping.js")) {
-  const full = process.argv[2] === "true";
-  generateMapping(full).catch(console.error);
+  generateMapping().catch(console.error);
 }
