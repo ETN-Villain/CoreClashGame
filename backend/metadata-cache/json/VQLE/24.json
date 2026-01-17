@@ -1,0 +1,44 @@
+{
+  "name": "Verdant Queen",
+  "description": "Born from the heart of the Verdant Core, the Verdant Queen is the living will of Planet Zephyros itself, both its guardian and its fury. Her crown, forged from crystalline fragments of the Core, pulses with the same luminous energy that sustains the planet’s vast forests and wild lands.",
+  "collection": "The Verdant Queen Limited Edition",
+  "image": "ipfs://bafybeicsoiy7zyhauqpwy4mbvatr2yxxmhq3zdiyl3gdfjvo7cq4z7lmva/4.png",
+  "fee_recipient": "0x4Eb4b9Ce208711A0EA1BefF57C83BD66BC563378",
+  "seller_fee_basis_points": 500,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Gold"
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Attack",
+      "value": 75
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Defense",
+      "value": 59
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Vitality",
+      "value": 95
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Agility",
+      "value": 35
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "CORE",
+      "value": 100
+    }
+  ]
+}

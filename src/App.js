@@ -1,62 +1,113 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+/* eslint-disable no-unused-vars */
+
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import { ethers } from "ethers";
+
 import GameABI from "./abis/GameABI.json";
 import ERC20ABI from "./abis/ERC20ABI.json";
 
-import { GAME_ADDRESS, WHITELISTED_TOKENS, WHITELISTED_NFTS, RARE_BACKGROUNDS,
-         ADMIN_ADDRESS } from "./config.js";
-import mapping from "./mapping.json";
+import {
+  GAME_ADDRESS,
+  WHITELISTED_TOKENS,
+  WHITELISTED_NFTS,
+  RARE_BACKGROUNDS,
+  ADMIN_ADDRESS,
+} from "./config.js";
 
-import { CoreClashLogo, AppBackground, PlanetZephyrosAE } from "./appMedia/media.js";
+import mapping from "./mapping.json";
+import { renderTokenImages } from "./renderTokenImages.jsx";
+
+import {
+  CoreClashLogo,
+  AppBackground,
+  PlanetZephyrosAE,
+} from "./appMedia/media.js";
+
 import GameCard from "./gameCard.jsx";
 
 const BACKEND_URL = "http://localhost:3001";
 
 export default function App() {
+  /* ---------------- WALLET ---------------- */
+  const [provider, setProvider] = useState(null);
+  const [signer, setSigner] = useState(null);
+  const [account, setAccount] = useState(null);
+  const [walletError, setWalletError] = useState(null);
 
-/**
- * @typedef {Object} OwnedNFT
- * @property {string} tokenId
- * @property {string} nftAddress
- * @property {string} name
- * @property {string} background
- * @property {string} tokenURI
- */
+  /* ---------------- NFT STATE ---------------- */
+  const [ownedNFTs, setOwnedNFTs] = useState([]);
 
-const renderTeamImages = (playerReveal) => {
-  if (!playerReveal?.tokenURIs) return null;
+const [nfts, setNfts] = useState([
+  { address: "", tokenId: "", tokenURI: null, metadata: null },
+  { address: "", tokenId: "", tokenURI: null, metadata: null },
+  { address: "", tokenId: "", tokenURI: null, metadata: null },
+]);
 
-  return (
-    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-      {playerReveal.tokenURIs.map((uri, i) => {
-        const id = uri.replace(".json", "");
-        return (
-          <img
-            key={i}
-            src={`${BACKEND_URL}/images/${id}.png`}
-            alt={`NFT ${id}`}
-            style={{
-              width: 80,
-              height: 80,
-              objectFit: "cover",
-              border: "1px solid #333",
-              borderRadius: 6,
-            }}
-          />
-        );
-      })}
-    </div>
-  );
-};
+  /* ---------- DEBUG NFTs------------*/
+useEffect(() => {
+  console.group("NFT SLOTS DEBUG (ALL)");
+  nfts.forEach((n, i) => {
+    console.log(`Slot ${i}`, {
+      address: n.address,
+      tokenId: n.tokenId,
+      metadata: n.metadata,
+    });
+  });
+  console.groupEnd();
+}, [nfts]);
 
- /* ---------------- WALLET ---------------- */
-const [provider, setProvider] = useState(null);
-const [signer, setSigner] = useState(null);
-const [account, setAccount] = useState(null);
-const [walletError, setWalletError] = useState(null);
-/** @type {[OwnedNFT[], Function]} */
-const [ownedNFTs, setOwnedNFTs] = useState([]);
+/* ---------------- GAME SETUP ---------------- */
+  const [stakeToken, setStakeToken] = useState("");
+  const [stakeAmount, setStakeAmount] = useState("");
 
+  const [validated, setValidated] = useState(false);
+  const [validating, setValidating] = useState(false);
+
+  useEffect(() => {
+  if (!stakeToken && WHITELISTED_TOKENS.length > 0) {
+    setStakeToken(WHITELISTED_TOKENS[0].address);
+  }
+}, [stakeToken]);
+
+  /* ---------------- GAMES STATE ---------------- */
+  const [games, setGames] = useState([]);
+  const [loadingGames, setLoadingGames] = useState(false);
+
+  /* ---------------- LOADING SCREEN ---------------- */
+  const [loading, setLoading] = useState(true);
+  const [countdown, setCountdown] = useState(5);
+
+  /* ---------------- COUNTDOWN ---------------- */
+// Countdown effect
+useEffect(() => {
+  if (!loading) return;
+
+  const timer = setInterval(() => {
+    setCountdown((prev) => {
+      if (prev === 1) {
+        clearInterval(timer);
+        setLoading(false);
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+
+  return () => clearInterval(timer);
+}, [loading]);
+
+/* ---------------- GAME CONTRACT ---------------- */
+  const gameContract = useMemo(() => {
+    if (!provider || !signer) return null;
+    return new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+  }, [provider, signer]);
+
+  /* ---------------- CONNECT WALLET ---------------- */
 const connectWallet = useCallback(async () => {
   if (!window.ethereum) {
     alert("MetaMask not installed");
@@ -145,119 +196,37 @@ useEffect(() => {
   };
 }, []);
 
-/* ---------------- FETCH OWNED NFTS ---------------- */
-useEffect(() => {
-  if (!account) {
-    setOwnedNFTs([]);
-    return;
-  }
-
-  let cancelled = false; // prevent setting state if component unmounted
-
-const fetchOwnedNFTs = async () => {
-  try {
-    // fetch owned NFTs from backend
-    const res = await fetch(`http://localhost:3001/nfts/owned/${account}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-
-// normalize tokenId to string and ensure metadata
-const normalized = data.map((nft) => ({
-  ...nft,
-  tokenId: nft.tokenId.toString(),
-  name: nft.name || nft.metadata?.name || `Token #${nft.tokenId}`,
-  background: nft.background || nft.metadata?.background || "Unknown",
-  nftAddress: nft.address || nft.nftAddress, // optional
-}));
-
-    if (!cancelled) setOwnedNFTs(normalized);
-  } catch (err) {
-    console.error("Failed to load owned NFTs:", err);
-    if (!cancelled) setOwnedNFTs([]);
-  }
-};
-
-fetchOwnedNFTs();
-
-return () => {
-  cancelled = true;
-};
-}, [account]);
-
-/* ---------------- GAME SETUP ---------------- */
-  const [stakeToken, setStakeToken] = useState("");
-  const [stakeAmount, setStakeAmount] = useState("");
-const [nfts, setNfts] = useState([
-  { address: "", tokenId: "", tokenURI: null, metadata: null },
-  { address: "", tokenId: "", tokenURI: null, metadata: null },
-  { address: "", tokenId: "", tokenURI: null, metadata: null },
-]);
-
-  const [validated, setValidated] = useState(false);
-  const [validating, setValidating] = useState(false);
-
+  /* ---------------- OWNED NFT FETCH ---------------- */
   useEffect(() => {
-  if (!stakeToken && WHITELISTED_TOKENS.length > 0) {
-    setStakeToken(WHITELISTED_TOKENS[0].address);
-  }
-}, [stakeToken]);
+    if (!account) return setOwnedNFTs([]);
+    fetch(`${BACKEND_URL}/nfts/owned/${account}`)
+      .then((r) => r.json())
+      .then((data) =>
+        setOwnedNFTs(
+          data.map((n) => ({
+            ...n,
+            tokenId: n.tokenId.toString(),
+          }))
+        )
+      )
+      .catch(() => setOwnedNFTs([]));
+  }, [account]);
 
+  /* ---------------- NFT UPDATE ---------------- */
+  const updateNFT = (idx, field, value) => {
+    setNfts((prev) => {
+      const copy = [...prev];
+      copy[idx][field] = value;
+      if (field === "address" || field === "tokenId") {
+        copy[idx].metadata = null;
+        setValidated(false);
+      }
+      return copy;
+    });
+  };
 
-  /* ---------------- PROVIDER + SIGNER ---------------- */
-  useEffect(() => {
-    if (!window.ethereum) return;
-
-    const init = async () => {
-      const prov = new ethers.BrowserProvider(window.ethereum);
-      const signer = await prov.getSigner();
-      const addr = await signer.getAddress();
-      setProvider(prov);
-      setSigner(signer);
-      setAccount(addr);
-    };
-
-    init();
-  }, []);
-
-  /* ---------------- GAME CONTRACT ---------------- */
-  const gameContract = useMemo(() => {
-    if (!provider || !signer) return null;
-    return new ethers.Contract(GAME_ADDRESS, GameABI, signer);
-  }, [provider, signer]);
-
-  /* ---------------- GAMES STATE ---------------- */
-  const [games, setGames] = useState([]);
-  const [loadingGames, setLoadingGames] = useState(false);
-
-  /* ---------------- HELPERS ---------------- */
-const updateNFT = (idx, field, value) => {
-  setNfts((prev) => {
-    const copy = [...prev];
-
-    copy[idx][field] = value;
-
-    // Reset metadata only if core identity changes
-    if (field === "address" || field === "tokenId") {
-      copy[idx].metadata = null;
-      setValidated(false);
-    }
-
-    return copy;
-  });
-};
-
-  const userOwnsNFT = useCallback(async (address, tokenId) => {
-    if (!provider || !account) return false;
-    const nft = new ethers.Contract(
-      address,
-      ["function ownerOf(uint256) view returns (address)"],
-      provider
-    );
-const owner = await nft.ownerOf(BigInt(tokenId));
-    return owner.toLowerCase() === account.toLowerCase();
-  }, [provider, account]);
-
-// eslint-disable-next-line no-unused-vars
+  /* --------- DEBUG GAMES LENGTH --------*/
+  // eslint-disable-next-line no-unused-vars
   const debugGamesLength = async () => {
   if (!provider) return alert("Provider not ready");
 
@@ -284,7 +253,28 @@ const owner = await nft.ownerOf(BigInt(tokenId));
   }
 };
 
-const approveTokens = async () => {
+  /* ---------------- VALIDATE TEAM ---------------- */
+  const validateTeam = useCallback(async () => {
+    setValidating(true);
+    try {
+      const seen = new Set();
+      for (const n of nfts) {
+        if (!n.metadata) throw new Error("Missing metadata");
+        if (seen.has(n.metadata.name))
+          throw new Error("Duplicate character");
+        seen.add(n.metadata.name);
+      }
+      setValidated(true);
+      alert("Team validated");
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setValidating(false);
+    }
+  }, [nfts]);
+
+  /* -------- APPROVE TOKENS ----------*/
+  const approveTokens = async () => {
   if (!signer || !stakeToken || !stakeAmount) {
     alert("Missing stake token or amount");
     return;
@@ -347,7 +337,7 @@ const downloadRevealBackup = useCallback(
   [account]
 );
 
-// ---------------- LOAD GAMES ----------------
+  /* ---------------- LOAD GAMES ---------------- */
 const loadGames = useCallback(async () => {
   if (!provider) return;
   setLoadingGames(true);
@@ -440,73 +430,6 @@ useEffect(() => {
 
     return () => es.close();
   }, [loadGames]);
-
-/* ---------------- VALIDATE TEAM ---------------- */
-const validateTeam = useCallback(async () => {
-  if (!nfts || nfts.length !== 3) {
-    alert("You must select exactly 3 NFTs");
-    return false;
-  }
-
-  setValidating(true);
-
-try {
-    const seenNames = new Set();
-    const usedRareBackgrounds = new Set();
-
-    for (let i = 0; i < nfts.length; i++) {
-      const nft = nfts[i];
-      const addr = nft?.address?.trim();
-      const tokenId = nft?.tokenId?.toString()?.trim();
-      const metadata = nft?.metadata;
-
-      if (!addr || !tokenId) {
-        alert(`Each NFT must have address and tokenId (problem at NFT #${i + 1})`);
-        return false;
-      }
-
-      if (!metadata?.name || !metadata?.background) {
-        alert(`Missing metadata for NFT #${i + 1}`);
-        return false;
-      }
-
-      /* -------- Ownership check -------- */
-      const owns = await userOwnsNFT(addr, tokenId);
-      if (!owns) {
-        alert(`You do NOT own NFT ${tokenId} at ${addr}`);
-        return false;
-      }
-
-      /* -------- Duplicate character check -------- */
-      if (seenNames.has(metadata.name)) {
-        alert(`You cannot use the same character twice: ${metadata.name}`);
-        return false;
-      }
-      seenNames.add(metadata.name);
-
-/* -------- Rare background uniqueness check -------- */
-      if (RARE_BACKGROUNDS.includes(metadata.background)) {
-        if (usedRareBackgrounds.has(metadata.background)) {
-          alert(
-            `You may only use ONE of each rare background. Duplicate: ${metadata.background}`
-          );
-          return false;
-        }
-        usedRareBackgrounds.add(metadata.background);
-      }
-    }
-    
-    setValidated(true);
-    alert("Team validated successfully!");
-    return true;
-  } catch (err) {
-    console.error(err);
-    alert(err.message || "Validation failed");
-    return false;
-  } finally {
-    setValidating(false);
-  }
-}, [nfts, userOwnsNFT]);
 
 /* ---------------- CREATE GAME ---------------- */
 const createGame = useCallback(async () => {
@@ -972,22 +895,6 @@ const settledGames = [...games]
   .filter(g => g.settled)
   .sort((a, b) => b.id - a.id);
 
-/* ---------------- RENDER GAME CARD ---------------- */
-<>
-{openGames.map((g) => (
-    <GameCard
-      key={g.id}
-      g={g}
-      account={account}
-      signer={signer}
-      approveTokens={approveTokens}
-      joinGame={joinGame}
-      manualSettleGame={manualSettleGame}
-      handleRevealFile={handleRevealFile}
-      renderTeamImages={renderTeamImages}
-    />
-  ))}
-</>
   /* ---------------- GAME CARD PROPS ---------------- */
 const gameCardProps = {
   account,
@@ -996,31 +903,10 @@ const gameCardProps = {
   joinGame,
   manualSettleGame,
   handleRevealFile,
-  renderTeamImages,
+  renderTokenImages,
 };
 
 /* ---------------- UI ---------------- */
-const [loading, setLoading] = useState(true);
-const [countdown, setCountdown] = useState(5);
-
-// Countdown effect
-useEffect(() => {
-  if (!loading) return;
-
-  const timer = setInterval(() => {
-    setCountdown((prev) => {
-      if (prev === 1) {
-        clearInterval(timer);
-        setLoading(false);
-        return 0;
-      }
-      return prev - 1;
-    });
-  }, 1000);
-
-  return () => clearInterval(timer);
-}, [loading]);
-
 if (loading) {
   // Loading screen with watermark
   return (
@@ -1170,115 +1056,167 @@ return (
         style={{ width: "30%", marginBottom: 12 }}
       />
 
-      <h3>Your Clash Team (3)</h3>
-      {nfts.map((n, i) => (
-        <div key={i} style={{ marginBottom: 12 }}>
-          {/* NFT Collection Dropdown */}
-          <label style={{ marginLeft: 8 }}>NFT Collection: </label>
-          <select
-            value={n.address}
-            onChange={(e) => updateNFT(i, "address", e.target.value)}
-            style={{ width: "20%", marginRight: 8 }}
-          >
-            <option value="">Select NFT Collection</option>
-            {WHITELISTED_NFTS.map((nft) => (
-              <option key={nft.address} value={nft.address}>
-                {nft.label}
-              </option>
-            ))}
-          </select>
+<h3>Your Clash Team (3)</h3>
 
-          {/* Token ID Dropdown */}
-          <label style={{ marginLeft: 8 }}>Token ID</label>
-          <select
-            value={n.tokenId}
-            onChange={(e) => {
-              const tokenId = e.target.value;
-              const selected = ownedNFTs.find(
-                (nft) =>
-                  nft.tokenId === tokenId &&
-                  nft.nftAddress?.toLowerCase() === n.address?.toLowerCase()
-              );
-              setNfts((prev) =>
-                prev.map((slot, idx) =>
-                  idx === i
-                    ? {
-                        ...slot,
-                        tokenId,
-                        metadata: selected
-                          ? { name: selected.name, background: selected.background }
-                          : null,
-                        tokenURI: selected?.tokenURI,
-                        address: selected?.nftAddress || slot.address,
-                      }
-                    : slot
-                )
-              );
+{nfts.map((n, i) => {
+  // Resolve collection key from address (VKIN / VQLE)
+  const collectionKey = WHITELISTED_NFTS.find(
+    (x) => x.address?.toLowerCase() === n.address?.toLowerCase()
+  )?.label === "Verdant Kin" ? "VKIN" : "VQLE";
+
+  // Compute the image filename using mapping
+  let imageFile = null;
+  if (n.tokenId && collectionKey) {
+    const mappedJson = mapping[collectionKey]?.[String(n.tokenId)];
+    imageFile = mappedJson
+      ? mappedJson.replace(".json", ".png")
+      : `${n.tokenId}.png`;
+  }
+
+  return (
+    <div key={n.tokenId || n.address || i} style={{ marginBottom: 16 }}>
+      {/* NFT Collection Dropdown */}
+      <label style={{ marginLeft: 8 }}>NFT Collection: </label>
+      <select
+        value={n.address}
+        onChange={(e) => {
+          const newAddress = e.target.value;
+          setNfts((prev) =>
+            prev.map((slot, idx) =>
+              idx === i
+                ? {
+                    ...slot,
+                    address: newAddress,
+                    tokenId: "",
+                    metadata: null,
+                    tokenURI: null,
+                    imageSrc: null, // reset to prevent old image flicker
+                  }
+                : slot
+            )
+          );
+        }}
+        style={{ width: "220px", marginRight: 12 }}
+      >
+        <option value="">Select Collection</option>
+        {WHITELISTED_NFTS.map((nft) => (
+          <option key={nft.address} value={nft.address}>
+            {nft.label}
+          </option>
+        ))}
+      </select>
+
+      {/* Token ID Dropdown */}
+      <label style={{ marginLeft: 8 }}>Token ID</label>
+      <select
+        value={n.tokenId}
+        onChange={(e) => {
+          const tokenId = e.target.value;
+          const selected = ownedNFTs.find(
+            (nft) =>
+              nft.tokenId === tokenId &&
+              nft.nftAddress?.toLowerCase() === n.address?.toLowerCase()
+          );
+          setNfts((prev) =>
+            prev.map((slot, idx) =>
+              idx === i
+                ? {
+                    ...slot,
+                    tokenId,
+                    metadata: selected
+                      ? {
+                          name: selected.name,
+                          background: selected.background,
+                        }
+                      : null,
+                    tokenURI: selected?.tokenURI,
+                    address: selected?.nftAddress || slot.address,
+                  }
+                : slot
+            )
+          );
+        }}
+        style={{ width: "220px", marginLeft: 8 }}
+        disabled={!n.address}
+      >
+        <option value="">Select Token</option>
+        {ownedNFTs
+          .filter(
+            (nft) =>
+              nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
+              !nfts.some((s, idx) => idx !== i && s.tokenId === nft.tokenId)
+          )
+          .map((nft) => (
+            <option key={nft.tokenId} value={nft.tokenId}>
+              #{nft.tokenId} — {nft.name} ({nft.background})
+            </option>
+          ))}
+      </select>
+
+      {/* Image Preview – appears once token is selected */}
+      {n.tokenId && collectionKey && imageFile && (
+        <div
+          style={{
+            marginTop: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: 8,
+            background: "#0f0f0f",
+            borderRadius: 8,
+            border: "1px solid #333",
+          }}
+        >
+          <img
+            src={`${BACKEND_URL}/images/${collectionKey}/${imageFile}`}
+            alt={`${collectionKey} #${n.tokenId}`}
+            style={{
+              width: 80,
+              height: 80,
+              objectFit: "cover",
+              borderRadius: 6,
+              border: "1px solid #444",
+              background: "#111",
             }}
-            style={{ width: "30%", marginLeft: 8 }}
-          >
-            <option value="">Select NFT</option>
-            {ownedNFTs
-              .filter(
-                (nft) =>
-                  nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
-                  !nfts.some((s, idx) => idx !== i && s.tokenId === nft.tokenId)
-              )
-              .slice()
-              .sort((a, b) => {
-                const bgA = backgroundPriority[a.background] ?? 99;
-                const bgB = backgroundPriority[b.background] ?? 99;
-                if (bgA !== bgB) return bgA - bgB;
-                const nameCompare = (a.name || "").localeCompare(b.name || "");
-                if (nameCompare !== 0) return nameCompare;
-                return Number(a.tokenId) - Number(b.tokenId);
-              })
-              .map((nft) => (
-                <option key={nft.tokenId} value={nft.tokenId}>
-                  #{nft.tokenId} — {nft.name} ({nft.background})
-                </option>
-              ))}
-          </select>
-
-          {/* NFT Metadata Preview */}
+            onError={(e) => {
+              e.currentTarget.src = "/placeholder.png";
+              console.warn(`Preview failed: ${collectionKey}/${imageFile}`);
+            }}
+          />
           {n.metadata && (
-            <div
-              style={{
-                marginTop: 8,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                background: "#0f0f0f",
-                padding: 8,
-                borderRadius: 8,
-                border: "1px solid #333",
-              }}
-            >
-              <img
-                src={
-                  mapping[n.tokenId]
-                    ? `${BACKEND_URL}/images/${mapping[n.tokenId].replace(".json", "")}.png`
-                    : "/placeholder.png"
-                }
-                alt={n.metadata.name || `Token #${n.tokenId}`}
-                style={{
-                  width: 72,
-                  height: 72,
-                  objectFit: "cover",
-                  borderRadius: 6,
-                  border: "1px solid #444",
-                }}
-                onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-              />
-              <div style={{ fontSize: 14 }}>
-                <div style={{ fontWeight: "bold" }}>{n.metadata.name}</div>
-                <div style={{ opacity: 0.85 }}>Background: {n.metadata.background}</div>
+            <div style={{ fontSize: 14 }}>
+              <strong>{n.metadata.name}</strong>
+              <div style={{ opacity: 0.85 }}>
+                Background: {n.metadata.background}
               </div>
             </div>
           )}
         </div>
-      ))}
+      )}
 
+      {/* Optional: show placeholder while loading/selecting */}
+      {n.address && !n.tokenId && (
+        <div
+          style={{
+            marginTop: 12,
+            width: 80,
+            height: 80,
+            background: "#111",
+            border: "1px dashed #444",
+            borderRadius: 6,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#666",
+            fontSize: 12,
+          }}
+        >
+          Select Token ID
+        </div>
+      )}
+    </div>
+  );
+})}
       <button
         onClick={loadGames}
         style={{

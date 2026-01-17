@@ -1,39 +1,47 @@
 import fs from "fs";
 import path from "path";
-import { parse } from "csv-parse/sync";  // ✅ named import
+import { parse } from "csv-parse/sync"; // ✅ correct named import
 
 // ---------- CONFIG ----------
-const MAPPING_FILE = path.join("C:/Users/Butle_jz8osua/ipfs-metadata-dapp/backend/mapping.csv");
+const MAPPING_CSV = path.join(
+  "C:/Users/Butle_jz8osua/ipfs-metadata-dapp/backend/mapping.csv"
+);
+const OUTPUT_MAPPING_FILE = path.join(
+  "C:/Users/Butle_jz8osua/ipfs-metadata-dapp/src/mapping.json"
+);
 
-// Example frontend NFTs you want to check
-const frontendNFTs = [
-  { tokenId: 59 },
-  { tokenId: 395 },
-  { tokenId: 468 },
-  { tokenId: 1 },   // example
-  { tokenId: 2 }    // example
-];
-
-// ---------- LOAD CSV MAPPING ----------
-if (!fs.existsSync(MAPPING_FILE)) {
-  console.error(`Mapping file not found: ${MAPPING_FILE}`);
+// ---------- LOAD CSV ----------
+if (!fs.existsSync(MAPPING_CSV)) {
+  console.error(`mapping.csv not found: ${MAPPING_CSV}`);
   process.exit(1);
 }
 
-const csvText = fs.readFileSync(MAPPING_FILE, "utf8");
-const records = parse(csvText, { columns: true, skip_empty_lines: true });
+const csvContent = fs.readFileSync(MAPPING_CSV, "utf8");
 
-const tokenURIMapping = {};
-for (const r of records) {
-  tokenURIMapping[Number(r.token_id)] = r.token_uri;
+// Parse CSV
+const records = parse(csvContent, {
+  columns: true,
+  skip_empty_lines: true,
+});
+
+// ---------- BUILD FRONTEND MAPPING ----------
+const mapping = {};
+
+for (const nft of records) {
+  const collection = nft.collection;
+  const tokenId = nft.token_id;
+  const tokenURI = nft.token_uri;
+
+  if (!collection || !tokenId || !tokenURI) {
+    console.warn(`⚠️ Skipping invalid CSV row:`, nft);
+    continue;
+  }
+
+  if (!mapping[collection]) mapping[collection] = {};
+  mapping[collection][tokenId] = tokenURI;
 }
 
-// ---------- VERIFY FRONTEND NFTs ----------
-frontendNFTs.forEach(nft => {
-  const expectedURI = tokenURIMapping[nft.tokenId];
-  if (!expectedURI) {
-    console.log(`Token ID ${nft.tokenId} is missing from mapping.csv`);
-  } else {
-    console.log(`Token ID ${nft.tokenId} → ${expectedURI}`);
-  }
-});
+// ---------- WRITE FRONTEND MAPPING ----------
+fs.writeFileSync(OUTPUT_MAPPING_FILE, JSON.stringify(mapping, null, 2));
+console.log(`✅ Frontend mapping.json generated at ${OUTPUT_MAPPING_FILE}`);
+console.log(mapping);

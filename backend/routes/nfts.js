@@ -2,87 +2,129 @@ import express from "express";
 import { ethers } from "ethers";
 import fs from "fs";
 import path from "path";
-import { MAPPING_FILE, METADATA_JSON_DIR, loadMapping } from "../paths.js";
-import { RPC_URL, VKIN_CONTRACT_ADDRESS } from "../config.js";
+import { METADATA_JSON_DIR } from "../paths.js";
+import { RPC_URL, VKIN_CONTRACT_ADDRESS, VQLE_CONTRACT_ADDRESS } from "../config.js";
+import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";
+
+// Import each ABI separately
+import VKIN_ABI from "../../src/abis/VKINABI.json" assert { type: "json" };
+import VQLE_ABI from "../../src/abis/VQLEABI.json" assert { type: "json" };
 
 const router = express.Router();
-
-// Minimal ERC721 ABI for ownerOf
-// ---------------- GET OWNED NFTs ----------------
-const VKIN_ABI = [
-  "function balanceOf(address owner) view returns (uint256)",
-  "function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)",
-  "function tokenURI(uint256 tokenId) view returns (string)"
-];
-
-import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
+// Helper to fetch owned NFTs with cache support
+async function fetchOwnedNFTs(contract, nftAddress, wallet, isRandom = false) {
+  const nfts = [];
+  const collection = nftAddress === VQLE_CONTRACT_ADDRESS ? "VQLE" : "VKIN";
+
+  let tokenIds = [];
+
+  if (collection === "VKIN") {
+    // VKIN uses Enumerable
+    const balance = Number(await contract.balanceOf(wallet));
+    for (let i = 0; i < balance; i++) {
+      try {
+        const tokenId = await contract.tokenOfOwnerByIndex(wallet, i);
+        tokenIds.push(tokenId.toString());
+      } catch (err) {
+        console.warn(`⚠️ Failed to get token at index ${i} for VKIN: ${err.message}`);
+        await delay(500);
+        i--; // retry
+      }
+    }
+  } else {
+    // VQLE: no tokenOfOwnerByIndex → scan IDs manually
+    const MAX_TOKEN_ID = 1000; // adjust based on collection size
+    for (let t = 1; t <= MAX_TOKEN_ID; t++) {
+      try {
+        const owner = await contract.ownerOf(BigInt(t));
+        if (owner.toLowerCase() === wallet.toLowerCase()) tokenIds.push(t.toString());
+      } catch {
+        // token not minted or doesn't exist
+        continue;
+      }
+    }
+  }
+
+  // --- Load/generate metadata and populate nfts ---
+  for (const tokenId of tokenIds) {
+    let fileName, metadata = {};
+    try {
+      const collectionDir = path.join(METADATA_JSON_DIR, collection);
+      if (!fs.existsSync(collectionDir)) fs.mkdirSync(collectionDir, { recursive: true });
+
+      fileName = `${tokenId}.json`;
+      const jsonPath = path.join(collectionDir, fileName);
+
+      if (fs.existsSync(jsonPath)) {
+        metadata = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+      } else if (collection === "VQLE") {
+        metadata = { name: `VQLE #${tokenId}`, attributes: [{ trait_type: "Background", value: "Unknown" }] };
+        fs.writeFileSync(jsonPath, JSON.stringify(metadata, null, 2));
+        console.log(`💾 Generated metadata for VQLE token ${tokenId}`);
+      }
+    } catch (err) {
+      console.warn(`⚠️ Failed to load/generate metadata for ${collection} token ${tokenId}: ${err.message}`);
+    }
+
+    nfts.push({
+      collection,
+      tokenId,
+      tokenURI: fileName,
+      nftAddress,
+      name: metadata.name || `${collection} #${tokenId}`,
+      background: metadata.attributes?.find(a => a.trait_type === "Background")?.value || "Unknown"
+    });
+
+    await delay(isRandom ? 250 : 100);
+  }
+
+  return nfts;
+}
+
+// --- GET /owned/:wallet ---
 router.get("/owned/:wallet", async (req, res) => {
   const wallet = req.params.wallet.toLowerCase();
   console.log("🔎 Owned NFTs request for:", wallet);
 
-const cache = readOwnerCache();
+  const cache = readOwnerCache();
 
-if (cache[wallet]) {
-  // Filter out NFTs with missing background
-  const incomplete = cache[wallet].some(n => n.background === "Unknown");
+const walletCache = cache[wallet] || { VKIN: [], VQLE: [] };
+
+// Remove incomplete NFTs per collection
+["VKIN", "VQLE"].forEach((collection) => {
+  const incomplete = walletCache[collection].some(n => n.background === "Unknown");
   if (incomplete) {
-    console.log(`🗑️ Removing incomplete metadata for wallet ${wallet}`);
-    // Keep only NFTs with known background, or clear all
-    cache[wallet] = cache[wallet].filter(n => n.background !== "Unknown");
-    writeOwnerCache(cache); // persist changes
-  } else {
-    console.log("⚡ Cache hit for", wallet, "- returning", cache[wallet].length, "NFTs");
-    return res.json(cache[wallet]);
+    console.log(`🗑️ Removing incomplete metadata for ${collection} of wallet ${wallet}`);
+    walletCache[collection] = walletCache[collection].filter(n => n.background !== "Unknown");
+    cache[wallet] = walletCache; // update main cache object
+    writeOwnerCache(cache);
   }
+});
+
+// Combine VKIN + VQLE for frontend consumption
+const combinedNFTs = [...walletCache.VKIN, ...walletCache.VQLE];
+
+if (combinedNFTs.length > 0) {
+  console.log("⚡ Cache hit for", wallet, "- returning", combinedNFTs.length, "NFTs");
+  return res.json(combinedNFTs);
 }
 
   console.log("⛓️ Cache miss — scanning blockchain");
 
   try {
     const provider = new ethers.JsonRpcProvider(RPC_URL);
-    const nft = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
+    const vkin = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
+    const vqle = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLE_ABI, provider);
 
-    const balance = Number(await nft.balanceOf(wallet));
-    console.log(`📦 Wallet owns ${balance} NFTs`);
+    // Fetch VKIN (random mapping)
+    const vkinNFTs = await fetchOwnedNFTs(vkin, VKIN_CONTRACT_ADDRESS, wallet, true);
 
-    const ownedNFTs = [];
+    // Fetch VQLE (simple mapping)
+    const vqleNFTs = await fetchOwnedNFTs(vqle, VQLE_CONTRACT_ADDRESS, wallet, false);
 
-    for (let i = 0; i < balance; i++) {
-      let tokenId;
-      try {
-        tokenId = await nft.tokenOfOwnerByIndex(wallet, i);
-      } catch (err) {
-        console.warn(`⚠️ Failed to get token at index ${i}: ${err.message}`);
-        // Wait a bit and retry
-        await delay(500);
-        i--; // retry same index
-        continue;
-      }
-
-      // Metadata
-      let metadata = {};
-      let fileName = null;
-      try {
-        const uri = await nft.tokenURI(tokenId);
-        const fileName = path.basename(uri);
-        const jsonPath = path.join(METADATA_JSON_DIR, fileName);
-        if (fs.existsSync(jsonPath)) metadata = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
-} catch (err) {
-  console.warn(`⚠️ Failed to load metadata for token ${tokenId}:`, err.message);
-}
-      ownedNFTs.push({
-        tokenId: tokenId.toString(),
-        tokenURI: fileName,
-        nftAddress: VKIN_CONTRACT_ADDRESS,
-        name: metadata.name || `Token #${tokenId}`,
-        background: metadata.attributes?.find(a => a.trait_type === "Background")?.value || "Unknown"
-      });
-
-      // Short delay to prevent RPC rate limit
-      await delay(250);
-    }
+    const ownedNFTs = [...vkinNFTs, ...vqleNFTs];
 
     cache[wallet] = ownedNFTs;
     writeOwnerCache(cache);
