@@ -383,17 +383,15 @@ const merged = loaded.map(g => {
 
   return {
     ...g,
-    _reveal: backend?._reveal || null,
     player1Revealed: backend?.player1Revealed === true || !!backend?._reveal?.player1,
     player2Revealed: backend?.player2Revealed === true || !!backend?._reveal?.player2,
-    backendWinner: backend?.backendWinner || null,
 
-    // ✅ Add this to populate team images after reveal
-    player1Reveal: backend?._reveal?.player1 || null,
+    player1Reveal: backend?._reveal?.player1 || null,   // ← this should include tokenURIs
     player2Reveal: backend?._reveal?.player2 || null,
   };
 });
-
+console.log("Backend reveal for game 0 P1:", backendGames[0]?._reveal?.player1);
+console.log("Backend reveal for game 0 P2:", backendGames[0]?._reveal?.player2);
     setGames(merged);
   } catch (err) {
     console.error("loadGames failed", err);
