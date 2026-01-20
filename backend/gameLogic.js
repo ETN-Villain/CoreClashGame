@@ -3,10 +3,16 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
+import { METADATA_JSON_DIR } from "./paths.js";
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+// Ensure lowercase keys (matches .toLowerCase() usage)
+const addressToCollection = {
+  "0x3fc7665b1f6033ff901405cddf31c2e04b8a2ab4": "VKIN",
+  "0x8cfbb04c54d35e2e8471ad9040d40d73c08136f0": "VQLE",
+};
 
 export const GAMES_FILE = path.join(__dirname, "games", "games.json");
 
@@ -37,14 +43,13 @@ export const saveGames = (games) => {
   console.log("💾 Games saved:", GAMES_FILE, "Total games:", games.length);
 };
 
-// Fetch NFT metadata from IPFS
-const METADATA_CACHE = path.join(__dirname, "metadata-cache", "json");
-
 // Fetch NFT metadata from local cache
-export const fetchNFT = async (tokenURI) => {
+export const fetchNFT = async (collection, tokenURI) => {
   try {
-    // tokenURI may be just a filename like "378.json"
-    const filePath = path.join(METADATA_CACHE, tokenURI);
+    // collection = "VKIN" or "VQLE"
+    const filePath = path.join(METADATA_JSON_DIR, collection, tokenURI);
+
+    console.log(`Trying to load metadata: ${filePath}`);
 
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath}`);
@@ -53,7 +58,7 @@ export const fetchNFT = async (tokenURI) => {
     const raw = fs.readFileSync(filePath, "utf8");
     return JSON.parse(raw);
   } catch (err) {
-    console.error("Failed to fetch NFT metadata:", tokenURI, err.message);
+    console.error("Failed to fetch NFT metadata:", collection, tokenURI, err.message);
     return null;
   }
 };
@@ -144,17 +149,32 @@ export function computeWinner(traits1Arr, traits2Arr) {
  * Resolve a single game using NFT metadata
  * Populates winner, tie
  */
-export const resolveGame = async (game) => {
+export async function resolveGame(game) {
+  console.log("Resolving game:", {
+    id: game.id,
+    roundResults: game.roundResults,
+    player1Backgrounds: game.player1Backgrounds,
+    player2Backgrounds: game.player2Backgrounds,
+  });
+
   if (!game.player2) return null;
-  if (!game._reveal?.player1?.tokenURIs || !game._reveal?.player2?.tokenURIs) return null;
+  if (!game._reveal?.player1?.tokenURIs || !game._reveal?.player2?.tokenURIs) {
+    console.warn("Missing reveal tokenURIs");
+    return null;
+  }
 
   const traits1 = [];
   const traits2 = [];
 
+  const addressToCollection = {
+    "0x3fc7665b1f6033ff901405cddf31c2e04b8a2ab4": "VKIN",
+    "0x8cfbb04c54d35e2e8471ad9040d40d73c08136f0": "VQLE",
+  };
+
   // Helper to extract traits from attributes array
-  const extractTraits = (nftData) => {
+const extractTraits = (nftData) => {
     const findValue = (name) => {
-      const trait = nftData.attributes.find(a => a.trait_type.toLowerCase() === name.toLowerCase());
+      const trait = nftData.attributes?.find(a => a.trait_type?.toLowerCase() === name.toLowerCase());
       return trait ? Number(trait.value) : 0;
     };
     return [
@@ -166,21 +186,33 @@ export const resolveGame = async (game) => {
     ];
   };
 
-  // Player 1 traits
-  for (let i = 0; i < 3; i++) {
-    const nftData = await fetchNFT(game._reveal.player1.tokenURIs[i]);
+// Player 1 traits
+for (let i = 0; i < 3; i++) {
+    const uri = game._reveal.player1.tokenURIs[i];
+    const contractAddr = game._reveal.player1.nftContracts[i]?.toLowerCase() || "";
+    const collection = addressToCollection[contractAddr] || "VKIN";
+
+    console.log(`P1 token ${i}: ${uri} in ${collection}`);
+
+    const nftData = await fetchNFT(collection, uri);
     if (!nftData) {
-      console.error("Missing metadata for P1 token", game._reveal.player1.tokenURIs[i]);
+      console.error("Missing metadata for P1 token", uri, "in", collection);
       return null;
     }
     traits1.push(extractTraits(nftData));
   }
 
-  // Player 2 traits
+  // Player 2 (same pattern)
   for (let i = 0; i < 3; i++) {
-    const nftData = await fetchNFT(game._reveal.player2.tokenURIs[i]);
+    const uri = game._reveal.player2.tokenURIs[i];
+    const contractAddr = game._reveal.player2.nftContracts[i]?.toLowerCase() || "";
+    const collection = addressToCollection[contractAddr] || "VKIN";
+
+    console.log(`P2 token ${i}: ${uri} in ${collection}`);
+
+    const nftData = await fetchNFT(collection, uri);
     if (!nftData) {
-      console.error("Missing metadata for P2 token", game._reveal.player2.tokenURIs[i]);
+      console.error("Missing metadata for P2 token", uri, "in", collection);
       return null;
     }
     traits2.push(extractTraits(nftData));
@@ -189,19 +221,19 @@ export const resolveGame = async (game) => {
   // Compute winner
 const { winner, roundResults } = computeWinner(traits1, traits2);
 
-game.roundResults = roundResults;
-
-if (winner === "tie") {
-  game.winner = null;
-  game.tie = true;
-} else {
-  game.winner = game[winner];
-  game.tie = false;
-}
-
+  game.roundResults = roundResults;
+  game.winner = winner === "tie" ? null : game[winner];
+  game.tie = winner === "tie";
   game.settledAt = new Date().toISOString();
+
+  console.log("Game resolved:", {
+    winner: game.winner,
+    tie: game.tie,
+    roundResults: game.roundResults
+  });
+
   return game;
-};
+}
 
 /**
  * Resolve all pending games
@@ -222,4 +254,7 @@ export const resolveAllGames = async () => {
   }
 
   if (changed) saveGames(games);
+
+  console.log("Resolve failed — returning null");
+  return null;
 };
