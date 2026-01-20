@@ -5,9 +5,12 @@ import { parse } from "csv-parse/sync";
 import { ethers } from "ethers";
 import { fileURLToPath } from "url";
 import { METADATA_JSON_DIR, REVEAL_DIR, MAPPING_FILE, loadMapping } from "../paths.js";
-import { RPC_URL, BACKEND_PRIVATE_KEY, GAME_ADDRESS } from "../config.js";
+import { RPC_URL, BACKEND_PRIVATE_KEY, GAME_ADDRESS, 
+  VKIN_CONTRACT_ADDRESS, VQLE_CONTRACT_ADDRESS } from "../config.js";
 import GameABI from "../../src/abis/GameABI.json" assert { type: "json" };
 import { loadGames, saveGames, resolveGame } from "../gameLogic.js";
+import { fetchOwnedTokenIds } from "../utils/nftUtils.js";
+import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";  // adjust path if needed
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -28,7 +31,8 @@ function loadTokenURIMapping() {
   return map;
 }
 
-router.post("/", (req, res) => {
+/* ---------- CREATE GAME ROUTE--------*/
+router.post("/", async (req, res) => {
   console.log("🔥 CREATE GAME HIT", req.body);
 
   const { gameId, creator, stakeToken, stakeAmount } = req.body;
@@ -44,9 +48,11 @@ router.post("/", (req, res) => {
   if (games.some(g => g.id === gameId))
     return res.status(409).json({ error: "Game already exists" });
 
+  const player1Lc = creator.toLowerCase();
+
   games.push({
     id: gameId,
-    player1: creator.toLowerCase(),
+    player1: player1Lc,
     player2: null,
     stakeToken,
     stakeAmount,
@@ -62,10 +68,40 @@ router.post("/", (req, res) => {
 
   saveGames(games);
   console.log("✅ Game created:", gameId);
+
+  // Populate ownership cache for creator (Player 1)
+  const cache = readOwnerCache();
+
+  if (!cache[player1Lc]) {
+    console.log(`Populating initial ownership cache for creator ${player1Lc}`);
+
+    try {
+      const provider = new ethers.JsonRpcProvider(RPC_URL);
+      const vkin = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
+      const vqle = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLE_ABI, provider);
+
+      console.log("Fetching VKIN tokens...");
+      const vkinIds = await fetchOwnedTokenIds(vkin, player1Lc, "VKIN");
+
+      console.log("Fetching VQLE tokens...");
+      const vqleIds = await fetchOwnedTokenIds(vqle, player1Lc, "VQLE");
+
+      cache[player1Lc] = {
+        VKIN: vkinIds,
+        VQLE: vqleIds,
+      };
+
+      writeOwnerCache(cache);
+      console.log(`Cache populated for ${player1Lc}: ${vkinIds.length} VKIN, ${vqleIds.length} VQLE`);
+    } catch (err) {
+      console.error("Failed to populate creator cache:", err.message, err.stack);
+    }
+  }
+
   res.json({ success: true, gameId });
 });
 
-// ---------------- JOIN GAME ----------------
+  // ---------------- JOIN GAME ----------------
 router.post("/:id/join", (req, res) => {
   console.log("🔥 JOIN GAME HIT", req.params, req.body);
 
@@ -105,8 +141,12 @@ router.post("/:id/reveal", (req, res) => {
     const gameId = Number(req.params.id);
     const { player, salt, nftContracts, tokenIds } = req.body;
 
-    if (!player || !salt || !Array.isArray(tokenIds)) {
+    if (!player || !salt || !Array.isArray(nftContracts) || !Array.isArray(tokenIds)) {
       return res.status(400).json({ error: "Missing reveal data" });
+    }
+
+    if (nftContracts.length !== tokenIds.length) {
+      return res.status(400).json({ error: "nftContracts and tokenIds length mismatch" });
     }
 
     const games = loadGames();
@@ -124,24 +164,59 @@ router.post("/:id/reveal", (req, res) => {
       return res.status(400).json({ error: "Reveal already submitted" });
     }
 
-    // ---- resolve tokenURIs via mapping.csv/json ----
-    const mapping = loadMapping();
-    const tokenURIs = tokenIds.map(id => mapping[Number(id)]);
-    if (tokenURIs.some(u => !u)) {
-      return res.status(400).json({ error: "Missing tokenURI" });
-    }
+    // ---- Map addresses to collection folders ----
+    const addressToCollection = {
+      [VKIN_CONTRACT_ADDRESS.toLowerCase()]: "VKIN",
+      [VQLE_CONTRACT_ADDRESS.toLowerCase()]: "VQLE",
+    };
 
-    // ---- extract backgrounds (backend authoritative) ----
-    const backgrounds = tokenURIs.map(uri => {
-      const json = JSON.parse(
-        fs.readFileSync(path.join(METADATA_JSON_DIR, uri), "utf8")
-      );
-      const bg = json.attributes.find(a => a.trait_type === "Background");
-      return bg?.value ?? "Unknown";
-    });
+    const mapping = loadMapping(); // your current loadMapping() function
 
-    // ---- save reveal ----
-    game._reveal[slot] = { salt, nftContracts, tokenIds, tokenURIs };
+const tokenURIs = [];
+const backgrounds = [];
+
+for (let i = 0; i < tokenIds.length; i++) {
+  const contractAddr = nftContracts[i].toLowerCase();
+  const collection = addressToCollection[contractAddr];
+
+  if (!collection) {
+    return res.status(400).json({ error: `Unknown contract: ${contractAddr}` });
+  }
+
+  const tokenId = String(tokenIds[i]);
+
+  const mapped = mapping[collection]?.[tokenId];
+  if (!mapped) {
+    return res.status(400).json({ error: `Missing mapping for ${collection} token ${tokenId}` });
+  }
+
+  const jsonFile = mapped.token_uri || `${tokenId}.json`;
+
+  // Declare jsonPath inside loop — only used here
+  const jsonPath = path.join(METADATA_JSON_DIR, collection, jsonFile);
+
+  if (!fs.existsSync(jsonPath)) {
+    return res.status(500).json({ error: `Metadata missing: ${jsonPath}` });
+  }
+
+  const jsonData = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+
+  const bgTrait = jsonData.attributes?.find(a => a.trait_type === "Background");
+  const background = bgTrait?.value || "Unknown";
+
+  tokenURIs.push(jsonFile);
+  backgrounds.push(background);
+}
+
+// When saving
+game._reveal[slot] = {
+  salt,
+  nftContracts: [...nftContracts], // make a copy to be safe
+  tokenIds: [...tokenIds],
+  tokenURIs,
+  backgrounds,
+};
+
     game.player1Revealed = !!game._reveal.player1;
     game.player2Revealed = !!game._reveal.player2;
 
@@ -153,13 +228,13 @@ router.post("/:id/reveal", (req, res) => {
         nftContracts,
         tokenIds,
         tokenURIs,
-        backgrounds
-      }
+        backgrounds,
+      },
     });
 
   } catch (err) {
     console.error("Reveal error:", err);
-    return res.status(400).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 

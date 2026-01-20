@@ -17,6 +17,7 @@ import {
   WHITELISTED_NFTS,
   RARE_BACKGROUNDS,
   ADMIN_ADDRESS,
+  ADDRESS_TO_COLLECTION_KEY,
 } from "./config.js";
 
 import mapping from "./mapping.json";
@@ -197,20 +198,44 @@ useEffect(() => {
 }, []);
 
   /* ---------------- OWNED NFT FETCH ---------------- */
-  useEffect(() => {
-    if (!account) return setOwnedNFTs([]);
-    fetch(`${BACKEND_URL}/nfts/owned/${account}`)
-      .then((r) => r.json())
-      .then((data) =>
-        setOwnedNFTs(
-          data.map((n) => ({
-            ...n,
-            tokenId: n.tokenId.toString(),
-          }))
-        )
-      )
-      .catch(() => setOwnedNFTs([]));
-  }, [account]);
+useEffect(() => {
+  if (!account) return setOwnedNFTs([]);
+
+  const fetchOwned = async () => {
+    try {
+      let res = await fetch(`${BACKEND_URL}/nfts/owned/${account}`);
+      let data = await res.json();
+
+      console.log("Initial owned NFTs:", data);
+
+if (data.length === 0) {
+  console.warn("No NFTs — forcing cache population");
+  try {
+    const forceRes = await fetch(`${BACKEND_URL}/nfts/force-cache/${account}`, { method: 'POST' });
+    if (!forceRes.ok) {
+      const forceErr = await forceRes.json();
+      console.error("Force cache failed:", forceErr);
+      alert("Force cache failed: " + (forceErr.error || "Unknown error"));
+    } else {
+      console.log("Force cache succeeded");
+    }
+
+    res = await fetch(`${BACKEND_URL}/nfts/owned/${account}`);
+    data = await res.json();
+    console.log("Retry owned NFTs:", data);
+  } catch (forceErr) {
+    console.error("Force cache error:", forceErr);
+  }
+}
+      setOwnedNFTs(data.map(n => ({ ...n, tokenId: n.tokenId.toString() })));
+    } catch (err) {
+      console.error("Owned fetch error:", err);
+      setOwnedNFTs([]);
+    }
+  };
+
+  fetchOwned();
+}, [account]);
 
   /* ---------------- NFT UPDATE ---------------- */
   const updateNFT = (idx, field, value) => {
@@ -253,25 +278,45 @@ useEffect(() => {
   }
 };
 
-  /* ---------------- VALIDATE TEAM ---------------- */
-  const validateTeam = useCallback(async () => {
-    setValidating(true);
-    try {
-      const seen = new Set();
-      for (const n of nfts) {
-        if (!n.metadata) throw new Error("Missing metadata");
-        if (seen.has(n.metadata.name))
-          throw new Error("Duplicate character");
-        seen.add(n.metadata.name);
+const validateTeam = useCallback(async () => {
+  setValidating(true);
+  try {
+    const seenNames = new Set();
+    const seenBackgrounds = new Set();
+
+    for (const n of nfts) {
+      if (!n.metadata) {
+        throw new Error("Missing metadata for one or more NFTs");
       }
-      setValidated(true);
-      alert("Team validated");
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      setValidating(false);
+
+      const { name, background } = n.metadata;
+
+      if (!name || !background) {
+        throw new Error(`Incomplete metadata for token #${n.tokenId || "?"}`);
+      }
+
+      // Prevent duplicate characters (by name)
+      if (seenNames.has(name)) {
+        throw new Error(`Duplicate character: ${name}`);
+      }
+      seenNames.add(name);
+
+      // Optional but recommended: Prevent duplicate backgrounds
+      // (uncomment if you want to block same background twice)
+      if (seenBackgrounds.has(background)) {
+        throw new Error(`Duplicate background: ${background}`);
+      }
+      seenBackgrounds.add(background);
     }
-  }, [nfts]);
+
+    setValidated(true);
+    alert("Team validated successfully!");
+  } catch (e) {
+    alert(`Validation failed: ${e.message}`);
+  } finally {
+    setValidating(false);
+  }
+}, [nfts]);
 
   /* -------- APPROVE TOKENS ----------*/
   const approveTokens = async () => {
@@ -381,14 +426,21 @@ const loadGames = useCallback(async () => {
 const merged = loaded.map(g => {
   const backend = backendGames.find(bg => bg.id === g.id);
 
-  return {
+  const updated = {
     ...g,
     player1Revealed: backend?.player1Revealed === true || !!backend?._reveal?.player1,
     player2Revealed: backend?.player2Revealed === true || !!backend?._reveal?.player2,
-
-    player1Reveal: backend?._reveal?.player1 || null,   // ← this should include tokenURIs
+    player1Reveal: backend?._reveal?.player1 || null,
     player2Reveal: backend?._reveal?.player2 || null,
+    // Force settled if both revealed
+    settled: g.settled || (backend?.player1Revealed && backend?.player2Revealed),
   };
+
+  if (updated.settled !== g.settled) {
+    console.log("Forced settled true for game", g.id);
+  }
+
+  return updated;
 });
 console.log("Backend reveal for game 0 P1:", backendGames[0]?._reveal?.player1);
 console.log("Backend reveal for game 0 P2:", backendGames[0]?._reveal?.player2);
@@ -630,13 +682,16 @@ const preRes = await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     player: account.toLowerCase(),
-    salt: salt.toString(),              // convert BigInt → string
-    nftContracts,                        // array of addresses is fine
-    tokenIds: tokenIds.map(t => t.toString()), // convert each BigInt → string
+    salt: salt.toString(),
+    nftContracts,
+    tokenIds: tokenIds.map(t => t.toString()),
   }),
 });
-      const preData = await preRes.json();
-      if (!preRes.ok) throw new Error(preData.error);
+
+const preData = await preRes.json();
+console.log("Backend reveal response:", preData); // ← add this
+
+if (!preRes.ok) throw new Error(preData.error || "Backend failed");
 
 const tx = await gameContract.reveal(
   BigInt(g.id),
@@ -696,7 +751,7 @@ const handleRevealFile = useCallback(async (e) => {
       throw new Error("Wallet not connected");
     }
 
-    // ------------------- POST reveal to backend -------------------
+    // POST to backend (no need for contract constants here)
     const res = await fetch(`${BACKEND_URL}/games/${gameId}/reveal`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -713,20 +768,17 @@ const handleRevealFile = useCallback(async (e) => {
 
     const { savedReveal } = backendData;
 
-    // ------------------- Save locally via helper -------------------
-    downloadRevealBackup(
-      {
-        gameId,
-        player: account.toLowerCase(),
-        salt: savedReveal.salt,
-        nftContracts: savedReveal.nftContracts,
-        tokenIds: savedReveal.tokenIds,
-        backgrounds: savedReveal.backgrounds || [],
-      },
-      account
-    );
+    // Save locally
+    downloadRevealBackup({
+      gameId,
+      player: account.toLowerCase(),
+      salt: savedReveal.salt,
+      nftContracts: savedReveal.nftContracts,
+      tokenIds: savedReveal.tokenIds,
+      backgrounds: savedReveal.backgrounds || [],
+    });
 
-    // ------------------- Call contract -------------------
+    // Call on-chain reveal
     const game = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
     const tx = await game.reveal(
@@ -734,13 +786,13 @@ const handleRevealFile = useCallback(async (e) => {
       BigInt(savedReveal.salt),
       savedReveal.nftContracts,
       savedReveal.tokenIds.map((id) => BigInt(id)),
-      savedReveal.backgrounds // <-- mandatory now
+      savedReveal.backgrounds
     );
 
     await tx.wait();
 
     alert("Reveal successful!");
-    await loadGames(); // refresh UI
+    await loadGames();
 
   } catch (err) {
     console.error("Reveal failed:", err);
@@ -771,7 +823,8 @@ const autoSettleIfPossible = useCallback(
         method: "POST",
       });
 
-      await loadGames();
+await loadGames();
+window.location.reload(); // temp force full re-render
     } catch (err) {
       console.error("Auto-settle failed:", err);
     }
@@ -1062,13 +1115,20 @@ return (
     (x) => x.address?.toLowerCase() === n.address?.toLowerCase()
   )?.label === "Verdant Kin" ? "VKIN" : "VQLE";
 
-  // Compute the image filename using mapping
+  // Compute the image filename using new mapping.json structure
   let imageFile = null;
   if (n.tokenId && collectionKey) {
-    const mappedJson = mapping[collectionKey]?.[String(n.tokenId)];
-    imageFile = mappedJson
-      ? mappedJson.replace(".json", ".png")
-      : `${n.tokenId}.png`;
+    const mapped = mapping[collectionKey]?.[String(n.tokenId)];
+
+    if (mapped) {
+      // Prefer real image_file if present
+      imageFile = mapped.image_file ||
+                  (mapped.token_uri?.replace(/\.json$/i, ".png") || `${n.tokenId}.png`);
+      console.log(`Team preview slot ${i}: ${collectionKey} #${n.tokenId} → ${imageFile}`);
+    } else {
+      imageFile = `${n.tokenId}.png`;
+      console.log(`Team preview slot ${i}: fallback ${collectionKey} #${n.tokenId} → ${imageFile}`);
+    }
   }
 
   return (
@@ -1255,7 +1315,7 @@ return (
         <button
           onClick={createGame}
           disabled={!validated || !stakeToken || !stakeAmount || !signer}
-          style={{ marginLeft: 8 }}
+          style={{ marginLeft: 12 }}
         >
           Create Game
         </button>
@@ -1283,6 +1343,13 @@ return (
           {settledGames.map((g) => (
             <GameCard key={g.id} g={g} {...gameCardProps} />
           ))}
+        {openGames.map((g) => (
+  <GameCard 
+    key={`${g.id}-${g.player1Revealed}-${g.player2Revealed}`} // changes when reveal status updates
+    g={g} 
+    {...gameCardProps} 
+  />
+))}
         </div>
       </div>
     </div>

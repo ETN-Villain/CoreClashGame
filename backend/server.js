@@ -28,22 +28,29 @@ app.use("/events", sseRouter);
 app.use("/nfts", nftsRouter);
 
 // ---------------- METADATA ----------------
-app.get("/metadata/:tokenId", (req, res) => {
-  const { tokenId } = req.params;
+app.get("/metadata/:collection/:tokenId", (req, res) => {
+  const { collection, tokenId } = req.params;
+  const mapping = loadMapping(); // your load function
 
-  const mapping = loadMapping();
-  const jsonFile = mapping[tokenId];
-  if (!jsonFile) {
-    return res.status(404).json({ error: "Token not found" });
+  const mapped = mapping[collection.toUpperCase()]?.[String(tokenId)];
+  if (!mapped) {
+    return res.status(404).json({ error: "Token not found in mapping" });
   }
 
-  const filePath = path.join(METADATA_JSON_DIR, jsonFile);
+  // Prefer image_file if present
+  const jsonFile = mapped.token_uri || `${tokenId}.json`;
+  const imageFile = mapped.image_file || `${tokenId}.png`;
+
+  const filePath = path.join(METADATA_JSON_DIR, collection.toUpperCase(), jsonFile);
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: "File missing" });
+    return res.status(404).json({ error: "Metadata file missing" });
   }
 
   const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
-  res.json(data);
+  res.json({
+    ...data,
+    image_file: imageFile, // expose to frontend if needed
+  });
 });
 
 // ---------------- START SERVER ----------------

@@ -8,10 +8,30 @@ export async function handleEvent(e) {
   const eventName = e.eventName;
   const args = e.args;
 
-  if (event.event === "Transfer") {
-    const from = event.args.from?.toLowerCase();
-    const to = event.args.to?.LowerCase();
+if (event.event === "Transfer") {
+  const contractAddr = event.address.toLowerCase();
+  const from = event.args.from?.toLowerCase();
+  const to = event.args.to?.toLowerCase();
 
+  let prefix;
+  if (contractAddr === VKIN_CONTRACT_ADDRESS.toLowerCase()) {
+    prefix = "vkin_owned_";
+  } else if (contractAddr === VQLE_CONTRACT_ADDRESS.toLowerCase()) {
+    prefix = "vqle_owned_";
+  } else {
+    console.warn("Transfer from unknown contract:", contractAddr);
+    return;
+  }
+
+  if (from && from !== ethers.ZeroAddress) {
+    deleteCache(prefix + from);
+    console.log(`♻️ ${prefix.slice(0, -6)} cache invalidated for ${from}`);
+  }
+  if (to && to !== ethers.ZeroAddress) {
+    deleteCache(prefix + to);
+    console.log(`♻️ ${prefix.slice(0, -6)} cache invalidated for ${to}`);
+  }
+}
 
   if (!args || args.length === 0) return;
 
@@ -91,4 +111,3 @@ switch (eventName) {
 
     console.log("♻️ NFT ownership cache invalidated");
   }
-}

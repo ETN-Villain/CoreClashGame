@@ -1,141 +1,197 @@
 import express from "express";
-import { ethers } from "ethers";
+const router = express.Router();
+
 import fs from "fs";
 import path from "path";
-import { METADATA_JSON_DIR } from "../paths.js";
-import { RPC_URL, VKIN_CONTRACT_ADDRESS, VQLE_CONTRACT_ADDRESS } from "../config.js";
+import { ethers } from "ethers";
 import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";
-
-// Import each ABI separately
+import mapping from "../../src/mapping.json" assert { type: "json" }; // new format
+import { RPC_URL, VKIN_CONTRACT_ADDRESS, VQLE_CONTRACT_ADDRESS } from "../config.js";
+import { METADATA_JSON_DIR } from "../paths.js";
+import { fetchOwnedTokenIds } from "../utils/nftUtils.js";
 import VKIN_ABI from "../../src/abis/VKINABI.json" assert { type: "json" };
 import VQLE_ABI from "../../src/abis/VQLEABI.json" assert { type: "json" };
 
-const router = express.Router();
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
-// Helper to fetch owned NFTs with cache support
-async function fetchOwnedNFTs(contract, nftAddress, wallet, isRandom = false) {
-  const nfts = [];
-  const collection = nftAddress === VQLE_CONTRACT_ADDRESS ? "VQLE" : "VKIN";
+const addressToCollection = {
+  [VKIN_CONTRACT_ADDRESS.toLowerCase()]: "VKIN",
+  [VQLE_CONTRACT_ADDRESS.toLowerCase()]: "VQLE",
+};
 
-  let tokenIds = [];
+// Helper: enrich a single token with remapped data + real metadata
+async function enrichToken(collection, tokenIdStr, nftAddress) {
+  const tokenId = String(tokenIdStr);
+  const mapped = mapping[collection]?.[tokenId];
 
-  if (collection === "VKIN") {
-    // VKIN uses Enumerable
-    const balance = Number(await contract.balanceOf(wallet));
-    for (let i = 0; i < balance; i++) {
-      try {
-        const tokenId = await contract.tokenOfOwnerByIndex(wallet, i);
-        tokenIds.push(tokenId.toString());
-      } catch (err) {
-        console.warn(`⚠️ Failed to get token at index ${i} for VKIN: ${err.message}`);
-        await delay(500);
-        i--; // retry
-      }
-    }
-  } else {
-    // VQLE: no tokenOfOwnerByIndex → scan IDs manually
-    const MAX_TOKEN_ID = 1000; // adjust based on collection size
-    for (let t = 1; t <= MAX_TOKEN_ID; t++) {
-      try {
-        const owner = await contract.ownerOf(BigInt(t));
-        if (owner.toLowerCase() === wallet.toLowerCase()) tokenIds.push(t.toString());
-      } catch {
-        // token not minted or doesn't exist
-        continue;
-      }
-    }
+  let tokenURI = `${tokenId}.json`;
+  let imageFile = `${tokenId}.png`;
+  let name = `${collection} #${tokenId}`;
+  let background = "Unknown";
+
+  if (mapped) {
+    tokenURI = mapped.token_uri || tokenURI;
+    imageFile = mapped.image_file || (tokenURI.replace(/\.json$/i, ".png"));
   }
 
-  // --- Load/generate metadata and populate nfts ---
-  for (const tokenId of tokenIds) {
-    let fileName, metadata = {};
+  // Load real metadata (name/background) from JSON file
+  const jsonPath = path.join(METADATA_JSON_DIR, collection, tokenURI);
+  if (fs.existsSync(jsonPath)) {
     try {
-      const collectionDir = path.join(METADATA_JSON_DIR, collection);
-      if (!fs.existsSync(collectionDir)) fs.mkdirSync(collectionDir, { recursive: true });
-
-      fileName = `${tokenId}.json`;
-      const jsonPath = path.join(collectionDir, fileName);
-
-      if (fs.existsSync(jsonPath)) {
-        metadata = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
-      } else if (collection === "VQLE") {
-        metadata = { name: `VQLE #${tokenId}`, attributes: [{ trait_type: "Background", value: "Unknown" }] };
-        fs.writeFileSync(jsonPath, JSON.stringify(metadata, null, 2));
-        console.log(`💾 Generated metadata for VQLE token ${tokenId}`);
-      }
-    } catch (err) {
-      console.warn(`⚠️ Failed to load/generate metadata for ${collection} token ${tokenId}: ${err.message}`);
+      const meta = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+      name = meta.name || name;
+      background = meta.background ||
+                   meta.attributes?.find(a => a.trait_type?.toLowerCase() === "background")?.value ||
+                   background;
+    } catch (e) {
+      console.warn(`Failed to parse metadata for ${collection} #${tokenId}: ${e.message}`);
     }
-
-    nfts.push({
-      collection,
-      tokenId,
-      tokenURI: fileName,
-      nftAddress,
-      name: metadata.name || `${collection} #${tokenId}`,
-      background: metadata.attributes?.find(a => a.trait_type === "Background")?.value || "Unknown"
-    });
-
-    await delay(isRandom ? 250 : 100);
   }
 
-  return nfts;
+  return {
+    collection,
+    tokenId,
+    tokenURI,
+    nftAddress,
+    name,
+    background,
+    imageFile, // optional - frontend can use if needed
+  };
 }
 
-// --- GET /owned/:wallet ---
+// Helper: fetch owned tokenIds (no metadata here yet)
+router.post("/force-cache/:wallet", async (req, res) => {
+  const wallet = req.params.wallet.toLowerCase();
+  console.log(`Force cache requested for ${wallet}`);
+
+  try {
+    const cache = readOwnerCache();
+
+    if (cache[wallet]) {
+      console.log("Cache already exists — skipping scan");
+      return res.json({ success: true, alreadyCached: true });
+    }
+
+    const provider = new ethers.JsonRpcProvider(RPC_URL);
+    const vkin = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
+    const vqle = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLE_ABI, provider);
+
+    console.log("Force-scanning VKIN...");
+    const vkinIds = await fetchOwnedTokenIds(vkin, wallet, "VKIN");
+
+    console.log("Force-scanning VQLE...");
+    const vqleIds = await fetchOwnedTokenIds(vqle, wallet, "VQLE");
+
+    cache[wallet] = { VKIN: vkinIds, VQLE: vqleIds };
+    writeOwnerCache(cache);
+
+    console.log(`Force cache filled: ${vkinIds.length} VKIN, ${vqleIds.length} VQLE`);
+
+    res.json({ success: true, tokens: { VKIN: vkinIds.length, VQLE: vqleIds.length } });
+  } catch (err) {
+    console.error("Force cache failed:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /owned/:wallet
 router.get("/owned/:wallet", async (req, res) => {
   const wallet = req.params.wallet.toLowerCase();
   console.log("🔎 Owned NFTs request for:", wallet);
 
   const cache = readOwnerCache();
+  let walletCache = cache[wallet] || { VKIN: [], VQLE: [] };
 
-const walletCache = cache[wallet] || { VKIN: [], VQLE: [] };
+  // Force scan if cache is empty
+  if (walletCache.VKIN.length === 0 && walletCache.VQLE.length === 0) {
+    console.log("Cache miss/empty — scanning blockchain for", wallet);
 
-// Remove incomplete NFTs per collection
-["VKIN", "VQLE"].forEach((collection) => {
-  const incomplete = walletCache[collection].some(n => n.background === "Unknown");
-  if (incomplete) {
-    console.log(`🗑️ Removing incomplete metadata for ${collection} of wallet ${wallet}`);
-    walletCache[collection] = walletCache[collection].filter(n => n.background !== "Unknown");
-    cache[wallet] = walletCache; // update main cache object
-    writeOwnerCache(cache);
+    try {
+      const provider = new ethers.JsonRpcProvider(RPC_URL);
+      const vkin = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
+      const vqle = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLE_ABI, provider);
+
+      console.log("Scanning VKIN...");
+      const vkinIds = await fetchOwnedTokenIds(vkin, wallet, "VKIN");  // ← fixed: "VKIN"
+
+      console.log("Scanning VQLE...");
+      const vqleIds = await fetchOwnedTokenIds(vqle, wallet, "VQLE");  // ← fixed: "VQLE"
+
+      walletCache = { VKIN: vkinIds, VQLE: vqleIds };
+      cache[wallet] = walletCache;
+      writeOwnerCache(cache);
+
+      console.log(`Cache filled: ${vkinIds.length} VKIN, ${vqleIds.length} VQLE`);
+    } catch (err) {
+      console.error("On-chain scan failed:", err.message);
+    }
+  } else {
+    console.log("Cache hit — using cached data");
   }
-});
 
-// Combine VKIN + VQLE for frontend consumption
-const combinedNFTs = [...walletCache.VKIN, ...walletCache.VQLE];
+  // Enrich and return (your existing code)
+// After cache fill or cache hit
+const result = [];
 
-if (combinedNFTs.length > 0) {
-  console.log("⚡ Cache hit for", wallet, "- returning", combinedNFTs.length, "NFTs");
-  return res.json(combinedNFTs);
+// VKIN
+for (const tokenId of walletCache.VKIN) {
+  const mapped = mapping["VKIN"]?.[tokenId];
+  const jsonFile = mapped?.token_uri || `${tokenId}.json`;
+  const jsonPath = path.join(METADATA_JSON_DIR, "VKIN", jsonFile);
+
+  let name = `VKIN #${tokenId}`;
+  let background = "Unknown";
+
+  if (fs.existsSync(jsonPath)) {
+    try {
+      const meta = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+      name = meta.name || name;
+      background = meta.attributes?.find(a => a.trait_type === "Background")?.value || background;
+    } catch (e) {
+      console.warn(`Metadata parse error for VKIN #${tokenId}`);
+    }
+  }
+
+  result.push({
+    nftAddress: VKIN_CONTRACT_ADDRESS,
+    tokenId,
+    name,
+    background,
+    tokenURI: jsonFile,
+    collection: "VKIN"
+  });
 }
 
-  console.log("⛓️ Cache miss — scanning blockchain");
+// VQLE (same pattern)
+for (const tokenId of walletCache.VQLE) {
+  const mapped = mapping["VQLE"]?.[tokenId];
+  const jsonFile = mapped?.token_uri || `${tokenId}.json`;
+  const jsonPath = path.join(METADATA_JSON_DIR, "VQLE", jsonFile);
 
-  try {
-    const provider = new ethers.JsonRpcProvider(RPC_URL);
-    const vkin = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
-    const vqle = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLE_ABI, provider);
+  let name = `VQLE #${tokenId}`;
+  let background = "Unknown";
 
-    // Fetch VKIN (random mapping)
-    const vkinNFTs = await fetchOwnedNFTs(vkin, VKIN_CONTRACT_ADDRESS, wallet, true);
-
-    // Fetch VQLE (simple mapping)
-    const vqleNFTs = await fetchOwnedNFTs(vqle, VQLE_CONTRACT_ADDRESS, wallet, false);
-
-    const ownedNFTs = [...vkinNFTs, ...vqleNFTs];
-
-    cache[wallet] = ownedNFTs;
-    writeOwnerCache(cache);
-
-    console.log(`✅ Found ${ownedNFTs.length} NFTs for ${wallet}`);
-    res.json(ownedNFTs);
-
-  } catch (err) {
-    console.error("❌ Owned route error:", err);
-    res.status(500).json({ error: "Failed to fetch owned NFTs" });
+  if (fs.existsSync(jsonPath)) {
+    try {
+      const meta = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+      name = meta.name || name;
+      background = meta.attributes?.find(a => a.trait_type === "Background")?.value || background;
+    } catch (e) {
+      console.warn(`Metadata parse error for VQLE #${tokenId}`);
+    }
   }
+
+  result.push({
+    nftAddress: VQLE_CONTRACT_ADDRESS,
+    tokenId,
+    name,
+    background,
+    tokenURI: jsonFile,
+    collection: "VQLE"
+  });
+}
+
+res.json(result);
 });
 
 export default router;

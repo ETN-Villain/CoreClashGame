@@ -76,19 +76,20 @@ async function generateVKIN(rows, provider) {
   const contract = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
 
   for (let tokenId = 1; tokenId <= VKIN_MAX_SUPPLY; tokenId++) {
-    let jsonFile;
-    let metadata;
+    let jsonFile = null;
+    let imageFile = `${tokenId}.png`; // fallback – prevents undefined
 
-    // Fetch tokenURI from contract
     try {
       const tokenURI = await contract.tokenURI(tokenId);
-      if (!tokenURI?.startsWith("ipfs://")) continue;
+      if (!tokenURI?.startsWith("ipfs://")) {
+        console.warn(`VKIN ${tokenId}: tokenURI not IPFS → skipping`);
+        continue;
+      }
 
-      // Determine JSON filename from IPFS path
       jsonFile = path.basename(tokenURI);
-
       const jsonPath = path.join(VKIN_JSON_DIR, jsonFile);
 
+      let metadata;
       if (fs.existsSync(jsonPath)) {
         metadata = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
       } else {
@@ -100,20 +101,28 @@ async function generateVKIN(rows, provider) {
         console.log(`💾 Saved VKIN JSON ${jsonFile}`);
       }
 
-      // Download image
+      // Download image & use real filename
       if (metadata.image?.startsWith("ipfs://")) {
-        const imageFile = path.basename(metadata.image);
-        const imagePath = path.join(VKIN_IMAGE_DIR, imageFile);
+        const downloadedImageFile = path.basename(metadata.image);
+        const imagePath = path.join(VKIN_IMAGE_DIR, downloadedImageFile);
+
         if (!fs.existsSync(imagePath)) {
           const img = await fetchWithRetries(metadata.image, 3, 5000, "arraybuffer");
           if (img) {
             fs.writeFileSync(imagePath, img);
-            console.log(`🖼️ Downloaded VKIN image ${imageFile}`);
+            console.log(`🖼️ Downloaded VKIN image ${downloadedImageFile}`);
           }
         }
+
+        imageFile = downloadedImageFile; // ← use the real name
       }
 
-      rows.push(`VKIN,${tokenId},${jsonFile}`);
+      // Only push if we have at least jsonFile
+      if (jsonFile) {
+        rows.push(`VKIN,${tokenId},${jsonFile},${imageFile}`);
+        console.log(`Added VKIN ${tokenId} → ${jsonFile} / ${imageFile}`);
+      }
+
     } catch (err) {
       console.warn(`⚠️ VKIN tokenId ${tokenId} skipped: ${err.message}`);
     }
@@ -146,28 +155,35 @@ async function generateVQLE(rows) {
       console.log(`💾 Saved VQLE JSON ${jsonFile}`);
     }
 
-    // Download image from metadata.image
+    let imageFile = `${tokenId}.png`; // fallback
+
+    // Use the actual downloaded image filename
     if (metadata.image?.startsWith("ipfs://")) {
-      const imageFile = path.basename(metadata.image);
-      const imagePath = path.join(VQLE_IMAGE_DIR, imageFile);
+      const downloadedImageFile = path.basename(metadata.image);
+      const imagePath = path.join(VQLE_IMAGE_DIR, downloadedImageFile);
 
       if (!fs.existsSync(imagePath)) {
         const img = await fetchWithRetries(metadata.image, 3, 5000, "arraybuffer");
         if (img) {
           fs.writeFileSync(imagePath, img);
-          console.log(`🖼️ Downloaded VQLE image ${imageFile}`);
+          console.log(`🖼️ Downloaded VQLE image ${downloadedImageFile}`);
         }
       }
+
+      // Use the real basename (this is the key change)
+      imageFile = downloadedImageFile;
     }
 
-    rows.push(`VQLE,${tokenId},${jsonFile}`);
+    // Save the real image filename in mapping.csv
+    rows.push(`VQLE,${tokenId},${jsonFile},${imageFile}`);
+
     await sleep(100);
   }
 }
 
 /* ---------------- Main ---------------- */
 export async function generateMapping() {
-  const rows = ["collection,token_id,token_uri"];
+  const rows = ["collection,token_id,token_uri,image_file"];
   const provider = new ethers.JsonRpcProvider(RPC_URL);
 
   await generateVKIN(rows, provider);
