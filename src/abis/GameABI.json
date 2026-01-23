@@ -1,5 +1,72 @@
 [
 	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "gameId",
+				"type": "uint256"
+			}
+		],
+		"name": "cancelUnjoinedGame",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "stakeToken",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "stakeAmount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "commit",
+				"type": "bytes32"
+			}
+		],
+		"name": "createGame",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "gameId",
+				"type": "uint256"
+			}
+		],
+		"name": "forceCancelUnjoinedGame",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "gameId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "commit",
+				"type": "bytes32"
+			}
+		],
+		"name": "joinGame",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"stateMutability": "nonpayable",
 		"type": "constructor"
@@ -48,29 +115,6 @@
 		],
 		"name": "CommitSubmitted",
 		"type": "event"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "stakeToken",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "stakeAmount",
-				"type": "uint256"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "commit",
-				"type": "bytes32"
-			}
-		],
-		"name": "createGame",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
 	},
 	{
 		"anonymous": false,
@@ -147,24 +191,6 @@
 		],
 		"name": "HostWalletUpdated",
 		"type": "event"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "gameId",
-				"type": "uint256"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "commit",
-				"type": "bytes32"
-			}
-		],
-		"name": "joinGame",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
 	},
 	{
 		"anonymous": false,

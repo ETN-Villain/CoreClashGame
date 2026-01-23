@@ -21,18 +21,25 @@ export const StableImage = ({ src, alt }) => {
   }, [src]);
 
   return (
-    <div style={{ position: 'relative', width: 80, height: 80 }}>
+    <div style={{ 
+      position: 'relative', 
+      width: 80, 
+      height: 120,           // fixed size
+      background: '#111',
+      borderRadius: 6,
+      overflow: 'hidden',
+      border: '1px solid #333',
+    }}>
       <img
         src={src}
         alt={alt}
         style={{
           width: '100%',
           height: '100%',
-          objectFit: 'cover',
-          border: '1px solid #333',
-          borderRadius: 6,
+          objectFit: 'cover',               // keep fill + crop
+          objectPosition: 'top center',     // ← CHANGED: prioritize top/head area
           opacity: status === 'success' ? 1 : 0.4,
-          transition: 'opacity 0.2s',
+          transition: 'opacity 0.2s ease',
         }}
         onLoad={() => setStatus('success')}
         onError={() => setStatus('error')}
@@ -45,9 +52,9 @@ export const StableImage = ({ src, alt }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#111',
+            background: 'rgba(17, 17, 17, 0.7)',
             color: status === 'error' ? '#ff5555' : '#888',
-            fontSize: 20,
+            fontSize: 24,
             borderRadius: 6,
           }}
         >
@@ -67,133 +74,65 @@ export default function GameCard({
   joinGame,
   manualSettleGame,
   handleRevealFile,
+  cancelUnjoinedGame,
   roundResults = [],
 }) {
   const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
   const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
 
+  /* --------- GAME STATES --------- */
+  const isCancelled = g.cancelled === true || g.cancelled === "true";
+  const isSettled = g.settled === true || g.settled === "true" || isCancelled;
+
   const canJoin =
     g.player2 === ethers.ZeroAddress &&
     !isPlayer1 &&
     !isPlayer2 &&
+    !isCancelled &&
+    !isSettled &&
     !!account &&
     !!signer;
 
   const bothRevealed = g.player1Revealed && g.player2Revealed;
-  const canSettle = bothRevealed && !g.settled;
-
-  console.log(`Game #${g.id} reveal status:`, {
-    bothRevealed,
-    p1Revealed: g.player1Revealed,
-    p2Revealed: g.player2Revealed,
-    p1RevealExists: !!g.player1Reveal,
-    p2RevealExists: !!g.player2Reveal,
-    p1TokenURIs: g.player1Reveal?.tokenURIs,
-    p2TokenURIs: g.player2Reveal?.tokenURIs,
-  });
+  const canSettle = bothRevealed && !isSettled;
 
   /* ---------------- Render Token Images ---------------- */
   const renderTokenImages = (input = []) => {
     let tokens = [];
 
-    if (Array.isArray(input)) {
-      tokens = input;
-    } else if (input && typeof input === 'object') {
+    if (Array.isArray(input)) tokens = input;
+    else if (input && typeof input === "object") {
       const { nftContracts = [], tokenIds = [], tokenURIs = [] } = input;
-
-      console.log("[renderTokenImages] Backend reveal data:", {
-        tokenIds,
-        tokenURIs,
-        nftContracts,
-      });
 
       tokens = tokenIds.map((id, idx) => {
         const rawAddr = nftContracts[idx];
+        let addr = (rawAddr || "").toString().trim().replace(/[^0-9a-fA-F]/gi, "").toLowerCase();
+        if (addr && !addr.startsWith("0x")) addr = "0x" + addr;
 
-        // Normalize address
-        let addr = (rawAddr || "").toString().trim()
-          .replace(/[^0-9a-fA-F]/gi, '')
-          .toLowerCase();
+        let collection = addressToCollection[addr] || (addr.includes("8cfbb04c") ? "VQLE" : "VKIN");
 
-        if (addr && !addr.startsWith('0x')) {
-          addr = '0x' + addr;
-        }
-
-        let collection = addressToCollection[addr];
-
-        // Fallback pattern for VQLE (in case of minor mismatches)
-        if (!collection && addr.includes('8cfbb04c')) {
-          console.log(`Slot ${idx} VQLE pattern match (raw: ${rawAddr})`);
-          collection = "VQLE";
-        }
-
-        if (!collection) {
-          console.warn(`Slot ${idx} No collection match for "${addr}" (raw: "${rawAddr}") — defaulting to VKIN`);
-          collection = "VKIN";
-        }
-
-        console.log(`Slot ${idx} collection: ${collection}, tokenId: ${id}`);
-
-        // ── Decide image filename ──
-        let imageFile = `${id}.png`; // ultimate fallback
-
-        // Mapping.json is primary source for correct/remapped image
+        let imageFile = `${id}.png`;
         const mappedEntry = mapping[collection]?.[String(id)];
 
         if (mappedEntry) {
-          if (mappedEntry.image_file) {
-            imageFile = mappedEntry.image_file;
-            console.log(`Slot ${idx}: using explicit image_file from mapping → ${imageFile}`);
-          } else if (mappedEntry.token_uri) {
-            imageFile = mappedEntry.token_uri
-              .replace(/\.json$/i, ".png")
-              .toLowerCase();
-            console.log(`Slot ${idx}: derived from mapping.token_uri → ${imageFile}`);
-          } else {
-            console.warn(`Slot ${idx}: mapping entry exists but no image_file or token_uri`);
-          }
-        }
-        // Backend tokenURI only as last resort
-        else if (tokenURIs[idx]) {
-          imageFile = tokenURIs[idx]
-            .replace(/\.json$/i, ".png")
-            .toLowerCase();
-          console.warn(`Slot ${idx}: no mapping entry → fallback to backend tokenURI → ${imageFile}`);
-        } else {
-          console.warn(`Slot ${idx}: no mapping & no tokenURI → using ${imageFile}`);
+          if (mappedEntry.image_file) imageFile = mappedEntry.image_file;
+          else if (mappedEntry.token_uri) imageFile = mappedEntry.token_uri.replace(/\.json$/i, ".png").toLowerCase();
+        } else if (tokenURIs[idx]) {
+          imageFile = tokenURIs[idx].replace(/\.json$/i, ".png").toLowerCase();
         }
 
-        console.log(`Slot ${idx} final imageFile: ${imageFile} (source: ${mappedEntry ? 'mapping.json' : (tokenURIs[idx] ? 'backend' : 'fallback')})`);
-
-        return {
-          collection,
-          tokenId: id,
-          imageFile,
-        };
+        return { collection, tokenId: id, imageFile };
       });
     }
 
-    if (!tokens.length) {
-      console.log("[renderTokenImages] No tokens to render");
-      return null;
-    }
+    if (!tokens.length) return null;
 
     return (
       <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
         {tokens.map((token, i) => {
           const { collection, tokenId, imageFile } = token;
-
           const src = `${BACKEND_URL}/images/${collection}/${imageFile}`;
-
-          console.log(`Rendering slot ${i}: ${src}`);
-
-          return (
-            <StableImage
-              key={`${collection}-${tokenId || i}-${i}`}
-              src={src}
-              alt={`${collection} #${tokenId || '?'}`}
-            />
-          );
+          return <StableImage key={`${collection}-${tokenId || i}-${i}`} src={src} alt={`${collection} #${tokenId || "?"}`} />;
         })}
       </div>
     );
@@ -201,69 +140,85 @@ export default function GameCard({
 
   /* ---------------- Render JSX ---------------- */
   return (
-    <div style={{ border: "1px solid #444", padding: 14, marginBottom: 14 }}>
+    <div
+      style={{
+        border: "1px solid #444",
+        padding: 14,
+        marginBottom: 14,
+        opacity: isCancelled ? 0.6 : 1,
+        backgroundColor: isCancelled ? "#111" : "transparent",
+      }}
+    >
+      {/* Cancelled Banner */}
+      {isCancelled && (
+        <div
+          style={{
+            backgroundColor: "rgba(255, 68, 68, 0.2)",
+            border: "1px solid #ff4444",
+            borderRadius: 6,
+            padding: "12px",
+            marginBottom: 12,
+            color: "#ff5555",
+            fontWeight: "bold",
+            textAlign: "center",
+            fontSize: 16,
+          }}
+        >
+          ⚠️ Game Cancelled
+          <div style={{ fontSize: 13, fontWeight: "normal", marginTop: 4, opacity: 0.9 }}>
+            Stake refunded on-chain
+          </div>
+        </div>
+      )}
+
       <h3 style={{ marginTop: 0, marginBottom: 6 }}>Game #{g.id}</h3>
 
-      {/* PLAYER 1 */}
+      {/* Player 1 */}
       <div>
-        🟥 Player 1: {g.player1 ? `0x...${g.player1.slice(-5)}` : "Waiting for opponent"}
+        🟥 Player 1: {g.player1 ? `0x...${g.player1.slice(-5)}` : isSettled ? "—" : "Waiting for opponent"}
       </div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
         Stake: {g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0}
       </div>
 
-      {/* PLAYER 2 */}
-      <div style={{ marginTop: 6 }}>
-        🟦 Player 2: {g.player2 && g.player2 !== ethers.ZeroAddress ? `0x...${g.player2.slice(-5)}` : "Waiting for opponent"}
+      {/* Player 2 */}
+      <div style={{ marginTop: 6, opacity: isCancelled ? 0.6 : 1 }}>
+        🟦 Player 2: {g.player2 && g.player2 !== ethers.ZeroAddress ? `0x...${g.player2.slice(-5)}` : isSettled ? "—" : "Waiting for opponent"}
       </div>
-      <div style={{ fontSize: 14, marginTop: 2 }}>
+      <div style={{ fontSize: 14, marginTop: 2, opacity: isCancelled ? 0.6 : 1 }}>
         Stake: {g.player2 !== ethers.ZeroAddress && g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0}
       </div>
 
-      {/* ── TEAM IMAGES + WINNER / RESULTS ── */}
-      {bothRevealed ? (
-        <div style={{ marginTop: 16 }}>
-          {/* Winner announcement */}
-          {g.settled && g.winner && (
-            <div style={{ marginBottom: 12, fontWeight: "bold", fontSize: 18, textAlign: "center" }}>
-              🏆{" "}
-              {g.winner === ethers.ZeroAddress
-                ? "It's a Draw!"
-                : g.winner.toLowerCase() === g.player1?.toLowerCase()
-                ? "Player 1 Wins!"
-                : "Player 2 Wins!"}
-            </div>
-          )}
+      {/* Cancel Button – only for unjoined games */}
+      {isPlayer1 && g.player2 === ethers.ZeroAddress && !isSettled && !isCancelled && (
+        <div style={{ marginTop: 12 }}>
+          <button
+            onClick={() => cancelUnjoinedGame(g.id)}
+            disabled={!signer}
+            style={{
+              background: "#ff4444",
+              color: "#fff",
+              padding: "6px 12px",
+              borderRadius: 4,
+              border: "none",
+              cursor: signer ? "pointer" : "not-allowed",
+              opacity: signer ? 1 : 0.5,
+            }}
+          >
+            Cancel Game (Refund Stake)
+          </button>
 
-          {/* Player 1 Team */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: "bold", color: "#ff5555", marginBottom: 6 }}>
-              Player 1 Team
-            </div>
-            {renderTokenImages(g.player1Reveal)}
-          </div>
-
-          {/* Player 2 Team */}
-          <div>
-            <div style={{ fontWeight: "bold", color: "#4da3ff", marginBottom: 6 }}>
-              Player 2 Team
-            </div>
-            {renderTokenImages(g.player2Reveal)}
-          </div>
-        </div>
-      ) : (
-        <div />
-      )}
-
-      {/* HIDDEN TEAMS */}
-      {!bothRevealed && (
-        <div style={{ fontSize: 12, color: "#888", marginTop: 6 }}>
-          🔒 Teams hidden until both players reveal
+          <div style={{ fontSize: 12, color: "#ff9999", marginTop: 4 }}>Only available before someone joins</div>
         </div>
       )}
 
-      {/* JOIN / APPROVE */}
-      {canJoin && (
+      {/* Hidden Teams */}
+      {!isSettled && !bothRevealed && (
+        <div style={{ fontSize: 12, color: "#888", marginTop: 6 }}>🔒 Teams hidden until both players reveal</div>
+      )}
+
+      {/* Join / Approve */}
+      {!isCancelled && !isSettled && canJoin && (
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
           <button
             onClick={() => approveTokens(g.stakeToken, g.stakeAmount)}
@@ -278,7 +233,6 @@ export default function GameCard({
           >
             Approve
           </button>
-
           <button
             onClick={() => joinGame(g.id)}
             style={{
@@ -294,79 +248,48 @@ export default function GameCard({
         </div>
       )}
 
-      {/* REVEAL UPLOAD */}
+      {/* Reveal Upload */}
       {g.player2 !== ethers.ZeroAddress &&
         ((isPlayer1 && !g.player1Revealed) || (isPlayer2 && !g.player2Revealed)) && (
           <label style={{ marginLeft: 8, cursor: "pointer" }}>
             Upload Reveal
             <input type="file" accept=".json" style={{ display: "none" }} onChange={handleRevealFile} />
           </label>
-      )}
+        )}
 
-      {/* MANUAL SETTLE */}
-      {canSettle && (
+      {/* Manual Settle */}
+      {canSettle && !isCancelled && (
         <button onClick={() => manualSettleGame(g.id)} style={{ marginTop: 8 }}>
           Settle Game
         </button>
       )}
 
-      {/* WINNER / ROUND RESULTS */}
-      {g.settled && (
-        <div style={{
-          marginTop: 20,
-          padding: 12,
-          background: "rgba(40, 40, 40, 0.6)",
-          borderRadius: 8,
-          border: "1px solid #444",
-          textAlign: "center",
-        }}>
-          {g.winner && (
-            <div style={{
-              fontSize: 22,
-              fontWeight: "bold",
-              marginBottom: 12,
-              color: g.winner === ethers.ZeroAddress 
-                ? "#ccc" 
-                : g.winner.toLowerCase() === g.player1?.toLowerCase() 
-                  ? "#ffeb3b" 
-                  : "#4da3ff",
-            }}>
-              🏆 {g.winner === ethers.ZeroAddress 
-                ? "It's a Draw!" 
-                : g.winner.toLowerCase() === g.player1?.toLowerCase() 
-                  ? "Player 1 Wins!" 
-                  : "Player 2 Wins!"}
-            </div>
-          )}
+      {/* Teams + Round Results */}
+      {bothRevealed && (
+        <div style={{ marginTop: 16 }}>
+          {/* Player 1 Team */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontWeight: "bold", color: "#ff5555", marginBottom: 8, textAlign: "left" }}>Player 1 Team</div>
+            <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>{renderTokenImages(g.player1Reveal)}</div>
+          </div>
 
-          {roundResults.length > 0 && (
-            <>
-              <div style={{
-                fontWeight: "bold",
-                marginBottom: 8,
-                fontSize: 16,
-                color: "#aaa",
-              }}>
-                📊 Round Results
-              </div>
-              <div style={{
-                display: "flex",
-                justifyContent: "center",
-                gap: 10,
-                flexWrap: "wrap",
-                marginBottom: 12,
-              }}>
-                {roundResults.map((r) => (
+          {/* Round Results */}
+          {isSettled && g.winner && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontWeight: "bold", marginBottom: 8, fontSize: 20, color: "#aaa", textAlign: "center" }}>📊 Round Results</div>
+              <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
+                {g.roundResults.map((r) => (
                   <div
                     key={r.round}
                     style={{
-                      padding: "8px 16px",
+                      padding: "4px 4px",
                       borderRadius: 20,
                       backgroundColor: r.winner === "player1" ? "#ff5555" : "#4da3ff",
                       color: "#fff",
                       fontWeight: "bold",
-                      fontSize: 14,
+                      fontSize: 16,
                       minWidth: 70,
+                      textAlign: "center",
                       boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
                     }}
                   >
@@ -374,21 +297,16 @@ export default function GameCard({
                   </div>
                 ))}
               </div>
-            </>
-          )}
-
-          {g.stakeAmount && (
-            <div style={{
-              fontSize: 20,
-              color: "#aaa",
-              marginTop: 8,
-              fontWeight: "bold"
-            }}>
-              💰 Total Pot: {Number(ethers.formatUnits(g.stakeAmount, 18)) * 2}
             </div>
           )}
+
+          {/* Player 2 Team */}
+          <div>
+            <div style={{ fontWeight: "bold", color: "#4da3ff", marginBottom: 8, textAlign: "left" }}>Player 2 Team</div>
+            <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>{renderTokenImages(g.player2Reveal)}</div>
+          </div>
         </div>
       )}
     </div>
   );
-}
+}   

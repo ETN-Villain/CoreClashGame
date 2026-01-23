@@ -1,46 +1,11 @@
 // gameLogic.js
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import axios from "axios";
 import { METADATA_JSON_DIR } from "./paths.js";
 
-// ESM-compatible __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 // Ensure lowercase keys (matches .toLowerCase() usage)
 const addressToCollection = {
   "0x3fc7665b1f6033ff901405cddf31c2e04b8a2ab4": "VKIN",
   "0x8cfbb04c54d35e2e8471ad9040d40d73c08136f0": "VQLE",
-};
-
-export const GAMES_FILE = path.join(__dirname, "games", "games.json");
-
-// loadGames
-export const loadGames = () => {
-  if (!fs.existsSync(GAMES_FILE)) return [];
-  try {
-    const games = JSON.parse(fs.readFileSync(GAMES_FILE, "utf8"));
-    return games.map(g => ({
-      ...g,
-      id: Number(g.id),
-      _reveal: g._reveal ?? { player1: null, player2: null },
-      cancelled: Boolean(g.cancelled),
-      settled: Boolean(g.settled),
-    }));
-  } catch {
-    return [];
-  }
-};
-
-// saveGames
-export const saveGames = (games) => {
-  // Ensure the directory exists
-  fs.mkdirSync(path.dirname(GAMES_FILE), { recursive: true });
-
-  // Write the file
-  fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), "utf8");
-  console.log("💾 Games saved:", GAMES_FILE, "Total games:", games.length);
 };
 
 // Fetch NFT metadata from local cache
@@ -234,27 +199,3 @@ const { winner, roundResults } = computeWinner(traits1, traits2);
 
   return game;
 }
-
-/**
- * Resolve all pending games
- */
-export const resolveAllGames = async () => {
-  const games = loadGames();
-  let changed = false;
-
-  for (const game of games) {
-    // Only resolve games that have both players and are not yet settled
-    if (!game.player2 || game.settledAt) continue;
-
-    // Only resolve if all tokenURIs exist
-    if (!game._player1?.tokenURIs || !game._player2?.tokenURIs) continue;
-
-    const result = await resolveGame(game);
-    if (result) changed = true;
-  }
-
-  if (changed) saveGames(games);
-
-  console.log("Resolve failed — returning null");
-  return null;
-};

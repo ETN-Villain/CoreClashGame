@@ -8,18 +8,21 @@ import { METADATA_JSON_DIR, REVEAL_DIR, MAPPING_FILE, loadMapping } from "../pat
 import { RPC_URL, BACKEND_PRIVATE_KEY, GAME_ADDRESS, 
   VKIN_CONTRACT_ADDRESS, VQLE_CONTRACT_ADDRESS } from "../config.js";
 import GameABI from "../../src/abis/GameABI.json" assert { type: "json" };
-import { loadGames, saveGames, resolveGame } from "../gameLogic.js";
+import { loadGames, saveGames } from "../store/gamesStore.js";
+import { resolveGame } from "../gameLogic.js";
 import { fetchOwnedTokenIds } from "../utils/nftUtils.js";
-import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";  // adjust path if needed
+import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";
+import { reconcileAllGames } from "../reconcile.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const TOKEN_URI_MAP = loadTokenURIMapping();
+const GAMES_FILE = path.join(process.cwd(), "games", "games.json");
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const signer = new ethers.Wallet(BACKEND_PRIVATE_KEY, provider);
-const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+export const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
 // ---------------- HELPERS ----------------
 function loadTokenURIMapping() {
@@ -30,6 +33,41 @@ function loadTokenURIMapping() {
   for (const r of records) map[Number(r.token_id)] = r.token_uri;
   return map;
 }
+// GET /games — list all games
+router.get("/", (req, res) => {
+  try {
+    const games = loadGames();
+    console.log(`GET /games — returning ${games.length} games`);
+    res.json(games);
+  } catch (err) {
+    console.error("GET /games error:", err);
+    res.status(500).json({ error: "Failed to load games" });
+  }
+});
+
+// GET /games/:id — get single game by ID
+router.get("/:id", (req, res) => {
+  try {
+    const gameId = Number(req.params.id);
+    if (!Number.isInteger(gameId)) {
+      return res.status(400).json({ error: "Invalid game ID" });
+    }
+
+    const games = loadGames();
+    const game = games.find(g => g.id === gameId);
+
+    if (!game) {
+      console.log(`GET /games/${gameId} — not found`);
+      return res.status(404).json({ error: "Game not found" });
+    }
+
+    console.log(`GET /games/${gameId} — found`);
+    res.json(game);
+  } catch (err) {
+    console.error(`GET /games/${req.params.id} error:`, err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 /* ---------- CREATE GAME ROUTE--------*/
 router.post("/", async (req, res) => {
@@ -136,7 +174,7 @@ router.post("/:id/join", (req, res) => {
   res.json({ success: true });
 });
 
-router.post("/:id/reveal", (req, res) => {
+router.post("/:id/reveal", async (req, res) => {  // ← make async so we can await contract calls
   try {
     const gameId = Number(req.params.id);
     const { player, salt, nftContracts, tokenIds } = req.body;
@@ -170,58 +208,155 @@ router.post("/:id/reveal", (req, res) => {
       [VQLE_CONTRACT_ADDRESS.toLowerCase()]: "VQLE",
     };
 
-    const mapping = loadMapping(); // your current loadMapping() function
+    const mapping = loadMapping();
 
-const tokenURIs = [];
-const backgrounds = [];
+    const tokenURIs = [];
+    const backgrounds = [];
 
-for (let i = 0; i < tokenIds.length; i++) {
-  const contractAddr = nftContracts[i].toLowerCase();
-  const collection = addressToCollection[contractAddr];
+    for (let i = 0; i < tokenIds.length; i++) {
+      const contractAddr = nftContracts[i].toLowerCase();
+      const collection = addressToCollection[contractAddr];
 
-  if (!collection) {
-    return res.status(400).json({ error: `Unknown contract: ${contractAddr}` });
-  }
+      if (!collection) {
+        return res.status(400).json({ error: `Unknown contract: ${contractAddr}` });
+      }
 
-  const tokenId = String(tokenIds[i]);
+      const tokenId = String(tokenIds[i]);
+      const mapped = mapping[collection]?.[tokenId];
 
-  const mapped = mapping[collection]?.[tokenId];
-  if (!mapped) {
-    return res.status(400).json({ error: `Missing mapping for ${collection} token ${tokenId}` });
-  }
+      if (!mapped) {
+        return res.status(400).json({ error: `Missing mapping for ${collection} token ${tokenId}` });
+      }
 
-  const jsonFile = mapped.token_uri || `${tokenId}.json`;
+      const jsonFile = mapped.token_uri || `${tokenId}.json`;
+      const jsonPath = path.join(METADATA_JSON_DIR, collection, jsonFile);
 
-  // Declare jsonPath inside loop — only used here
-  const jsonPath = path.join(METADATA_JSON_DIR, collection, jsonFile);
+      if (!fs.existsSync(jsonPath)) {
+        return res.status(500).json({ error: `Metadata missing: ${jsonPath}` });
+      }
 
-  if (!fs.existsSync(jsonPath)) {
-    return res.status(500).json({ error: `Metadata missing: ${jsonPath}` });
-  }
+      const jsonData = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+      const bgTrait = jsonData.attributes?.find(a => a.trait_type === "Background");
+      const background = bgTrait?.value || "Unknown";
 
-  const jsonData = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+      tokenURIs.push(jsonFile);
+      backgrounds.push(background);
+    }
 
-  const bgTrait = jsonData.attributes?.find(a => a.trait_type === "Background");
-  const background = bgTrait?.value || "Unknown";
-
-  tokenURIs.push(jsonFile);
-  backgrounds.push(background);
-}
-
-// When saving
-game._reveal[slot] = {
-  salt,
-  nftContracts: [...nftContracts], // make a copy to be safe
-  tokenIds: [...tokenIds],
-  tokenURIs,
-  backgrounds,
-};
+    // Save reveal data
+    game._reveal[slot] = {
+      salt,
+      nftContracts: [...nftContracts],
+      tokenIds: [...tokenIds],
+      tokenURIs,
+      backgrounds,
+    };
 
     game.player1Revealed = !!game._reveal.player1;
     game.player2Revealed = !!game._reveal.player2;
 
-    saveGames(games);
+    saveGames(games);  // early save so state is persisted even if auto fails
 
+    // ────────────────────────────────────────────────────────────────
+    // Auto-resolve + post + settle WHEN BOTH PLAYERS HAVE REVEALED
+    // ────────────────────────────────────────────────────────────────
+    if (game.player1Revealed && game.player2Revealed) {
+      console.log(`Both backend reveals saved for game ${gameId}. Waiting for on-chain confirmation...`);
+
+      // Helper function to attempt resolution
+      const tryResolveAndSettle = async (attempt = 1) => {
+        try {
+          const onChainGame = await contract.games(gameId);
+          const p1OnChain = onChainGame.player1Revealed;
+          const p2OnChain = onChainGame.player2Revealed;
+
+          console.log(`Attempt ${attempt} - On-chain reveals: P1=${p1OnChain}, P2=${p2OnChain}`);
+
+          if (!p1OnChain || !p2OnChain) {
+            if (attempt >= 4) {  // ~12 seconds total wait
+              console.log(`Gave up waiting for on-chain reveals after ${attempt} attempts`);
+              return false;
+            }
+            // Wait and retry
+            await new Promise(resolve => setTimeout(resolve, 3000)); // 3 seconds
+            return tryResolveAndSettle(attempt + 1);
+          }
+
+          // Both confirmed on-chain → proceed
+          console.log(`Both on-chain reveals confirmed after ${attempt} attempts`);
+
+          // Compute results if not already done
+          if (!game.roundResults?.length || !game.winner) {
+            const resolved = resolveGame(game);
+            if (!resolved) {
+              console.warn(`resolveGame failed`);
+              return false;
+            }
+            game.roundResults = resolved.rounds || [];
+            game.winner = resolved.winner || null;
+            game.tie = !!resolved.tie;
+            console.log(`Resolved game ${gameId}: winner=${game.winner || 'tie'}, rounds=${game.roundResults.length}`);
+          }
+
+          // Post winner if needed
+          if (!game.backendWinner) {
+            const currentOnChain = await contract.games(gameId); // refresh
+            if (currentOnChain.winner !== ethers.ZeroAddress) {
+              game.backendWinner = currentOnChain.winner;
+              console.log(`Winner already on-chain: ${game.backendWinner}`);
+            } else {
+              let winnerAddr = ethers.ZeroAddress;
+              if (!game.tie && game.winner) {
+                winnerAddr = game.winner.toLowerCase() === game.player1.toLowerCase()
+                  ? game.player1
+                  : game.player2;
+              }
+              console.log(`Sending postWinner(${gameId}, ${winnerAddr})`);
+              const tx = await contract.postWinner(gameId, winnerAddr, { gasLimit: 450000 });
+              await tx.wait();
+              game.backendWinner = winnerAddr;
+              game.winnerResolvedAt = new Date().toISOString();
+              console.log(`postWinner success: ${tx.hash}`);
+            }
+          }
+
+          // Settle if needed
+if (game.settled && !game.cancelled) {
+              const latestOnChain = await contract.games(gameId);
+            if (latestOnChain.settled) {
+              game.settled = true;
+              game.settledAt = new Date().toISOString();
+              console.log(`Game already settled on-chain`);
+            } else {
+              console.log(`Sending settleGame(${gameId})`);
+              const tx = await contract.settleGame(gameId, { gasLimit: 350000 });
+              await tx.wait();
+              game.settled = true;
+              game.settleTxHash = tx.hash;
+              game.settledAt = new Date().toISOString();
+              console.log(`settleGame success: ${tx.hash}`);
+            }
+          }
+
+          saveGames(games);
+          return true;
+
+        } catch (err) {
+          console.error(`Resolution attempt ${attempt} failed:`, err.message);
+          if (attempt >= 4) return false;
+          await new Promise(resolve => setTimeout(resolve, 4000));
+          return tryResolveAndSettle(attempt + 1);
+        }
+      };
+
+      // Start the retry process (non-blocking)
+      tryResolveAndSettle().catch(err => {
+        console.error(`Background resolution failed for game ${gameId}:`, err);
+        // Optional: you could mark game.autoFailed = true; saveGames(games);
+      });
+    }
+
+    // ── Respond immediately ──
     return res.json({
       savedReveal: {
         salt,
@@ -230,11 +365,108 @@ game._reveal[slot] = {
         tokenURIs,
         backgrounds,
       },
+      message: game.player1Revealed && game.player2Revealed
+        ? "Both reveals received — waiting for on-chain confirmation and automatic settlement..."
+        : "Reveal saved. Waiting for the other player to reveal.",
     });
 
   } catch (err) {
     console.error("Reveal error:", err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message || "Server error" });
+  }
+});
+
+// Temporary backfill helper - POST /games/:id/backfill
+router.post("/:id/backfill", async (req, res) => {
+  try {
+    const gameId = Number(req.params.id);
+    const { field, value } = req.body;
+
+    if (!["settleTxHash", "backendWinner", "settledAt"].includes(field)) {
+      return res.status(400).json({ error: "Invalid field" });
+    }
+
+    const games = loadGames();
+    const game = games.find(g => g.id === gameId);
+    if (!game) return res.status(404).json({ error: "Game not found" });
+
+    game[field] = value;
+    saveGames(games);
+
+    console.log(`Backfilled ${field} for game ${gameId}: ${value}`);
+    res.json({ success: true, updated: { [field]: value } });
+  } catch (err) {
+    console.error("Backfill error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ────────────────────────────────────────────────
+// NEW ENDPOINT: /games/:id/compute-results (POST)
+// For manual trigger or fallback if auto-compute failed
+// ────────────────────────────────────────────────
+router.post("/:id/compute-results", (req, res) => {
+  try {
+    const gameId = Number(req.params.id);
+    if (!Number.isInteger(gameId)) {
+      return res.status(400).json({ error: "Invalid game ID" });
+    }
+
+    const games = loadGames();
+    const game = games.find(g => g.id === gameId);
+    if (!game) {
+      return res.status(404).json({ error: "Game not found" });
+    }
+
+    // Require both reveals
+    if (!game._reveal?.player1 || !game._reveal?.player2) {
+      return res.status(400).json({ error: "Both players must reveal first" });
+    }
+
+    // Optional: idempotency — skip if already computed
+    if (game.roundResults?.length > 0 && game.winner) {
+      return res.json({
+        success: true,
+        alreadyComputed: true,
+        roundResults: game.roundResults,
+        winner: game.winner,
+        tie: game.tie,
+      });
+    }
+
+    // Run computation
+    const resolved = resolveGame(game);  // ← your function from gameLogic.js
+    if (!resolved || !resolved.rounds) {
+      return res.status(500).json({ error: "Failed to compute game results" });
+    }
+
+    // Update game
+    game.roundResults = resolved.rounds;
+    game.winner = resolved.winner || null;
+    game.tie = !!resolved.tie;
+    game.settled = true;
+    game.settledAt = new Date().toISOString();
+
+    saveGames(games);
+
+    console.log(`Manual/forced compute-results completed for game ${gameId}:`, {
+      winner: game.winner,
+      tie: game.tie,
+      roundsCount: game.roundResults.length
+    });
+
+    res.json({
+      success: true,
+      gameId,
+      roundResults: game.roundResults,
+      winner: game.winner,
+      tie: game.tie,
+      settledAt: game.settledAt
+    });
+
+  } catch (err) {
+    console.error("compute-results error:", err);
+    res.status(500).json({ error: err.message || "Internal error" });
   }
 });
 
@@ -248,10 +480,14 @@ router.post("/:id/post-winner", async (req, res) => {
 
     const games = loadGames();
     const game = games.find(g => g.id === gameId);
-    if (!game) return res.status(404).json({ error: "Game not found" });
+    if (!game) {
+      console.log(`POST /:id/post-winner — Game ${gameId} not found`);
+      return res.status(404).json({ error: "Game not found" });
+    }
 
     // 🔒 Idempotency guard
     if (game.backendWinner) {
+      console.log(`Game ${gameId} already has backendWinner: ${game.backendWinner}`);
       return res.json({
         success: true,
         gameId,
@@ -268,6 +504,7 @@ router.post("/:id/post-winner", async (req, res) => {
     // 🎯 Resolve game
     const resolved = await resolveGame(game);
     if (!resolved) {
+      console.warn(`Failed to resolve game ${gameId}`);
       return res.status(400).json({ error: "Game could not be resolved" });
     }
 
@@ -291,16 +528,69 @@ router.post("/:id/post-winner", async (req, res) => {
       player2: game.player2,
     });
 
+    // Check on-chain state before sending to prevent duplicates
+    const onChainGame = await contract.games(gameId);
+    if (onChainGame.winner !== ethers.ZeroAddress) {
+      console.log(`Winner already posted on-chain for game ${gameId}`);
+      game.backendWinner = onChainGame.winner;
+      game.winnerResolvedAt = new Date().toISOString();
+      game.tie = resolved.tie;
+      game.player1Revealed = true;
+      game.player2Revealed = true;
+      saveGames(games);
+      return res.json({
+        success: true,
+        gameId,
+        winner: game.backendWinner,
+        alreadyPosted: true,
+      });
+    }
+
     // ⛓️ Post on-chain
     const tx = await contract.postWinner(gameId, winnerAddress);
+    console.log(`postWinner tx sent: ${tx.hash}`);
     await tx.wait();
+    console.log(`postWinner confirmed in block ${tx.blockNumber}`);
 
-    // 💾 Persist canonical backend state
+    // 💾 Update game state
     game.backendWinner = winnerAddress;
     game.tie = resolved.tie;
     game.player1Revealed = true;
     game.player2Revealed = true;
     game.winnerResolvedAt = new Date().toISOString();
+
+    // Critical: Save changes to games.json
+    saveGames(games);
+    console.log(`Game ${gameId} updated and saved with backendWinner: ${winnerAddress}`);
+
+    // Auto-settle after manual post-winner
+    if (game.backendWinner && !game.settled) {
+      console.log(`Auto-settling after manual post-winner for game ${gameId}`);
+
+      try {
+        // Check on-chain state before sending
+        const updatedOnChainGame = await contract.games(gameId);
+        if (updatedOnChainGame.settled) {  // Adjust based on actual ABI
+          console.log(`Game already settled on-chain for game ${gameId}`);
+          game.settled = true;
+          game.settledAt = new Date().toISOString();
+          saveGames(games);
+        } else {
+          const settleTx = await contract.settleGame(gameId);
+          await settleTx.wait();
+
+          game.settled = true;
+          game.settleTxHash = settleTx.hash;
+          game.settledAt = new Date().toISOString();
+          saveGames(games);
+
+          console.log(`Auto-settled on-chain after manual post: ${settleTx.hash}`);
+        }
+      } catch (settleErr) {
+        console.error("Auto-settle after manual post failed:", settleErr);
+        // Continue with response, as post-winner succeeded
+      }
+    }
 
     res.json({
       success: true,
@@ -311,7 +601,66 @@ router.post("/:id/post-winner", async (req, res) => {
 
   } catch (err) {
     console.error("post-winner error:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || "Failed to post winner" });
+  }
+});
+
+/* ---------------- MANUAL SETTLE GAME ---------------- */
+router.post("/:id/settle-game", async (req, res) => {
+  try {
+    const gameId = Number(req.params.id);
+    if (!Number.isInteger(gameId)) {
+      return res.status(400).json({ error: "Invalid game ID" });
+    }
+
+    const games = loadGames();
+    const game = games.find(g => g.id === gameId);
+    if (!game) {
+      return res.status(404).json({ error: "Game not found" });
+    }
+
+    // Guards
+    if (!game.backendWinner && !game.tie) {
+      return res.status(400).json({ error: "Winner must be posted first" });
+    }
+
+    if (game.settled) {
+      return res.json({ success: true, alreadySettled: true });
+    }
+
+    // Check on-chain state before sending to prevent duplicates
+    const onChainGame = await contract.games(gameId);
+    if (onChainGame.settled) {  // Adjust based on actual ABI
+      console.log(`Game already settled on-chain for game ${gameId}`);
+      game.settled = true;
+      game.settledAt = new Date().toISOString();
+      saveGames(games);
+      return res.json({ success: true, alreadySettled: true });
+    }
+
+    // Send settle tx from backend
+    const tx = await contract.settleGame(gameId);
+    console.log(`settleGame tx sent: ${tx.hash}`);
+    await tx.wait();
+    console.log(`settleGame confirmed in block ${tx.blockNumber}`);
+
+    // Update state
+    game.settled = true;
+    game.settleTxHash = tx.hash;
+    game.settledAt = new Date().toISOString();
+
+    saveGames(games);
+    console.log(`Game ${gameId} manually settled with tx: ${tx.hash}`);
+
+    res.json({
+      success: true,
+      gameId,
+      txHash: tx.hash,
+    });
+
+  } catch (err) {
+    console.error("manual settle-game error:", err);
+    res.status(500).json({ error: err.message || "Failed to settle game" });
   }
 });
 
@@ -362,21 +711,60 @@ router.post("/:id/finalize-settle", (req, res) => {
       throw new Error("Backend private key must start with 0x");
     }
 
-// ---------------- CANCEL GAME ----------------
-router.post("/:id/cancel", (req, res) => {
-  const gameId = Number(req.params.id);
-  const { player } = req.body;
+/* ---------- CANCEL UNJOINED GAME ----------- */
+router.post("/:id/cancel-unjoined", async (req, res) => {
+  try {
+    const gameId = Number(req.params.id);
+    if (!Number.isInteger(gameId)) {
+      return res.status(400).json({ error: "Invalid game ID" });
+    }
 
-  const games = loadGames();
-  const game = games.find(g => g.id === gameId);
-  if (!game) return res.status(404).json({ error: "Game not found" });
-  if (game.player2) return res.status(400).json({ error: "Already joined" });
-  if (game.cancelled) return res.status(400).json({ error: "Already cancelled" });
-  if (player.toLowerCase() !== game.player1) return res.status(403).json({ error: "Only creator can cancel" });
+    // Ensure backend matches on-chain first
+    await reconcileAllGames();
 
-  game.cancelled = true;
-  saveGames(games);
-  res.json({ success: true });
+    const games = loadGames();
+    const game = games.find(g => g.id === gameId);
+    if (!game) return res.status(404).json({ error: "Game not found" });
+
+    // Must be unjoined
+    if (game.player2 && game.player2 !== ethers.ZeroAddress) {
+      return res.status(400).json({ error: "Game already joined - cannot cancel" });
+    }
+
+    // Already in terminal state?
+    if (game.cancelled || game.settled) {
+      return res.status(400).json({ error: "Game already settled or cancelled" });
+    }
+
+    console.log(`[CANCEL] Cancelling unjoined game ${gameId}...`);
+
+    // On-chain cancel
+    const tx = await contract.cancelUnjoinedGame(gameId);
+    console.log(`[CANCEL] tx sent: ${tx.hash}`);
+    await tx.wait();
+    console.log(`[CANCEL] confirmed on-chain`);
+
+    // Update backend state to match chain
+    game.cancelled = true;
+    game.settled = true;
+    game.settledAt = new Date().toISOString();
+    game.settleTxHash = tx.hash;
+
+    saveGames(games);
+
+    return res.json({
+      success: true,
+      gameId,
+      txHash: tx.hash,
+      status: "cancelled",
+    });
+
+  } catch (err) {
+    console.error("[CANCEL] error:", err);
+    return res.status(500).json({
+      error: err.reason || err.message || "Internal server error"
+    });
+  }
 });
 
 export default router;

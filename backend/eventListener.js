@@ -2,28 +2,34 @@ import { ethers } from "ethers";
 import GameABI from "../src/abis/GameABI.json" assert { type: "json" };
 import VKINABI from "../src/abis/VKINABI.json" assert { type: "json" };
 import VQLEABI from "../src/abis/VQLEABI.json" assert { type: "json" };
-import { GAME_ADDRESS, RPC_URL, VKIN_CONTRACT_ADDRESS, VQLE_CONTRACT_ADDRESS } from "./config.js";
+import {
+  GAME_ADDRESS,
+  RPC_URL,
+  VKIN_CONTRACT_ADDRESS,
+  VQLE_CONTRACT_ADDRESS,
+} from "./config.js";
 import { loadLastBlock, saveLastBlock } from "./utils/blockState.js";
-import { handleEvent } from "./utils/handleEvent.js";
 import { deleteCache } from "./utils/ownerCache.js";
+import { reconcileAllGames } from "./reconcile.js";
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
 const vkinContract = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKINABI, provider);
 const vqleContract = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLEABI, provider);
 
-// ── CONFIG ──
 const POLL_INTERVAL_MS = 6000;
-const MAX_BLOCK_RANGE = 1000;
+const MAX_BLOCK_RANGE = 500; // safe range for RPC
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
+
+const gameInterface = new ethers.Interface(GameABI);
+const GAME_SETTLED_TOPIC = gameInterface.getEvent("GameSettled").topic;
 
 console.log("📡 CoreClash event indexer starting…");
 
-// ── START BLOCK ──
 let lastBlock = loadLastBlock() ?? ((await provider.getBlockNumber()) - 500);
 console.log("▶ Starting from block", lastBlock);
 
-// ── MAIN GAME EVENTS POLL ──
+// ── POLLING LOOP ──
 setInterval(async () => {
   try {
     const currentBlock = await provider.getBlockNumber();
@@ -33,102 +39,64 @@ setInterval(async () => {
 
     while (fromBlock <= currentBlock) {
       const toBlock = Math.min(fromBlock + MAX_BLOCK_RANGE - 1, currentBlock);
+      console.log(`🔍 Fetching logs ${fromBlock} → ${toBlock}`);
 
-      console.log(`🔍 Fetching game logs ${fromBlock} → ${toBlock}`);
+      // ----- GameSettled logs -----
+      const settledLogs = await provider.getLogs({
+        address: GAME_ADDRESS,
+        topics: [GAME_SETTLED_TOPIC],
+        fromBlock,
+        toBlock,
+      });
 
-      const events = await gameContract.queryFilter("*", fromBlock, toBlock);
-
-      for (const event of events) {
-        await handleEvent(event);
+// 🔥 authoritative sync
+      if (settledLogs.length > 0) {
+        console.log(`🎯 ${settledLogs.length} GameSettled event(s) detected`);
+        try {
+          await reconcileAllGames(); // authoritative sync
+        } catch (err) {
+          console.error("❌ Reconcile failed:", err);
+        }
       }
+      
+      // ----- NFT transfer logs (VKIN & VQLE) -----
+      const getTransferLogs = async (address) =>
+        provider.getLogs({ address, topics: [TRANSFER_TOPIC], fromBlock, toBlock });
+
+      const vkinLogs = await getTransferLogs(VKIN_CONTRACT_ADDRESS);
+      const vqleLogs = await getTransferLogs(VQLE_CONTRACT_ADDRESS);
+
+      const processLogs = (logs, contractName, contractInstance) => {
+        for (const log of logs) {
+          try {
+            const parsed = contractInstance.interface.parseLog(log);
+            const from = parsed.args.from ? String(parsed.args.from).toLowerCase() : null;
+            const to = parsed.args.to ? String(parsed.args.to).toLowerCase() : null;
+
+            if (from && from !== ethers.ZeroAddress) {
+              deleteCache(`${contractName}_owned_${from}`);
+              console.log(`♻️ ${contractName.toUpperCase()} cache invalidated for ${from}`);
+            }
+            if (to && to !== ethers.ZeroAddress) {
+              deleteCache(`${contractName}_owned_${to}`);
+              console.log(`♻️ ${contractName.toUpperCase()} cache invalidated for ${to}`);
+            }
+          } catch (err) {
+            console.warn(`⚠️ Failed to parse ${contractName.toUpperCase()} log:`, err);
+          }
+        }
+      };
+
+      processLogs(vkinLogs, "vkin", vkinContract);
+      processLogs(vqleLogs, "vqle", vqleContract);
 
       lastBlock = toBlock;
       saveLastBlock(lastBlock);
       fromBlock = toBlock + 1;
 
-      await new Promise(r => setTimeout(r, 200)); // polite delay
+      await new Promise((r) => setTimeout(r, 200));
     }
   } catch (err) {
-    console.error("❌ Game event poll error:", err.message);
-  }
-}, POLL_INTERVAL_MS);
-
-// ── NFT TRANSFER CACHE INVALIDATION ──
-setInterval(async () => {
-  try {
-    const currentBlock = await provider.getBlockNumber();
-    if (currentBlock <= lastBlock) return;
-
-    let fromBlock = lastBlock + 1;
-
-    while (fromBlock <= currentBlock) {
-      const toBlock = Math.min(fromBlock + MAX_BLOCK_RANGE - 1, currentBlock);
-
-      console.log(`♻️ Checking NFT transfers ${fromBlock} → ${toBlock}`);
-
-      // VKIN transfers
-      const vkinLogs = await provider.getLogs({
-        address: VKIN_CONTRACT_ADDRESS,
-        topics: [TRANSFER_TOPIC],
-        fromBlock,
-        toBlock,
-      });
-
-      // VQLE transfers
-      const vqleLogs = await provider.getLogs({
-        address: VQLE_CONTRACT_ADDRESS,
-        topics: [TRANSFER_TOPIC],
-        fromBlock,
-        toBlock,
-      });
-
-      // Process VKIN logs
-      for (const log of vkinLogs) {
-        try {
-          const parsed = vkinContract.interface.parseLog(log);
-          const from = parsed.args.from.toLowerCase();
-          const to = parsed.args.to.toLowerCase();
-
-          if (from !== ethers.ZeroAddress) {
-            deleteCache(`vkin_owned_${from}`);
-            console.log(`♻️ VKIN cache invalidated for ${from}`);
-          }
-          if (to !== ethers.ZeroAddress) {
-            deleteCache(`vkin_owned_${to}`);
-            console.log(`♻️ VKIN cache invalidated for ${to}`);
-          }
-        } catch (parseErr) {
-          console.warn("Failed to parse VKIN log:", parseErr);
-        }
-      }
-
-      // Process VQLE logs
-      for (const log of vqleLogs) {
-        try {
-          const parsed = vqleContract.interface.parseLog(log);
-          const from = parsed.args.from.toLowerCase();
-          const to = parsed.args.to.toLowerCase();
-
-          if (from !== ethers.ZeroAddress) {
-            deleteCache(`vqle_owned_${from}`);
-            console.log(`♻️ VQLE cache invalidated for ${from}`);
-          }
-          if (to !== ethers.ZeroAddress) {
-            deleteCache(`vqle_owned_${to}`);
-            console.log(`♻️ VQLE cache invalidated for ${to}`);
-          }
-        } catch (parseErr) {
-          console.warn("Failed to parse VQLE log:", parseErr);
-        }
-      }
-
-      lastBlock = toBlock;
-      saveLastBlock(lastBlock);
-      fromBlock = toBlock + 1;
-
-      await new Promise(r => setTimeout(r, 200));
-    }
-  } catch (err) {
-    console.error("❌ NFT transfer poll error:", err.message);
+    console.error("❌ Event poll error:", err.message);
   }
 }, POLL_INTERVAL_MS);
