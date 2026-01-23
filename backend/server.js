@@ -14,6 +14,7 @@ import { loadMapping, METADATA_JSON_DIR } from "./paths.js";
 import gamesRouter from "./routes/games.js";
 import sseRouter from "./routes/sse.js";
 import nftsRouter from "./routes/nfts.js";
+import { reconcileAllGames } from "./reconcile.js";
 
 const app = express();
 const GAMES_FILE = path.join(__dirname, "games", "games.json");
@@ -61,6 +62,16 @@ const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Backend server running at http://localhost:${PORT}`);
 });
+
+/* ---------- RECONCILE GAMES WITH CHAIN --------*/
+(async () => {
+  try {
+    await reconcileAllGames();
+    console.log("[SERVER] Reconciliation complete");
+  } catch (err) {
+    console.error("[SERVER] Reconciliation failed", err);
+  }
+})();
 
 // ---------------- DEBUG ROUTE LOGGING ----------------
 console.log("✅ games.js router loaded");

@@ -78,6 +78,8 @@ useEffect(() => {
   /* ---------------- GAMES STATE ---------------- */
   const [games, setGames] = useState([]);
   const [loadingGames, setLoadingGames] = useState(false);
+  const [showResolved, setShowResolved] = React.useState(true);
+  const [showCancelled, setShowCancelled] = React.useState(false);
 
   /* ---------------- LOADING SCREEN ---------------- */
   const [loading, setLoading] = useState(true);
@@ -382,71 +384,82 @@ const downloadRevealBackup = useCallback(
   [account]
 );
 
-  /* ---------------- LOAD GAMES ---------------- */
+/* ---------------- LOAD GAMES – Improved merging ---------------- */
 const loadGames = useCallback(async () => {
   if (!provider) return;
   setLoadingGames(true);
 
   try {
+    // 1. Fetch on-chain games
     const contract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
-    const loaded = [];
+    const loadedOnChain = [];   // renamed for clarity
     let i = 0;
 
     while (true) {
       try {
-        const g = await contract.games(i);
-        if (!g || g.player1 === ethers.ZeroAddress) break;
+        const gameData = await contract.games(i);
+        if (gameData.player1 === ethers.ZeroAddress) break;
 
-        loaded.push({
+        loadedOnChain.push({
           id: i,
-          player1: g.player1,
-          player2: g.player2,
-          stakeAmount: g.stakeAmount,
-          settled: g.settled,
-          winner: g.winner,
-          // ✅ backendWinner will come from backend
-          player1TokenIds: g.player1TokenIds ? [...g.player1TokenIds] : [],
-          player2TokenIds: g.player2TokenIds ? [...g.player2TokenIds] : [],
-          player1Backgrounds: g.player1Backgrounds ? [...g.player1Backgrounds] : [],
-          player2Backgrounds: g.player2Backgrounds ? [...g.player2Backgrounds] : [],
-          roundResults: g.roundResults ? [...g.roundResults] : [],
-        });
-
+          player1: gameData.player1,
+          player2: gameData.player2,
+          stakeAmount: gameData.stakeAmount.toString(),
+          stakeToken: gameData.stakeToken,
+          settled: gameData.settled,
+          winner: gameData.winner,
+          player1Revealed: gameData.player1Revealed,
+          player2Revealed: gameData.player2Revealed,
+// ← NEW: include these critical backend-only fields
+        settleTxHash: gameData.settleTxHash || null,
+        backendWinner: gameData.backendWinner || null,
+        winnerResolvedAt: gameData.winnerResolvedAt || null,        });
         i++;
       } catch (err) {
-        console.error(`Failed to load game ${i}:`, err);
+        console.error(`Failed to load on-chain game ${i}:`, err);
         break;
       }
     }
 
-    // 🔽 Fetch authoritative backend data
+    // 2. Fetch backend games (authoritative for reveals & results)
     const res = await fetch(`${BACKEND_URL}/games`);
+    if (!res.ok) throw new Error(`Backend games fetch failed: ${res.status}`);
     const backendGames = await res.json();
 
-const merged = loaded.map(g => {
-  const backend = backendGames.find(bg => bg.id === g.id);
+    // 3. Merge: backend takes precedence for computed/reveal fields
+    const merged = loadedOnChain.map((onChainGame) => {
+      const backendGame = backendGames.find(bg => bg.id === onChainGame.id) || {};
 
-  const updated = {
-    ...g,
-    player1Revealed: backend?.player1Revealed === true || !!backend?._reveal?.player1,
-    player2Revealed: backend?.player2Revealed === true || !!backend?._reveal?.player2,
-    player1Reveal: backend?._reveal?.player1 || null,
-    player2Reveal: backend?._reveal?.player2 || null,
-    // Force settled if both revealed
-    settled: g.settled || (backend?.player1Revealed && backend?.player2Revealed),
-  };
+      return {
+        ...onChainGame,  // start with on-chain data
 
-  if (updated.settled !== g.settled) {
-    console.log("Forced settled true for game", g.id);
-  }
+        // Reveal flags & payloads — prefer backend
+        player1Revealed: !!backendGame.player1Revealed || !!backendGame._reveal?.player1,
+        player2Revealed: !!backendGame.player2Revealed || !!backendGame._reveal?.player2,
+        player1Reveal: backendGame._reveal?.player1 || null,
+        player2Reveal: backendGame._reveal?.player2 || null,
 
-  return updated;
-});
-console.log("Backend reveal for game 0 P1:", backendGames[0]?._reveal?.player1);
-console.log("Backend reveal for game 0 P2:", backendGames[0]?._reveal?.player2);
+        // Computed results — backend is source of truth
+        roundResults: backendGame.roundResults || [],
+        winner: backendGame.winner || onChainGame.winner || ethers.ZeroAddress,
+        tie: !!backendGame.tie,
+
+        // Settlement status — backend decides finality
+        settled: backendGame.settled === true || onChainGame.settled,
+        settledAt: backendGame.settledAt || null,
+
+        // Preserve other useful backend fields if present
+        stakeToken: backendGame.stakeToken || onChainGame.stakeToken,
+        
+        // allows the cancelled filters to work
+        cancelled: backendGame.cancelled === true || onChainGame.cancelled === true,
+      };
+    });
+
+    console.log("Merged games count:", merged.length);
     setGames(merged);
   } catch (err) {
-    console.error("loadGames failed", err);
+    console.error("loadGames failed:", err);
   } finally {
     setLoadingGames(false);
   }
@@ -462,6 +475,25 @@ useEffect(() => {
 useEffect(() => {
   window.__GAMES__ = games;
 }, [games]);
+
+/* ---------------- REVEAL SUCCESS – Trigger backend compute ---------------- */
+  const triggerBackendComputeIfNeeded = useCallback(async (gameId) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/games/${gameId}/compute-results`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        console.warn("Backend compute-results failed:", err);
+      } else {
+        console.log(`Backend compute-results triggered for game ${gameId}`);
+        await loadGames();
+      }
+    } catch (err) {
+      console.error("Trigger compute failed:", err);
+    }
+  }, [loadGames]);
 
   /* ---------------- SSE CONNECTION ---------------- */
   useEffect(() => {
@@ -575,6 +607,26 @@ const createGame = useCallback(async () => {
   downloadRevealBackup,
 ]);
 
+/* -------- CANCEL UNJOINED GAME -----------*/
+const cancelUnjoinedGame = async (gameId) => {
+  if (!signer || !gameContract) {
+    alert("Wallet not connected");
+    return;
+  }
+
+  try {
+    // 1️⃣ Cancel on-chain (creator signs)
+    const tx = await gameContract.cancelUnjoinedGame(gameId);
+    await tx.wait();
+
+    await loadGames();
+    alert(`Game #${gameId} cancelled successfully`);
+  } catch (err) {
+    console.error("Cancel failed:", err);
+    alert(err.reason || err.message || "Cancel failed");
+  }
+};
+
 /* ---------------- JOIN GAME ---------------- */
 const joinGame = async (gameId) => {
   if (!signer || !account || !gameContract) {
@@ -585,39 +637,63 @@ const joinGame = async (gameId) => {
   try {
     const numericGameId = Number(gameId);
 
-    /* ---------- Prepare commit ---------- */
+    // 1. Fetch game details from backend to get stakeToken & stakeAmount
+    const gameRes = await fetch(`${BACKEND_URL}/games/${numericGameId}`);
+    if (!gameRes.ok) throw new Error("Failed to fetch game details");
+    const gameData = await gameRes.json();
+
+    const stakeToken = gameData.stakeToken;
+    const stakeAmount = gameData.stakeAmount; // already in string/decimal form
+
+    if (!stakeToken || !stakeAmount) {
+      throw new Error("Missing stake information from game");
+    }
+
+    console.log(`Joining game ${numericGameId} with stake: ${stakeAmount} of token ${stakeToken}`);
+
+    // 2. Prepare commit (unchanged)
     const salt = ethers.toBigInt(ethers.randomBytes(32));
     const nftContracts = nfts.map(n => n.address);
     const tokenIds = nfts.map(n => BigInt(n.tokenId));
 
-    // Solidity commit hash
     const commit = ethers.solidityPackedKeccak256(
       ["uint256", "address", "address", "address", "uint256", "uint256", "uint256"],
       [salt, ...nftContracts, ...tokenIds]
     );
 
-    /* ---------- Join on-chain ---------- */
+    // 3. Approve tokens using fetched stakeAmount
+    const erc20 = new ethers.Contract(stakeToken, ERC20ABI, signer);
+    const stakeWei = ethers.parseUnits(stakeAmount, 18); // assuming 18 decimals
+
+    const allowance = await erc20.allowance(account, GAME_ADDRESS);
+    if (allowance < stakeWei) {
+      console.log("Approving tokens...");
+      const approveTx = await erc20.approve(GAME_ADDRESS, stakeWei);
+      await approveTx.wait();
+      alert("Tokens approved!");
+    }
+
+    // 4. Join on-chain
+    console.log("Joining on-chain...");
     const tx = await gameContract.joinGame(numericGameId, commit);
     await tx.wait();
 
-    /* ---------- Notify backend ---------- */
+    // 5. Notify backend
     await fetch(`${BACKEND_URL}/games/${numericGameId}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ player2: account.toLowerCase() }),
     });
 
-    /* ---------- Save reveal backup in localStorage for auto-reveal ---------- */
-const prefix = `${account.toLowerCase()}_${numericGameId}`;
+    // 6. Save reveal backup (unchanged)
+    const prefix = `${account.toLowerCase()}_${numericGameId}`;
+    localStorage.setItem(`${prefix}_salt`, salt.toString());
+    localStorage.setItem(`${prefix}_nftContracts`, JSON.stringify(nftContracts));
+    localStorage.setItem(
+      `${prefix}_tokenIds`,
+      JSON.stringify(tokenIds.map(t => t.toString()))
+    );
 
-localStorage.setItem(`${prefix}_salt`, salt.toString());
-localStorage.setItem(`${prefix}_nftContracts`, JSON.stringify(nftContracts));
-localStorage.setItem(
-  `${prefix}_tokenIds`,
-  JSON.stringify(tokenIds.map(t => t.toString()))
-);
-
-    // Optional downloadable backup
     downloadRevealBackup({
       gameId: numericGameId,
       player: account.toLowerCase(),
@@ -628,8 +704,7 @@ localStorage.setItem(
 
     alert(`Joined game #${numericGameId} successfully!`);
 
-    /* ---------- Reload games and trigger auto-reveal ---------- */
-    await loadGames(); // refresh window.__GAMES__
+    await loadGames();
 
   } catch (err) {
     console.error("Join game failed:", err);
@@ -639,35 +714,31 @@ localStorage.setItem(
 
 /* ---------------- AUTO REVEAL ---------------- */
 const autoRevealIfPossible = useCallback(
-  async (g) => {
+  async (g) => {   // ← Ensure 'async' is here
     if (!signer || !account || !gameContract) return;
 
     const isP1 = g.player1?.toLowerCase() === account.toLowerCase();
     const isP2 = g.player2?.toLowerCase() === account.toLowerCase();
     if (!isP1 && !isP2) return;
 
-    // Already revealed? Nothing to do
     if ((isP1 && g.player1Revealed) || (isP2 && g.player2Revealed)) {
       console.log("Auto-reveal skipped: already revealed", g.id);
       return;
     }
 
-    // Player 1 cannot reveal before Player 2 has joined
     if (isP1 && g.player2 === ethers.ZeroAddress) {
-      console.log("Auto-reveal skipped: waiting for Player 2 to join", g.id);
+      console.log("Auto-reveal skipped: waiting for Player 2", g.id);
       return;
     }
 
-const prefix = `${account.toLowerCase()}_${g.id}`;
+    const prefix = `${account.toLowerCase()}_${g.id}`;
 
     const saltStr = localStorage.getItem(`${prefix}_salt`);
     const nftContractsStr = localStorage.getItem(`${prefix}_nftContracts`);
     const tokenIdsStr = localStorage.getItem(`${prefix}_tokenIds`);
 
     if (!saltStr || !nftContractsStr || !tokenIdsStr) {
-      console.log("Auto-reveal skipped: missing localStorage", {
-        saltStr, nftContractsStr, tokenIdsStr
-      });
+      console.log("Auto-reveal skipped: missing localStorage data");
       return;
     }
 
@@ -677,41 +748,46 @@ const prefix = `${account.toLowerCase()}_${g.id}`;
       const tokenIds = JSON.parse(tokenIdsStr).map(BigInt);
 
       /* ---------------- BACKEND PRE-REVEAL ---------------- */
-const preRes = await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    player: account.toLowerCase(),
-    salt: salt.toString(),
-    nftContracts,
-    tokenIds: tokenIds.map(t => t.toString()),
-  }),
-});
+      const preRes = await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          player: account.toLowerCase(),
+          salt: salt.toString(),
+          nftContracts,
+          tokenIds: tokenIds.map(t => t.toString()),
+        }),
+      });
 
-const preData = await preRes.json();
-console.log("Backend reveal response:", preData); // ← add this
+      const preData = await preRes.json();
+      console.log("Backend reveal response:", preData);
 
-if (!preRes.ok) throw new Error(preData.error || "Backend failed");
+      if (!preRes.ok) throw new Error(preData.error || "Backend failed");
 
-const tx = await gameContract.reveal(
-  BigInt(g.id),
-  BigInt(preData.savedReveal.salt),
-  preData.savedReveal.nftContracts,
-  preData.savedReveal.tokenIds.map(BigInt),
-  preData.savedReveal.backgrounds // <-- this is mandatory now
-);
-      await tx.wait();
+      const tx = await gameContract.reveal(
+        BigInt(g.id),
+        BigInt(preData.savedReveal.salt),
+        preData.savedReveal.nftContracts,
+        preData.savedReveal.tokenIds.map(BigInt),
+        preData.savedReveal.backgrounds  // mandatory
+      );
 
-      console.log("Auto-reveal completed for game", g.id);
+// Inside autoRevealIfPossible, after successful reveal
+await tx.wait();
 
-      // 🔥 Reload games immediately to update UI
-      await loadGames();
+console.log("Auto-reveal completed for game", g.id);
+
+// NEW: Trigger backend computation
+await triggerBackendComputeIfNeeded(g.id);
+
+// Reload games to update UI
+await loadGames();
 
     } catch (err) {
       console.error("Auto-reveal failed:", err);
     }
   },
-  [signer, account, gameContract, loadGames]
+  [signer, account, gameContract, loadGames, triggerBackendComputeIfNeeded]  // dependencies
 );
 
 // 🔧 DEBUG ONLY — expose contract + helpers to console
@@ -725,7 +801,6 @@ useEffect(() => {
     console.log("🧪 Debug helpers exposed as window.__coreClash");
   }
 }, [gameContract, signer, account]);
-
 
 /* ---------------- REVEAL FILE UPLOAD ---------------- */
 const handleRevealFile = useCallback(async (e) => {
@@ -789,62 +864,73 @@ const handleRevealFile = useCallback(async (e) => {
       savedReveal.backgrounds
     );
 
-    await tx.wait();
+// After successful upload + on-chain reveal
+await tx.wait();
 
-    alert("Reveal successful!");
-    await loadGames();
+alert("Reveal successful!");
+await triggerBackendComputeIfNeeded(gameId);  // ← add this
+await loadGames();
 
   } catch (err) {
     console.error("Reveal failed:", err);
     alert(`Reveal failed: ${err.message}`);
   }
-}, [account, signer, loadGames, downloadRevealBackup]);
+}, [account, signer, loadGames, downloadRevealBackup, triggerBackendComputeIfNeeded]);
 
 /* ---------- AUTO SETTLE GAME ---------- */
-const autoSettleIfPossible = useCallback(
-  async (g) => {
-    if (!signer || !account || !gameContract) return;
+const autoSettleIfPossible = useCallback(async (g) => {
+  if (!signer || !account || !gameContract) return;
 
-    const isParticipant =
-      g.player1?.toLowerCase() === account.toLowerCase() ||
-      g.player2?.toLowerCase() === account.toLowerCase();
+  const isParticipant = 
+    g.player1?.toLowerCase() === account.toLowerCase() ||
+    g.player2?.toLowerCase() === account.toLowerCase();
 
-    if (!isParticipant) return;
-    if (!g.player1Revealed || !g.player2Revealed) return;
-    if (g.settled) return;
+  if (!isParticipant) return;
+  if (!g.player1Revealed || !g.player2Revealed) return;
+  if (g.settled) return;
 
-    try {
-      const tx = await gameContract.settleGame(BigInt(g.id));
-      await tx.wait();
-      
+  if (!g.roundResults?.length || !g.winner) {
+    console.log(`Skipping auto-settle for game ${g.id} — waiting for backend results`);
+    return;
+  }
 
-      // 🔥 BACKEND SYNC
-      await fetch(`${BACKEND_URL}/games/${g.id}/post-winner`, {
-        method: "POST",
-      });
+  try {
+    console.log(`Attempting auto-settle for game ${g.id}`);
 
-await loadGames();
-window.location.reload(); // temp force full re-render
-    } catch (err) {
-      console.error("Auto-settle failed:", err);
-    }
-  },
-  [signer, account, gameContract, loadGames]
-);
+    // Dry-run first (catches reverts early)
+    await gameContract.callStatic.settleGame(BigInt(g.id));
+
+    const tx = await gameContract.settleGame(BigInt(g.id));
+    const receipt = await tx.wait();
+
+    console.log(`Auto-settle tx successful: ${tx.hash}`);
+
+    // Only finalize backend if tx confirmed
+    await fetch(`${BACKEND_URL}/games/${g.id}/finalize-settle`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ txHash: receipt.hash }),
+    });
+
+    await loadGames();
+    console.log(`Auto-settled game ${g.id}`);
+  } catch (err) {
+    console.error("Auto-settle failed:", err);
+    // Do NOT update backend here — let it stay unsettled
+  }
+}, [signer, account, gameContract, loadGames]);
 
 /* --------- TRIGGER AUTO-REVEAL AND AUTO-SETTLE ON GAMES LOAD --------- */
 useEffect(() => {
-  if (!games.length || !account) return;
+    if (!games.length || !account) return;
 
-  games.forEach((g) => {
-    autoRevealIfPossible(g);
-
-    // ⛔ NEVER try to settle unless reveals are complete
-    if (g.player1Revealed && g.player2Revealed) {
-      autoSettleIfPossible(g);
-    }
-  });
-}, [games, account, autoRevealIfPossible, autoSettleIfPossible]);
+    games.forEach((g) => {
+      autoRevealIfPossible(g);
+      if (g.player1Revealed && g.player2Revealed) {
+        autoSettleIfPossible(g);
+      }
+    });
+  }, [games, account, autoRevealIfPossible, autoSettleIfPossible]);
 
 const manualSettleGame = useCallback(
   async (gameId) => {
@@ -915,15 +1001,16 @@ const manualSettleGame = useCallback(
         );
       }
 
-      alert("Game settled successfully!");
-      await loadGames();
+alert("Game settled successfully!");
+await triggerBackendComputeIfNeeded(gameId);  // optional safety net
+await loadGames();
 
     } catch (err) {
       console.error("Manual settle failed:", err);
       alert(err.reason || err.message || "Manual settle failed");
     }
   },
-  [games, signer, account, gameContract, loadGames]
+  [games, signer, account, gameContract, loadGames, triggerBackendComputeIfNeeded]
 );
 
 /* ---------------- BACKGROUND PRIORITY ---------------- */
@@ -934,16 +1021,31 @@ const backgroundPriority = {
 };
 
 /* ---------------- FILTERED + SORTED GAMES ---------------- */
-const openGames = [...games]
-  .filter(g => g.player2 === ethers.ZeroAddress)
+const openGames = games
+  .filter(
+    (g) =>
+      (!g.player2 || g.player2 === ethers.ZeroAddress) &&
+      !g.settled &&
+      !g.cancelled
+  )
   .sort((a, b) => b.id - a.id);
 
-const activeGames = [...games]
-  .filter(g => g.player2 !== ethers.ZeroAddress && !g.settled)
+const activeGames = games
+  .filter(
+    (g) =>
+      g.player2 &&
+      g.player2 !== ethers.ZeroAddress &&
+      !g.settled &&
+      !g.cancelled
+  )
   .sort((a, b) => b.id - a.id);
 
-const settledGames = [...games]
-  .filter(g => g.settled)
+const settledGames = games
+  .filter((g) => g.settled && !g.cancelled && showResolved) // only show if showResolved checked
+  .sort((a, b) => b.id - a.id);
+
+const cancelledGames = games
+  .filter((g) => g.cancelled && showCancelled) // only show if showCancelled checked
   .sort((a, b) => b.id - a.id);
 
   /* ---------------- GAME CARD PROPS ---------------- */
@@ -954,6 +1056,7 @@ const gameCardProps = {
   joinGame,
   manualSettleGame,
   handleRevealFile,
+  cancelUnjoinedGame,
   renderTokenImages,
 };
 
@@ -1164,52 +1267,74 @@ return (
         ))}
       </select>
 
-      {/* Token ID Dropdown */}
-      <label style={{ marginLeft: 8 }}>Token ID</label>
-      <select
-        value={n.tokenId}
-        onChange={(e) => {
-          const tokenId = e.target.value;
-          const selected = ownedNFTs.find(
-            (nft) =>
-              nft.tokenId === tokenId &&
-              nft.nftAddress?.toLowerCase() === n.address?.toLowerCase()
-          );
-          setNfts((prev) =>
-            prev.map((slot, idx) =>
-              idx === i
+{/* Token ID Dropdown */}
+<label style={{ marginLeft: 8 }}>Token ID</label>
+<select
+  value={n.tokenId}
+  onChange={(e) => {
+    const tokenId = e.target.value;
+    const selected = ownedNFTs.find(
+      (nft) =>
+        nft.tokenId === tokenId &&
+        nft.nftAddress?.toLowerCase() === n.address?.toLowerCase()
+    );
+    setNfts((prev) =>
+      prev.map((slot, idx) =>
+        idx === i
+          ? {
+              ...slot,
+              tokenId,
+              metadata: selected
                 ? {
-                    ...slot,
-                    tokenId,
-                    metadata: selected
-                      ? {
-                          name: selected.name,
-                          background: selected.background,
-                        }
-                      : null,
-                    tokenURI: selected?.tokenURI,
-                    address: selected?.nftAddress || slot.address,
+                    name: selected.name,
+                    background: selected.background,
                   }
-                : slot
-            )
-          );
-        }}
-        style={{ width: "220px", marginLeft: 8 }}
-        disabled={!n.address}
-      >
-        <option value="">Select Token</option>
-        {ownedNFTs
-          .filter(
-            (nft) =>
-              nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
-              !nfts.some((s, idx) => idx !== i && s.tokenId === nft.tokenId)
-          )
-          .map((nft) => (
-            <option key={nft.tokenId} value={nft.tokenId}>
-              #{nft.tokenId} — {nft.name} ({nft.background})
-            </option>
-          ))}
-      </select>
+                : null,
+              tokenURI: selected?.tokenURI,
+              address: selected?.nftAddress || slot.address,
+            }
+          : slot
+      )
+    );
+  }}
+  style={{ width: "220px", marginLeft: 8 }}
+  disabled={!n.address}
+>
+  <option value="">Select Token</option>
+  {ownedNFTs
+    .filter(
+      (nft) =>
+        nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
+        !nfts.some((s, idx) => idx !== i && s.tokenId === nft.tokenId)
+    )
+    .sort((a, b) => {
+      const bgA = (a.background || "").trim();
+      const bgB = (b.background || "").trim();
+
+      const rankA = RARE_BACKGROUNDS.indexOf(bgA);
+      const rankB = RARE_BACKGROUNDS.indexOf(bgB);
+
+      if (rankA !== -1 || rankB !== -1) {
+        if (rankA === -1) return 1;
+        if (rankB === -1) return -1;
+        return rankA - rankB;
+      }
+
+      if (bgA !== bgB) {
+        return bgA.toLowerCase().localeCompare(bgB.toLowerCase());
+      }
+
+      const nameA = (a.name || "").toLowerCase();
+      const nameB = (b.name || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    })
+    .map((nft) => (
+      <option key={nft.tokenId} value={nft.tokenId}>
+        {RARE_BACKGROUNDS.includes(nft.background) ? "🟢 " : ""}
+        #{nft.tokenId} — {nft.name} ({nft.background})
+      </option>
+    ))}
+</select>
 
       {/* Image Preview – appears once token is selected */}
       {n.tokenId && collectionKey && imageFile && (
@@ -1275,31 +1400,38 @@ return (
     </div>
   );
 })}
-      <button
-        onClick={loadGames}
-        style={{
-          marginBottom: 12,
-          padding: "6px 12px",
-          border: "1px solid #444",
-          background: "#111",
-          color: "#ddd",
-          cursor: "pointer",
-        }}
-      >
-        🔄 Refresh Games
-      </button>
 
-      {account?.toLowerCase() === ADMIN_ADDRESS && (
-        <button
-          onClick={async () => {
-            await fetch(`${BACKEND_URL}/admin/resync-games`, { method: "POST" });
-            await loadGames();
-            alert("Resync complete");
-          }}
-        >
-          🛠 Resync from Chain
-        </button>
-      )}
+{account?.toLowerCase() === ADMIN_ADDRESS ? (
+  <>
+    <button
+      onClick={loadGames}
+      style={{
+        marginBottom: 12,
+        padding: "6px 12px",
+        border: "1px solid #444",
+        background: "#111",
+        color: "#ddd",
+        cursor: "pointer",
+      }}
+    >
+      🔄 Refresh Games
+    </button>
+
+    <button
+      onClick={async () => {
+        await fetch(`${BACKEND_URL}/admin/resync-games`, { method: "POST" });
+        await loadGames();
+        alert("Resync complete");
+      }}
+      style={{ marginLeft: 12 }}
+    >
+      🛠 Resync from Chain
+    </button>
+  </>
+) : (
+  <div style={{ fontSize: 14, color: "#888", marginBottom: 12 }}>
+  </div>
+)}
 
       {/* ---------------- STATUS ---------------- */}
       <div style={{ fontSize: 12, color: "#aaa", marginTop: 12 }}>
@@ -1321,38 +1453,83 @@ return (
         </button>
       </div>
 
-      {/* ---------------- GAMES GRID ---------------- */}
-      <h2 style={{ marginTop: 40 }}>Games</h2>
-      {loadingGames && <p>Loading games…</p>}
+{/* ---------------- GAMES GRID ---------------- */}
+<h2 style={{ marginTop: 40 }}>Games</h2>
+{loadingGames && <p>Loading games…</p>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
-        <div>
-          <h3>🟢 Open</h3>
-          {openGames.map((g) => (
-            <GameCard key={g.id} g={g} {...gameCardProps} />
-          ))}
-        </div>
-        <div>
-          <h3>🟡 In Progress</h3>
-          {activeGames.map((g) => (
-            <GameCard key={g.id} g={g} {...gameCardProps} />
-          ))}
-        </div>
-        <div>
-          <h3>🔵 Settled</h3>
-          {settledGames.map((g) => (
-            <GameCard key={g.id} g={g} {...gameCardProps} />
-          ))}
-        {openGames.map((g) => (
-  <GameCard 
-    key={`${g.id}-${g.player1Revealed}-${g.player2Revealed}`} // changes when reveal status updates
-    g={g} 
-    {...gameCardProps} 
-  />
-))}
-        </div>
-      </div>
-    </div>
+<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
+  {/* Open Games */}
+  <div>
+    <h3>🟢 Open ({openGames.length})</h3>
+    {openGames.map((g) => (
+      <GameCard 
+        key={g.id} 
+        g={g} 
+        {...gameCardProps} 
+        roundResults={g.roundResults || []}
+      />
+    ))}
   </div>
+
+  {/* In Progress (Active) Games */}
+  <div>
+    <h3>🟡 In Progress ({activeGames.length})</h3>
+    {activeGames.map((g) => (
+      <GameCard 
+        key={g.id} 
+        g={g} 
+        {...gameCardProps} 
+        roundResults={g.roundResults || []}
+      />
+    ))}
+  </div>
+
+{/* Settled + Cancelled Games */}
+  <div>
+    {/* Settled Checkbox */}
+    <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+      <label>
+        <input
+          type="checkbox"
+          checked={showResolved}
+          onChange={() => setShowResolved(v => !v)}
+        />{" "}
+        Settled (Winner)
+      </label>
+
+      <label>
+        <input
+          type="checkbox"
+          checked={showCancelled}
+          onChange={() => setShowCancelled(v => !v)}
+        />{" "}
+        Cancelled
+      </label>
+    </div>
+
+    {/* Settled Games */}
+    {showResolved && settledGames.length > 0 && (
+      <div>
+        <h3>🔵 Settled ({settledGames.length})</h3>
+        {settledGames.map((g) => (
+          <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+        ))}
+      </div>
+    )}
+
+    {/* Cancelled Games */}
+    {showCancelled && cancelledGames.length > 0 && (
+      <div>
+        <h3>❌ Cancelled ({cancelledGames.length})</h3>
+        {cancelledGames.map((g) => (
+          <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+        ))}
+      </div>
+    )}
+  </div>
+</div>
+
+  </div>
+</div>
 );
 }

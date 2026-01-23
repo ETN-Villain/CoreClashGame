@@ -32,99 +32,99 @@ export const renderTokenImages = (input = []) => {
       const charCodes = addr.split('').map(c => c.charCodeAt(0)).join(', ');
       console.log(`Slot ${idx} char codes:`, charCodes);
 
-      addr = (addr || '')
-        .replace(/[^0-9a-fA-F]/gi, '')
-        .toLowerCase();
+addr = (addr || '')
+   .replace(/[^0-9a-fA-F]/gi, '')           // remove 'x' too unless intentional
+   .toLowerCase();
 
-      if (addr && !addr.startsWith('0x')) {
-        addr = '0x' + addr;
-      }
+ if (addr && !addr.startsWith('0x')) {
+   addr = '0x' + addr;
+ }
 
-      let collection = addressToCollection[addr];
+let collection = addressToCollection[addr];
 
-      // Debug override for token ID 24 (remove once confirmed fixed)
+      // Debug override for token ID 24 (remove after fix)
       if (id === "24") {
         console.log(`Slot ${idx} token ID 24 → forcing VQLE (debug override)`);
         collection = "VQLE";
       }
 
       // More forgiving pattern match
-      if (!collection && (
-        addr.includes('8cfb') ||
-        addr.includes('8cfbb04c')
-      )) {
-        console.log(`Slot ${idx} VQLE pattern match → forcing VQLE`);
-        collection = "VQLE";
-      }
-
+// More forgiving pattern match
+if (!collection && (
+  addr.includes('8cfb') ||
+  addr.includes('8cfbb04c')
+)) {
+  console.log(`Slot ${idx} VQLE pattern match → forcing VQLE`);
+  collection = "VQLE";
+} 
       if (!collection) {
         console.warn(`Slot ${idx} NO MATCH for cleaned addr "${addr}" (raw: "${rawAddr}") — defaulting to VKIN`);
         collection = "VKIN";
       }
 
-      console.log(`Slot ${idx} final collection:`, {
+      console.log(`Slot ${idx} final:`, {
         rawAddr,
         cleanedAddr: addr,
         collection,
         tokenId: id,
-        backendTokenURI: tokenURIs[idx] || "none"
+        tokenURI: tokenURIs[idx] || "none"
       });
 
-      // ── Decide image filename ──
-      let imageFile = `${id}.png`; // ultimate fallback
+// ── inside the tokenIds.map callback ──
 
-      // Mapping is the source of truth for correct (possibly remapped) image
-      const mappedEntry = mapping[collection]?.[String(id)];
+let imageFile = `${id}.png`;
 
-      if (mappedEntry) {
-        if (mappedEntry.image_file) {
-          imageFile = mappedEntry.image_file;
-          console.log(`Slot ${idx}: using explicit image_file from mapping.json → ${imageFile} (collection: ${collection})`);
-        } else if (mappedEntry.token_uri) {
-          imageFile = mappedEntry.token_uri
-            .replace(/\.json$/i, ".png")
-            .toLowerCase();
-          console.log(`Slot ${idx}: derived from mapping.token_uri → ${imageFile}`);
-        } else {
-          console.warn(`Slot ${idx}: mapping entry for ${collection} #${id} has no usable image info`);
-        }
-      } 
-      // Only use backend tokenURI as last resort (usually just repeats token ID)
-      else if (tokenURIs[idx]) {
-        imageFile = tokenURIs[idx]
-          .replace(/\.json$/i, ".png")
-          .toLowerCase();
-        console.warn(`Slot ${idx}: NO mapping entry → falling back to backend tokenURI → ${imageFile}`);
-      } else {
-        console.warn(`Slot ${idx}: NO mapping entry and NO backend tokenURI → using ${imageFile}`);
-      }
+// Look up the mapping entry once — safe even if missing
+const mapped = mapping[collection]?.[String(id)];
 
-      console.log(`Slot ${idx} final imageFile: ${imageFile} (source: ${mappedEntry ? 'mapping.json' : (tokenURIs[idx] ? 'backend tokenURI' : 'fallback')})`);
+// Priority 1: explicit tokenURI from backend (highest precedence)
+if (tokenURIs[idx]) {
+  // If tokenURI is present, derive filename from it
+  imageFile = tokenURIs[idx]
+    .replace(/\.json$/i, ".png")
+    .toLowerCase();
 
-      return {
-        collection,
-        tokenId: id,
-        imageFile
-      };
+  console.log(`Slot ${idx}: backend tokenURI → ${imageFile} (coll: ${collection})`);
+}
+// Priority 2: use mapping.json if we have an entry
+else if (mapped) {
+  imageFile = mapped?.image_file ??
+    mapped?.token_uri?.replace(/\.json$/i, ".png") ??
+    `${id}.png`;
+
+  console.log(`Slot ${idx}: mapping → ${imageFile}`);
+}
+// Priority 3: fallback (already set above)
+
+console.log(`Slot ${idx} final imageFile: ${imageFile}`);
+
+return {
+  collection,
+  tokenId: id,
+  imageFile
+};
     });
   }
 
-  if (!tokens.length) {
-    console.log("[renderTokenImages] No tokens to render");
-    return null;
-  }
+  if (!tokens.length) return null;
 
   return (
     <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
       {tokens.map((token, i) => {
         const { collection, tokenId, imageFile } = token;
 
-        // We already decided the best imageFile — no need to re-query mapping here
-        const finalImageFile = imageFile;
+        let finalImageFile = imageFile;
+
+        const mapped = mapping[collection]?.[String(tokenId)];
+        if (mapped) {
+finalImageFile = mapped?.image_file ??
+  mapped?.token_uri?.replace(/\.json$/i, ".png") ??
+  `${tokenId}.png`;
+        }
 
         const src = `${BACKEND_URL}/images/${collection}/${finalImageFile}`;
 
-        console.log(`Rendering slot ${i}: ${src} (collection: ${collection}, tokenId: ${tokenId})`);
+        console.log(`Rendering slot ${i}: ${src}`);
 
         return (
           <StableImage
