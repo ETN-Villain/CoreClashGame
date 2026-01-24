@@ -284,7 +284,7 @@ const validateTeam = useCallback(async () => {
   setValidating(true);
   try {
     const seenNames = new Set();
-    const seenBackgrounds = new Set();
+    const seenRareBackgrounds = new Set();
 
     for (const n of nfts) {
       if (!n.metadata) {
@@ -297,19 +297,20 @@ const validateTeam = useCallback(async () => {
         throw new Error(`Incomplete metadata for token #${n.tokenId || "?"}`);
       }
 
-      // Prevent duplicate characters (by name)
+      // Duplicate character check
       if (seenNames.has(name)) {
         throw new Error(`Duplicate character: ${name}`);
       }
       seenNames.add(name);
 
-      // Optional but recommended: Prevent duplicate backgrounds
-      // (uncomment if you want to block same background twice)
-      if (seenBackgrounds.has(background)) {
-        throw new Error(`Duplicate background: ${background}`);
+// Rare background rule (robust, no Set dependency)
+if (RARE_BACKGROUNDS.includes(background)) {
+  if (seenRareBackgrounds.has(background)) {
+    throw new Error(`Rare background duplicated: ${background}`);
+  }
+  seenRareBackgrounds.add(background);
+}
       }
-      seenBackgrounds.add(background);
-    }
 
     setValidated(true);
     alert("Team validated successfully!");
@@ -774,7 +775,7 @@ const autoRevealIfPossible = useCallback(
 
 // Inside autoRevealIfPossible, after successful reveal
 await tx.wait();
-
+alert(`✅ Reveal successful for game #${g.id}`);
 console.log("Auto-reveal completed for game", g.id);
 
 // NEW: Trigger backend computation
@@ -897,9 +898,6 @@ const autoSettleIfPossible = useCallback(async (g) => {
   try {
     console.log(`Attempting auto-settle for game ${g.id}`);
 
-    // Dry-run first (catches reverts early)
-    await gameContract.callStatic.settleGame(BigInt(g.id));
-
     const tx = await gameContract.settleGame(BigInt(g.id));
     const receipt = await tx.wait();
 
@@ -909,8 +907,12 @@ const autoSettleIfPossible = useCallback(async (g) => {
     await fetch(`${BACKEND_URL}/games/${g.id}/finalize-settle`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ txHash: receipt.hash }),
-    });
+      body: JSON.stringify({ 
+        txHash: receipt.hash,
+        cancelled: false,   // explicitly say this is not cancelled
+        settled: true,      // explicitly mark as settled
+  }),
+});
 
     await loadGames();
     console.log(`Auto-settled game ${g.id}`);
@@ -932,86 +934,62 @@ useEffect(() => {
     });
   }, [games, account, autoRevealIfPossible, autoSettleIfPossible]);
 
+/* ------ MANUAL SETTLE GAME -------- */
 const manualSettleGame = useCallback(
   async (gameId) => {
     try {
-      if (!signer || !account || !gameContract) {
+      if (!signer || !account) {
         alert("Wallet not ready");
         return;
       }
 
-      const g = games.find(x => x.id === gameId);
-      if (!g) {
-        alert("Game not found");
+      // Compute results on backend
+      const computeRes = await fetch(`${BACKEND_URL}/games/${gameId}/compute-results`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).then(r => r.json());
+
+      if (!computeRes.success) {
+        alert(`Failed to compute results: ${computeRes.error}`);
         return;
       }
 
-      if (!g.player1Revealed || !g.player2Revealed) {
-        alert("Both players must reveal first");
+      console.log("Computed results:", computeRes);
+
+      // Post winner on-chain
+      const postWinnerRes = await fetch(`${BACKEND_URL}/games/${gameId}/post-winner`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).then(r => r.json());
+
+      if (!postWinnerRes.success) {
+        alert(`Failed to post winner: ${postWinnerRes.error}`);
         return;
       }
 
-      if (!g.backendWinner && !g.tie) {
-        alert("Winner not posted yet");
-        return;
-      }
+      alert(`Game settled successfully! Winner: ${postWinnerRes.winner || "tie"}`);
 
-      if (g.settled) {
-        alert("Game already settled");
-        return;
-      }
-
-      /* ---------------- DRY-RUN (CATCH REVERTS EARLY) ---------------- */
-      try {
-        await gameContract.callStatic.settleGame(BigInt(gameId));
-      } catch (simErr) {
-        console.error("Settle simulation failed:", simErr);
-        throw new Error(
-          simErr.reason ||
-          "Settle would revert on-chain (invalid game state)"
-        );
-      }
-
-      /* ---------------- ON-CHAIN SETTLE (SOURCE OF TRUTH) ---------------- */
-      const tx = await gameContract.settleGame(BigInt(gameId));
-      const receipt = await tx.wait();
-
-      console.log("Game settled on-chain:", {
-        gameId,
-        txHash: receipt.hash,
-      });
-
-      /* ---------------- BACKEND FINALIZATION ---------------- */
-      const res = await fetch(
-        `${BACKEND_URL}/games/${gameId}/finalize-settle`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            txHash: receipt.hash,
-          }),
-        }
-      );
-
-      const data = await res.json();
-      if (!res.ok) {
-        console.warn("Backend finalize failed:", data);
-        alert(
-          "On-chain settle succeeded, but backend sync failed. Refreshing…"
-        );
-      }
-
-alert("Game settled successfully!");
-await triggerBackendComputeIfNeeded(gameId);  // optional safety net
-await loadGames();
+      await loadGames();
 
     } catch (err) {
       console.error("Manual settle failed:", err);
-      alert(err.reason || err.message || "Manual settle failed");
+      alert(err.message || "Manual settle failed");
     }
   },
-  [games, signer, account, gameContract, loadGames, triggerBackendComputeIfNeeded]
+  [signer, account, loadGames]
 );
+
+  /* ---------------- GAME CARD PROPS ---------------- */
+const gameCardProps = {
+  account,
+  signer,
+  approveTokens,
+  joinGame,
+  manualSettleGame,
+  handleRevealFile,
+  cancelUnjoinedGame,
+  renderTokenImages,
+};
 
 /* ---------------- BACKGROUND PRIORITY ---------------- */
 const backgroundPriority = {
@@ -1047,18 +1025,6 @@ const settledGames = games
 const cancelledGames = games
   .filter((g) => g.cancelled && showCancelled) // only show if showCancelled checked
   .sort((a, b) => b.id - a.id);
-
-  /* ---------------- GAME CARD PROPS ---------------- */
-const gameCardProps = {
-  account,
-  signer,
-  approveTokens,
-  joinGame,
-  manualSettleGame,
-  handleRevealFile,
-  cancelUnjoinedGame,
-  renderTokenImages,
-};
 
 /* ---------------- UI ---------------- */
 if (loading) {
@@ -1484,52 +1450,69 @@ return (
     ))}
   </div>
 
-{/* Settled + Cancelled Games */}
+{/* Settled + Cancelled Games Column */}
+<div>
+  {/* Checkboxes */}
+  <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+    <label>
+      <input
+        type="checkbox"
+        checked={showResolved}
+        onChange={() => setShowResolved(v => !v)}
+      />{" "}
+      Settled (Winner)
+    </label>
+
+    <label>
+      <input
+        type="checkbox"
+        checked={showCancelled}
+        onChange={() => setShowCancelled(v => !v)}
+      />{" "}
+      Cancelled
+    </label>
+  </div>
+
+{/* Settled Games */}
+{showResolved && settledGames.length > 0 && (
   <div>
-    {/* Settled Checkbox */}
-    <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
-      <label>
-        <input
-          type="checkbox"
-          checked={showResolved}
-          onChange={() => setShowResolved(v => !v)}
-        />{" "}
-        Settled (Winner)
-      </label>
+    <h3>
+      🔵 Settled (
+      {settledGames.filter((g) => Number(g.id) >= 10).length}
+      )
+    </h3>
 
-      <label>
-        <input
-          type="checkbox"
-          checked={showCancelled}
-          onChange={() => setShowCancelled(v => !v)}
-        />{" "}
-        Cancelled
-      </label>
+    {settledGames
+      .filter((g) => Number(g.id) >= 10)
+      .map((g) => (
+        <GameCard
+          key={g.id}
+          g={g}
+          {...gameCardProps}
+          roundResults={g.roundResults || []}
+        />
+      ))}
     </div>
+  )}
 
-    {/* Settled Games */}
-    {showResolved && settledGames.length > 0 && (
-      <div>
-        <h3>🔵 Settled ({settledGames.length})</h3>
-        {settledGames.map((g) => (
-          <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-        ))}
-      </div>
-    )}
-
-    {/* Cancelled Games */}
-    {showCancelled && cancelledGames.length > 0 && (
-      <div>
-        <h3>❌ Cancelled ({cancelledGames.length})</h3>
-        {cancelledGames.map((g) => (
-          <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-        ))}
-      </div>
-    )}
+  {/* Cancelled Games (directly below Settled) */}
+  {showCancelled && cancelledGames.length > 0 && (
+    <div style={{ marginTop: 16 }}>
+      <h3>❌ Cancelled ({cancelledGames.length})</h3>
+      {cancelledGames.map((g) => (
+        <GameCard
+          key={g.id}
+          g={g}
+          {...gameCardProps}
+          roundResults={g.roundResults || []}
+        />
+      ))}
+    </div>
+  )}
+</div>
   </div>
 </div>
 
   </div>
-</div>
 );
 }

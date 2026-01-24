@@ -405,7 +405,7 @@ router.post("/:id/backfill", async (req, res) => {
 // NEW ENDPOINT: /games/:id/compute-results (POST)
 // For manual trigger or fallback if auto-compute failed
 // ────────────────────────────────────────────────
-router.post("/:id/compute-results", (req, res) => {
+router.post("/:id/compute-results", async (req, res) => {
   try {
     const gameId = Number(req.params.id);
     if (!Number.isInteger(gameId)) {
@@ -434,20 +434,18 @@ router.post("/:id/compute-results", (req, res) => {
       });
     }
 
-    // Run computation
-    const resolved = resolveGame(game);  // ← your function from gameLogic.js
-    if (!resolved || !resolved.rounds) {
-      return res.status(500).json({ error: "Failed to compute game results" });
-    }
+// Run computation
+const resolved = await resolveGame(game);  // ← add await
+if (!resolved || !resolved.roundResults) { // ← use roundResults
+  return res.status(500).json({ error: "Failed to compute game results" });
+}
 
-    // Update game
-    game.roundResults = resolved.rounds;
-    game.winner = resolved.winner || null;
-    game.tie = !!resolved.tie;
-    game.settled = true;
-    game.settledAt = new Date().toISOString();
-
-    saveGames(games);
+// Update game
+game.roundResults = resolved.roundResults;
+game.winner = resolved.winner || null;
+game.tie = !!resolved.tie;
+game.settledAt = resolved.settledAt;
+saveGames(games);
 
     console.log(`Manual/forced compute-results completed for game ${gameId}:`, {
       winner: game.winner,
@@ -509,7 +507,7 @@ router.post("/:id/post-winner", async (req, res) => {
     }
 
     // 🧠 Determine Solidity-compatible winner
-    let winnerAddress = ethers.ZeroAddress;
+let winnerAddress = resolved.winner || ethers.ZeroAddress; // tie defaults to ZeroAddress
 
     if (!resolved.tie && resolved.winner) {
       const winnerLc = resolved.winner.toLowerCase();
