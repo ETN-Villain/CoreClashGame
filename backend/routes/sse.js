@@ -1,33 +1,37 @@
-// backend/routes/sse.js
 import express from "express";
-import { readGames } from "../gamesStore.js";
 
 const router = express.Router();
-let clients = [];
+const clients = new Set();
 
-// SSE endpoint
 router.get("/stream", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
-  clients.push(res);
+  clients.add(res);
+
+  // initial hello (optional but useful)
+  res.write("event: connected\ndata: {}\n\n");
 
   req.on("close", () => {
-    clients = clients.filter(c => c !== res);
+    clients.delete(res);
   });
 });
 
-export function sendSSE(data) {
-  const payload = `data: ${JSON.stringify(data)}\n\n`;
-  clients.forEach(c => c.write(payload));
-}
-
-// optional ping every 25s
+// keep-alive
 setInterval(() => {
-  clients.forEach(c => c.write(": ping\n\n"));
+  for (const client of clients) {
+    client.write(": ping\n\n");
+  }
 }, 25000);
 
+export function broadcast(event, payload) {
+  const msg = `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`;
+  for (const client of clients) {
+    client.write(msg);
+  }
+}
+
 export default router;
-export { readGames };
