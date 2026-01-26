@@ -20,7 +20,7 @@ const app = express();
 const GAMES_FILE = path.join(__dirname, "games", "games.json");
 
 // ---------------- MIDDLEWARE ----------------
-app.use(cors({ origin: "http://localhost:3000" }));
+app.use(cors({ origin: process.env.NEXT_PUBLIC_API_URL }));
 app.use(express.json());
 
 // ---------------- ROUTES ----------------
@@ -60,7 +60,7 @@ await generateMapping();
 const PORT = 3001;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Backend server running at http://localhost:${PORT}`);
+  console.log(`🚀 Backend server running at https://coreclashgame.onrender.com:${PORT}`);
 });
 
 /* ---------- RECONCILE GAMES WITH CHAIN --------*/
