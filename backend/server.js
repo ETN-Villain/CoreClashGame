@@ -15,6 +15,7 @@ import gamesRouter from "./routes/games.js";
 import sseRouter from "./routes/sse.js";
 import nftsRouter from "./routes/nfts.js";
 import { reconcileAllGames } from "./reconcile.js";
+import "./eventListener.js";
 
 const app = express();
 const GAMES_FILE = path.join(__dirname, "games", "games.json");
