@@ -1,8 +1,7 @@
 import React from "react";
 import mapping from "./mapping.json";
 import { StableImage } from './gameCard';
-
-const BACKEND_URL = "http://localhost:3001";
+import { BACKEND_URL } from "./config.js"
 
 // Mapping (lowercase + checksummed)
 const addressToCollection = {

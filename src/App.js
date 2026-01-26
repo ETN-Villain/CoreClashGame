@@ -18,6 +18,7 @@ import {
   RARE_BACKGROUNDS,
   ADMIN_ADDRESS,
   ADDRESS_TO_COLLECTION_KEY,
+  BACKEND_URL,
 } from "./config.js";
 
 import mapping from "./mapping.json";
@@ -32,8 +33,6 @@ import {
 } from "./appMedia/media.js";
 
 import GameCard from "./gameCard.jsx";
-
-const BACKEND_URL = "http://localhost:3001";
 
 export default function App() {
   /* ---------------- WALLET ---------------- */
