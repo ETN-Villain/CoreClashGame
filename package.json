@@ -48,6 +48,9 @@
       "last 1 safari version"
     ]
   },
+  "engines": {
+    "node": ">=20"
+  },
   "description": "This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).",
   "main": "index.js",
   "keywords": [],
