@@ -13,6 +13,7 @@ import { resolveGame } from "../gameLogic.js";
 import { fetchOwnedTokenIds } from "../utils/nftUtils.js";
 import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";
 import { reconcileAllGames } from "../reconcile.js";
+import { broadcast } from "./sse.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -111,6 +112,8 @@ router.post("/", async (req, res) => {
   saveGames(games);
   console.log("✅ Game created:", gameId);
 
+  broadcast("GameCreated", games);
+
   // Populate ownership cache for creator (Player 1)
   const cache = readOwnerCache();
 
@@ -173,6 +176,8 @@ router.post("/:id/join", (req, res) => {
   game.player2JoinedAt = new Date().toISOString();
 
   saveGames(games);
+
+    broadcast("GameJoined", games);
 
   console.log("✅ Game joined:", gameId);
   res.json({ success: true });
@@ -260,6 +265,9 @@ router.post("/:id/reveal", async (req, res) => {  // ← make async so we can aw
     game.player2Revealed = !!game._reveal.player2;
 
     saveGames(games);  // early save so state is persisted even if auto fails
+
+    broadcast("GameRevealed", games);
+
 
     // ────────────────────────────────────────────────────────────────
     // Auto-resolve + post + settle WHEN BOTH PLAYERS HAVE REVEALED
@@ -594,6 +602,8 @@ router.post("/:id/settle-game", async (req, res) => {
     game.settledAt = new Date().toISOString();
     saveGames(games);
 
+    broadcast("GameSettled", games);
+
     console.log(`Game ${gameId} settled on-chain with tx: ${txSettle.hash}`);
     res.json({ success: true, gameId, txHash: txSettle.hash });
   } catch (err) {
@@ -689,6 +699,8 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
     game.settleTxHash = tx.hash;
 
     saveGames(games);
+
+    broadcast("GameCancelled", games);
 
     return res.json({
       success: true,
