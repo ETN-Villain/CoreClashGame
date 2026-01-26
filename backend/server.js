@@ -20,7 +20,14 @@ const app = express();
 const GAMES_FILE = path.join(__dirname, "games", "games.json");
 
 // ---------------- MIDDLEWARE ----------------
-app.use(cors({ origin: process.env.NEXT_PUBLIC_API_URL }));
+app.use(cors({
+  origin: [
+    "https://coreclashgame.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5173",
+  ],
+}));
+
 app.use(express.json());
 
 // ---------------- ROUTES ----------------
