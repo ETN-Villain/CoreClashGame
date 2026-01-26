@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 import React from "react";
 import mapping from "./mapping.json"; // Frontend mapping
-import BACKEND_URL from "./config.js"
+import { BACKEND_URL } from "./config.js"
 
 const addressToCollection = {
   "0x3fc7665b1f6033ff901405cddf31c2e04b8a2ab4": "VKIN",
