@@ -27,6 +27,8 @@ import {
   CoreClashLogo,
   AppBackground,
   PlanetZephyrosAE,
+  HowToPlay,
+  GameInfo,
 } from "./appMedia/media.js";
 
 import GameCard from "./gameCard.jsx";
@@ -109,6 +111,19 @@ useEffect(() => {
     if (!provider || !signer) return null;
     return new ethers.Contract(GAME_ADDRESS, GameABI, signer);
   }, [provider, signer]);
+
+  /* DEBUG HELPER */
+  useEffect(() => {
+  if (gameContract && signer && account) {
+    window.__coreClash = {
+      gameContract,
+      signer,
+      account,
+      ethers,
+    };
+    console.log("🧪 Debug helpers exposed as window.__coreClash");
+  }
+}, [gameContract, signer, account]);
 
   /* ---------------- CONNECT WALLET ---------------- */
 const connectWallet = useCallback(async () => {
@@ -284,7 +299,7 @@ const validateTeam = useCallback(async () => {
   setValidating(true);
   try {
     const seenNames = new Set();
-    const seenBackgrounds = new Set();
+    const seenRareBackgrounds = new Set();
 
     for (const n of nfts) {
       if (!n.metadata) {
@@ -297,19 +312,20 @@ const validateTeam = useCallback(async () => {
         throw new Error(`Incomplete metadata for token #${n.tokenId || "?"}`);
       }
 
-      // Prevent duplicate characters (by name)
+      // Duplicate character check
       if (seenNames.has(name)) {
         throw new Error(`Duplicate character: ${name}`);
       }
       seenNames.add(name);
 
-      // Optional but recommended: Prevent duplicate backgrounds
-      // (uncomment if you want to block same background twice)
-      if (seenBackgrounds.has(background)) {
-        throw new Error(`Duplicate background: ${background}`);
+// Rare background rule (robust, no Set dependency)
+if (RARE_BACKGROUNDS.includes(background)) {
+  if (seenRareBackgrounds.has(background)) {
+    throw new Error(`Rare background duplicated: ${background}`);
+  }
+  seenRareBackgrounds.add(background);
+}
       }
-      seenBackgrounds.add(background);
-    }
 
     setValidated(true);
     alert("Team validated successfully!");
@@ -704,7 +720,11 @@ const joinGame = async (gameId) => {
 
     alert(`Joined game #${numericGameId} successfully!`);
 
-    await loadGames();
+// At the end of joinGame
+await loadGames();
+
+// Immediately trigger auto-reveal for this game
+autoRevealIfPossible({ ...gameData, player2: account.toLowerCase() });
 
   } catch (err) {
     console.error("Join game failed:", err);
@@ -774,7 +794,7 @@ const autoRevealIfPossible = useCallback(
 
 // Inside autoRevealIfPossible, after successful reveal
 await tx.wait();
-
+alert(`✅ Reveal successful for game #${g.id}`);
 console.log("Auto-reveal completed for game", g.id);
 
 // NEW: Trigger backend computation
@@ -877,7 +897,6 @@ await loadGames();
   }
 }, [account, signer, loadGames, downloadRevealBackup, triggerBackendComputeIfNeeded]);
 
-/* ---------- AUTO SETTLE GAME ---------- */
 const autoSettleIfPossible = useCallback(async (g) => {
   if (!signer || !account || !gameContract) return;
 
@@ -889,129 +908,155 @@ const autoSettleIfPossible = useCallback(async (g) => {
   if (!g.player1Revealed || !g.player2Revealed) return;
   if (g.settled) return;
 
-  if (!g.roundResults?.length || !g.winner) {
-    console.log(`Skipping auto-settle for game ${g.id} — waiting for backend results`);
-    return;
-  }
+  // Avoid double execution
+  if (autoSettleIfPossible.running?.has(g.id)) return;
+  autoSettleIfPossible.running ??= new Set();
+  autoSettleIfPossible.running.add(g.id);
 
   try {
     console.log(`Attempting auto-settle for game ${g.id}`);
 
-    // Dry-run first (catches reverts early)
-    await gameContract.callStatic.settleGame(BigInt(g.id));
+    // Step 0: Ensure backend results are computed
+    if (!g.roundResults?.length || !g.winner) {
+      const computeRes = await fetch(`${BACKEND_URL}/games/${g.id}/compute-results`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).then(r => r.json());
 
-    const tx = await gameContract.settleGame(BigInt(g.id));
-    const receipt = await tx.wait();
+      if (!computeRes.success) {
+        console.warn(`Cannot auto-settle: compute-results failed for ${g.id}`);
+        return;
+      }
+      g.roundResults = computeRes.roundResults;
+      g.winner = computeRes.winner;
+      g.tie = computeRes.tie;
+    }
 
-    console.log(`Auto-settle tx successful: ${tx.hash}`);
+    // Step 1: Post winner if missing
+    if (!g.backendWinner) {
+      const postRes = await fetch(`${BACKEND_URL}/games/${g.id}/post-winner`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).then(r => r.json());
 
-    // Only finalize backend if tx confirmed
-    await fetch(`${BACKEND_URL}/games/${g.id}/finalize-settle`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ txHash: receipt.hash }),
-    });
+      if (!postRes.success) {
+        console.warn(`Cannot auto-settle: post-winner failed for ${g.id}`);
+        return;
+      }
+
+      g.backendWinner = postRes.winner;
+      g.tie = postRes.tie;
+    }
+
+    // Step 2: Check on-chain settle before sending
+    const onChainGame = await gameContract.games(BigInt(g.id));
+    if (onChainGame.settled) {
+      console.log(`Game ${g.id} already settled on-chain`);
+    } else {
+      const tx = await gameContract.settleGame(BigInt(g.id));
+      const receipt = await tx.wait();
+      console.log(`Auto-settle tx successful: ${tx.hash}`);
+
+      // Step 3: Finalize backend
+      await fetch(`${BACKEND_URL}/games/${g.id}/finalize-settle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          txHash: receipt.hash,
+        }),
+      });
+    }
 
     await loadGames();
-    console.log(`Auto-settled game ${g.id}`);
+    console.log(`Auto-settled game ${g.id} successfully`);
+
   } catch (err) {
-    console.error("Auto-settle failed:", err);
-    // Do NOT update backend here — let it stay unsettled
+    console.error(`Auto-settle failed for game ${g.id}:`, err);
+  } finally {
+    autoSettleIfPossible.running.delete(g.id);
   }
 }, [signer, account, gameContract, loadGames]);
 
-/* --------- TRIGGER AUTO-REVEAL AND AUTO-SETTLE ON GAMES LOAD --------- */
-useEffect(() => {
-    if (!games.length || !account) return;
-
-    games.forEach((g) => {
-      autoRevealIfPossible(g);
-      if (g.player1Revealed && g.player2Revealed) {
-        autoSettleIfPossible(g);
-      }
-    });
-  }, [games, account, autoRevealIfPossible, autoSettleIfPossible]);
-
+/* ------ MANUAL SETTLE GAME -------- */
 const manualSettleGame = useCallback(
   async (gameId) => {
     try {
-      if (!signer || !account || !gameContract) {
+      if (!signer || !account) {
         alert("Wallet not ready");
         return;
       }
 
-      const g = games.find(x => x.id === gameId);
-      if (!g) {
-        alert("Game not found");
+      // Step 1: Compute results on backend
+      const computeRes = await fetch(`${BACKEND_URL}/games/${gameId}/compute-results`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).then(r => r.json());
+
+      if (!computeRes.success) {
+        alert(`Failed to compute results: ${computeRes.error || "Unknown error"}`);
         return;
       }
 
-      if (!g.player1Revealed || !g.player2Revealed) {
-        alert("Both players must reveal first");
-        return;
-      }
+      console.log("Computed results:", computeRes);
 
-      if (!g.backendWinner && !g.tie) {
-        alert("Winner not posted yet");
-        return;
-      }
+      // Step 2: Post winner on-chain
+      const postWinnerRes = await fetch(`${BACKEND_URL}/games/${gameId}/post-winner`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).then(r => r.json());
 
-      if (g.settled) {
-        alert("Game already settled");
-        return;
-      }
+if (!postWinnerRes.success || postWinnerRes.alreadyPosted) {
+  if (!postWinnerRes.success) {
+    alert(`Failed to post winner: ${postWinnerRes.error}`);
+    return;
+  }
+}
 
-      /* ---------------- DRY-RUN (CATCH REVERTS EARLY) ---------------- */
-      try {
-        await gameContract.callStatic.settleGame(BigInt(gameId));
-      } catch (simErr) {
-        console.error("Settle simulation failed:", simErr);
-        throw new Error(
-          simErr.reason ||
-          "Settle would revert on-chain (invalid game state)"
-        );
-      }
+      console.log("Winner posted:", postWinnerRes);
 
-      /* ---------------- ON-CHAIN SETTLE (SOURCE OF TRUTH) ---------------- */
-      const tx = await gameContract.settleGame(BigInt(gameId));
-      const receipt = await tx.wait();
+      // Step 3: Settle game on-chain only if not already settled
+      const settleRes = await fetch(`${BACKEND_URL}/games/${gameId}/settle-game`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).then(r => r.json());
 
-      console.log("Game settled on-chain:", {
-        gameId,
-        txHash: receipt.hash,
-      });
-
-      /* ---------------- BACKEND FINALIZATION ---------------- */
-      const res = await fetch(
-        `${BACKEND_URL}/games/${gameId}/finalize-settle`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            txHash: receipt.hash,
-          }),
+      if (!settleRes.success) {
+        if (settleRes.alreadySettled) {
+          console.log(`Game ${gameId} already settled on-chain`);
+        } else {
+          alert(`Failed to settle game: ${settleRes.error || "Unknown error"}`);
+          return;
         }
-      );
-
-      const data = await res.json();
-      if (!res.ok) {
-        console.warn("Backend finalize failed:", data);
-        alert(
-          "On-chain settle succeeded, but backend sync failed. Refreshing…"
-        );
+      } else {
+        console.log(`Game ${gameId} settled successfully:`, settleRes.txHash);
       }
 
-alert("Game settled successfully!");
-await triggerBackendComputeIfNeeded(gameId);  // optional safety net
-await loadGames();
+if (!postWinnerRes.txHash) {
+  throw new Error("Winner not confirmed on-chain");
+}
+
+      // Refresh local state
+      await loadGames();
 
     } catch (err) {
       console.error("Manual settle failed:", err);
-      alert(err.reason || err.message || "Manual settle failed");
+      alert(err.message || "Manual settle failed");
     }
   },
-  [games, signer, account, gameContract, loadGames, triggerBackendComputeIfNeeded]
+  [signer, account, loadGames]
 );
+
+  /* ---------------- GAME CARD PROPS ---------------- */
+const gameCardProps = {
+  account,
+  signer,
+  approveTokens,
+  joinGame,
+  manualSettleGame,
+  handleRevealFile,
+  cancelUnjoinedGame,
+  renderTokenImages,
+};
 
 /* ---------------- BACKGROUND PRIORITY ---------------- */
 const backgroundPriority = {
@@ -1048,27 +1093,12 @@ const cancelledGames = games
   .filter((g) => g.cancelled && showCancelled) // only show if showCancelled checked
   .sort((a, b) => b.id - a.id);
 
-  /* ---------------- GAME CARD PROPS ---------------- */
-const gameCardProps = {
-  account,
-  signer,
-  approveTokens,
-  joinGame,
-  manualSettleGame,
-  handleRevealFile,
-  cancelUnjoinedGame,
-  renderTokenImages,
-};
-
 /* ---------------- UI ---------------- */
 if (loading) {
-  // Loading screen with watermark
   return (
     <div style={{ minHeight: "100vh", position: "relative" }}>
       <div
         style={{
-          position: "relative",
-          zIndex: 1,
           minHeight: "100vh",
           display: "flex",
           flexDirection: "column",
@@ -1077,23 +1107,15 @@ if (loading) {
           color: "#18bb1a",
         }}
       >
-        <img
-          src={CoreClashLogo}
-          alt="Core Clash"
-          style={{
-            width: 800,
-            height: "auto",
-            marginBottom: 0,
-          }}
-        />
-        <p style={{ fontSize: 28, margin: 2 }}>Loading...</p>
+        <img src={CoreClashLogo} alt="Core Clash" style={{ width: 800 }} />
+        <p style={{ fontSize: 28 }}>Loading...</p>
         <p style={{ fontSize: 24, fontWeight: "bold" }}>{countdown}</p>
       </div>
     </div>
   );
 }
 
-// Main app UI
+/* ---------------- MAIN APP ---------------- */
 return (
   <div style={{ position: "relative", minHeight: "100vh", padding: 20, maxWidth: 900 }}>
     {/* ---------------- WATERMARK ---------------- */}
@@ -1187,30 +1209,35 @@ return (
           <div style={{ fontSize: 14, opacity: 0.7 }}>{walletError}</div>
         )}
       </div>
+      </div>
 
-      {/* ---------------- CREATE GAME ---------------- */}
-      <h2>Create Game</h2>
-      <label>Stake Token: </label>
-      <select
-        value={stakeToken}
-        onChange={(e) => setStakeToken(e.target.value)}
-        style={{ width: "20%", marginBottom: 6 }}
-      >
-        {WHITELISTED_TOKENS.map((t) => (
-          <option key={t.address} value={t.address}>
-            {t.label}
-          </option>
-        ))}
-      </select>
+<div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+  {/* ---------------- CREATE GAME SECTION ---------------- */}
+  <div style={{ flex: 1 /* take available width */ }}>
+    <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      Create Game
+      </h2>
+    <label>Stake Token: </label>
+    <select
+      value={stakeToken}
+      onChange={(e) => setStakeToken(e.target.value)}
+      style={{ width: "20%", marginBottom: 6 }}
+    >
+      {WHITELISTED_TOKENS.map((t) => (
+        <option key={t.address} value={t.address}>
+          {t.label}
+        </option>
+      ))}
+    </select>
 
-      <label> Stake Amount: </label>
-      <input
-        value={stakeAmount}
-        onChange={(e) => setStakeAmount(e.target.value)}
-        style={{ width: "30%", marginBottom: 12 }}
-      />
+    <label> Stake Amount: </label>
+    <input
+      value={stakeAmount}
+      onChange={(e) => setStakeAmount(e.target.value)}
+      style={{ width: "30%", marginBottom: 12 }}
+    />
 
-<h3>Your Clash Team (3)</h3>
+    <h3>Your Clash Team (3)</h3>
 
 {nfts.map((n, i) => {
   // Resolve collection key from address (VKIN / VQLE)
@@ -1401,37 +1428,40 @@ return (
   );
 })}
 
-{account?.toLowerCase() === ADMIN_ADDRESS ? (
-  <>
-    <button
-      onClick={loadGames}
-      style={{
-        marginBottom: 12,
-        padding: "6px 12px",
-        border: "1px solid #444",
-        background: "#111",
-        color: "#ddd",
-        cursor: "pointer",
-      }}
-    >
-      🔄 Refresh Games
-    </button>
-
-    <button
-      onClick={async () => {
-        await fetch(`${BACKEND_URL}/admin/resync-games`, { method: "POST" });
-        await loadGames();
-        alert("Resync complete");
-      }}
-      style={{ marginLeft: 12 }}
-    >
-      🛠 Resync from Chain
-    </button>
-  </>
-) : (
-  <div style={{ fontSize: 14, color: "#888", marginBottom: 12 }}>
+    {account?.toLowerCase() === ADMIN_ADDRESS ? (
+      <>
+        <button onClick={loadGames}>🔄 Refresh Games</button>
+        <button onClick={async () => {
+          await fetch(`${BACKEND_URL}/admin/resync-games`, { method: "POST" });
+          await loadGames();
+          alert("Resync complete");
+        }}>
+          🛠 Resync from Chain
+        </button>
+      </>
+    ) : (
+      <div style={{ marginBottom: 12 }} />
+    )}
   </div>
-)}
+
+  {/* RIGHT: IMAGES */}
+  <div
+    style={{
+      width: 60,
+      height: 480,
+      display: "flex",
+      flexDirection: "row",
+      gap: 12,
+      position: "sticky",
+      top: 24,
+    }}
+  >
+    <img src={HowToPlay} alt="How to Play" style={{ borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)",
+border: "1px solid #333"}} />
+    <img src={GameInfo} alt="Game Info" style={{ borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)",
+border: "1px solid #333" }} />
+  </div>
+</div>
 
       {/* ---------------- STATUS ---------------- */}
       <div style={{ fontSize: 12, color: "#aaa", marginTop: 12 }}>
@@ -1484,52 +1514,66 @@ return (
     ))}
   </div>
 
-{/* Settled + Cancelled Games */}
+{/* Settled + Cancelled Games Column */}
+<div>
+  {/* Checkboxes */}
+  <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+    <label>
+      <input
+        type="checkbox"
+        checked={showResolved}
+        onChange={() => setShowResolved(v => !v)}
+      />{" "}
+      Settled (Winner)
+    </label>
+
+    <label>
+      <input
+        type="checkbox"
+        checked={showCancelled}
+        onChange={() => setShowCancelled(v => !v)}
+      />{" "}
+      Cancelled
+    </label>
+  </div>
+
+{/* Settled Games */}
+{showResolved && settledGames.length > 0 && (
   <div>
-    {/* Settled Checkbox */}
-    <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
-      <label>
-        <input
-          type="checkbox"
-          checked={showResolved}
-          onChange={() => setShowResolved(v => !v)}
-        />{" "}
-        Settled (Winner)
-      </label>
+    <h3>
+      🔵 Settled (
+      {settledGames.filter((g) => Number(g.id) >= 16).length}
+      )
+    </h3>
 
-      <label>
-        <input
-          type="checkbox"
-          checked={showCancelled}
-          onChange={() => setShowCancelled(v => !v)}
-        />{" "}
-        Cancelled
-      </label>
+    {settledGames
+      .filter((g) => Number(g.id) >= 16)
+      .map((g) => (
+        <GameCard
+          key={g.id}
+          g={g}
+          {...gameCardProps}
+          roundResults={g.roundResults || []}
+        />
+      ))}
     </div>
+  )}
 
-    {/* Settled Games */}
-    {showResolved && settledGames.length > 0 && (
-      <div>
-        <h3>🔵 Settled ({settledGames.length})</h3>
-        {settledGames.map((g) => (
-          <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-        ))}
-      </div>
-    )}
-
-    {/* Cancelled Games */}
-    {showCancelled && cancelledGames.length > 0 && (
-      <div>
-        <h3>❌ Cancelled ({cancelledGames.length})</h3>
-        {cancelledGames.map((g) => (
-          <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-        ))}
-      </div>
-    )}
-  </div>
+  {/* Cancelled Games (directly below Settled) */}
+  {showCancelled && cancelledGames.length > 0 && (
+    <div style={{ marginTop: 16 }}>
+      <h3>❌ Cancelled ({cancelledGames.length})</h3>
+      {cancelledGames.map((g) => (
+        <GameCard
+          key={g.id}
+          g={g}
+          {...gameCardProps}
+          roundResults={g.roundResults || []}
+        />
+      ))}
+    </div>
+  )}
 </div>
-
   </div>
-</div>
-);
-}
+  </div>
+)};

@@ -80,6 +80,21 @@ export default function GameCard({
   const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
   const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
 
+    // Compute totals
+const stakeAmount = g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0;
+const totalPot = stakeAmount * 2;
+
+const winnerAddress = g.winner;
+const tie = !winnerAddress;
+
+const playerWinnings = tie
+  ? totalPot / 2
+  : winnerAddress.toLowerCase() === g.player1.toLowerCase()
+  ? totalPot * 0.95
+  : totalPot * 0.95; // if you want loser to get 0, use 0 instead of 0.95
+const burnPercent = 1; 
+const burnAmount = totalPot * (burnPercent / 100);
+
   /* --------- GAME STATES --------- */
   const isCancelled = g.cancelled === true || g.cancelled === "true";
   const isSettled = g.settled === true || g.settled === "true" || isCancelled;
@@ -173,21 +188,29 @@ export default function GameCard({
 
       <h3 style={{ marginTop: 0, marginBottom: 6 }}>Game #{g.id}</h3>
 
-      {/* Player 1 */}
-      <div>
-        🟥 Player 1: {g.player1 ? `0x...${g.player1.slice(-5)}` : isSettled ? "—" : "Waiting for opponent"}
-      </div>
-      <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0}
-      </div>
+{!isSettled && (
+  <>
+    {/* Player 1 */}
+    <div>
+      🟥 Player 1: {g.player1 ? `0x...${g.player1.slice(-5)}` : "Waiting for opponent"}
+    </div>
 
-      {/* Player 2 */}
-      <div style={{ marginTop: 6, opacity: isCancelled ? 0.6 : 1 }}>
-        🟦 Player 2: {g.player2 && g.player2 !== ethers.ZeroAddress ? `0x...${g.player2.slice(-5)}` : isSettled ? "—" : "Waiting for opponent"}
-      </div>
-      <div style={{ fontSize: 14, marginTop: 2, opacity: isCancelled ? 0.6 : 1 }}>
-        Stake: {g.player2 !== ethers.ZeroAddress && g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0}
-      </div>
+    {/* Player 2 */}
+    <div style={{ marginTop: 6, opacity: isCancelled ? 0.6 : 1 }}>
+      🟦 Player 2:{" "}
+      {g.player2 && g.player2 !== ethers.ZeroAddress
+        ? `0x...${g.player2.slice(-5)}`
+        : "Waiting for opponent"}
+    </div>
+
+    <div style={{ fontSize: 14, marginTop: 2, opacity: isCancelled ? 0.6 : 1 }}>
+      Stake:{" "}
+      {g.player2 !== ethers.ZeroAddress && g.stakeAmount
+        ? Number(ethers.formatUnits(g.stakeAmount, 18))
+        : 0}
+    </div>
+  </>
+)}
 
       {/* Cancel Button – only for unjoined games */}
       {isPlayer1 && g.player2 === ethers.ZeroAddress && !isSettled && !isCancelled && (
@@ -251,25 +274,57 @@ export default function GameCard({
       {/* Reveal Upload */}
       {g.player2 !== ethers.ZeroAddress &&
         ((isPlayer1 && !g.player1Revealed) || (isPlayer2 && !g.player2Revealed)) && (
-          <label style={{ marginLeft: 8, cursor: "pointer" }}>
-            Upload Reveal
-            <input type="file" accept=".json" style={{ display: "none" }} onChange={handleRevealFile} />
-          </label>
-        )}
+    <>
+      <button
+        onClick={() => document.getElementById(`reveal-file-${g.id}`).click()}
+        style={{
+          background: "#18bb1a",
+          color: "#fff",
+          padding: "6px 12px",
+          borderRadius: 4,
+          cursor: "pointer",
+          marginLeft: 8,
+        }}
+      >
+        Upload Reveal
+      </button>
 
+      <input
+        id={`reveal-file-${g.id}`}
+        type="file"
+        accept=".json"
+        style={{ display: "none" }}
+        onChange={handleRevealFile}
+      />
+    </>
+  )}
+  
       {/* Manual Settle */}
       {canSettle && !isCancelled && (
-        <button onClick={() => manualSettleGame(g.id)} style={{ marginTop: 8 }}>
-          Settle Game
-        </button>
-      )}
+  <button
+    onClick={() => manualSettleGame(g.id)}
+    style={{
+      background: "#18bb1a",
+      color: "#fff",
+      padding: "6px 12px",
+      borderRadius: 4,
+      cursor: "pointer",
+      marginLeft: 8,
+    }}
+  >
+    Settle Game
+  </button>
+)}
 
       {/* Teams + Round Results */}
       {bothRevealed && (
         <div style={{ marginTop: 16 }}>
           {/* Player 1 Team */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontWeight: "bold", color: "#ff5555", marginBottom: 8, textAlign: "left" }}>Player 1 Team</div>
+            <div style={{ fontWeight: "bold", color: "#ff5555", marginBottom: 8, textAlign: "left" }}>🟥 Player 1 Team: {g.player1 ? `0x...${g.player1.slice(-5)}` : "—"}</div>
+      <div style={{ fontSize: 14, marginTop: 2 }}>
+        Stake: {g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0}
+      </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>{renderTokenImages(g.player1Reveal)}</div>
           </div>
 
@@ -302,11 +357,80 @@ export default function GameCard({
 
           {/* Player 2 Team */}
           <div>
-            <div style={{ fontWeight: "bold", color: "#4da3ff", marginBottom: 8, textAlign: "left" }}>Player 2 Team</div>
+            <div style={{ fontWeight: "bold", color: "#4da3ff", marginBottom: 8, textAlign: "left" }}>🟦 Player 2 Team: {g.player2 ? `0x...${g.player2.slice(-5)}` : "—"}</div>
+      <div style={{ fontSize: 14, marginTop: 2 }}>
+        Stake: {g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0}
+      </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>{renderTokenImages(g.player2Reveal)}</div>
           </div>
         </div>
       )}
+<div
+  style={{
+    marginTop: 12,
+    padding: 12,
+    background: "#111", // dark card background
+    borderRadius: 8,
+    textAlign: "center",
+    color: "#fff",
+    boxShadow: "0 0 10px rgba(0,0,0,0.5)"
+  }}
+>
+{/* Winner Card */}
+{isSettled && g.winner && (
+<div
+  style={{
+    marginTop: 2,
+    padding: 8,
+    borderRadius: 12,
+    textAlign: "center",
+    background: "#111",
+    boxShadow: "0 0 20px rgba(0,0,0,0.7)",
+    color: "#fff",
+  }}
+>
+  {/* Determine winner */}
+  {winnerAddress ? (
+    <div
+      style={{
+        fontWeight: "bold",
+        marginBottom: 6,
+        fontSize: 22,
+        letterSpacing: 1,
+        textTransform: "uppercase",
+        color:
+          winnerAddress.toLowerCase() === g.player1.toLowerCase()
+            ? "#ff2d55" // Neon red
+            : "#4da3ff", // Neon blue
+        textShadow:
+          winnerAddress.toLowerCase() === g.player1.toLowerCase()
+            ? "0 0 8px #ff2d55, 0 0 16px #ff2d55"
+            : "0 0 8px #4da3ff, 0 0 16px #4da3ff",
+      }}
+    >
+      🏆 {winnerAddress.toLowerCase() === g.player1.toLowerCase() ? "PLAYER 1 WINS!" : "PLAYER 2 WINS!"}
+    </div>
+  ) : (
+    <div style={{ fontSize: 18, color: "#888" }}>🤝 Tie Game</div>
+  )}
+  
+  {/* Total Pot */}
+  <div style={{ fontSize: 14, marginBottom: 4 }}>
+    Total Pot: {totalPot} $CORE
+  </div>
+
+  {/* Player Winnings */}
+  <div style={{ fontSize: 28, fontWeight: "bold", color: "#0f0", marginBottom: 4 }}>
+    Winnings: {playerWinnings} $CORE
+  </div>
+
+  {/* Core Burn */}
+  <div style={{ fontSize: 16, color: "#f50", display: "flex", justifyContent: "center", alignItems: "center" }}>
+    🔥 Core Burn: {burnAmount} $CORE 🔥
+  </div>
+</div>
+)}
+    </div>
     </div>
   );
 }   

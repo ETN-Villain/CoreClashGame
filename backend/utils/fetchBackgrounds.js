@@ -2,8 +2,8 @@ import fs from "fs";
 import path from "path";
 import csv from "csv-parser";
 import { METADATA_JSON_DIR, MAPPING_FILE } from "../paths.js";
+import { RARE_BACKGROUNDS } from "exportRareBackgrounds.js";
 
-const RARE_BACKGROUNDS = ["Gold", "Silver", "Verdant Green", "Rose Gold"];
 const tokenMap = new Map();
 
 /**

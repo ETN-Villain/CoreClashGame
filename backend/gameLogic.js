@@ -1,6 +1,8 @@
 // gameLogic.js
 import axios from "axios";
 import { METADATA_JSON_DIR } from "./paths.js";
+import fs from "fs";
+import path from "path";
 
 // Ensure lowercase keys (matches .toLowerCase() usage)
 const addressToCollection = {
@@ -131,11 +133,6 @@ export async function resolveGame(game) {
   const traits1 = [];
   const traits2 = [];
 
-  const addressToCollection = {
-    "0x3fc7665b1f6033ff901405cddf31c2e04b8a2ab4": "VKIN",
-    "0x8cfbb04c54d35e2e8471ad9040d40d73c08136f0": "VQLE",
-  };
-
   // Helper to extract traits from attributes array
 const extractTraits = (nftData) => {
     const findValue = (name) => {
@@ -183,19 +180,27 @@ for (let i = 0; i < 3; i++) {
     traits2.push(extractTraits(nftData));
   }
 
-  // Compute winner
+// Compute winner
 const { winner, roundResults } = computeWinner(traits1, traits2);
 
-  game.roundResults = roundResults;
-  game.winner = winner === "tie" ? null : game[winner];
-  game.tie = winner === "tie";
-  game.settledAt = new Date().toISOString();
+// Map winner string ("player1"/"player2"/"tie") → Ethereum address
+const winnerAddress = winner === "tie"
+  ? null
+  : winner === "player1"
+    ? game.player1
+    : game.player2;
 
-  console.log("Game resolved:", {
-    winner: game.winner,
-    tie: game.tie,
-    roundResults: game.roundResults
-  });
+// Update game object
+game.roundResults = roundResults;
+game.winner = winnerAddress;     // store actual address
+game.tie = winner === "tie";
+game.settledAt = new Date().toISOString();
 
-  return game;
+console.log("Game resolved:", {
+  winner: game.winner,
+  tie: game.tie,
+  roundResults: game.roundResults
+});
+
+return game;
 }
