@@ -137,10 +137,9 @@ app.post("/games/validate", (req, res) => {
 
 app.use(
   "/images",
-  express.static("metadata-cache/images", {
-    maxAge: "365d",
-    immutable: true,
-  })
+  express.static(
+    path.join(__dirname, "metadata-cache/images")
+  )
 );
 
 app.get("/games", (req, res) => {
