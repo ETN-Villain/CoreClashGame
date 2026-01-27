@@ -11,6 +11,7 @@ import {
 import { loadLastBlock, saveLastBlock } from "./utils/blockState.js";
 import { deleteCache } from "./utils/ownerCache.js";
 import { reconcileAllGames } from "./reconcile.js";
+import { fetchOwnedTokenIds } from "./utils/nftUtils.js";
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
@@ -28,6 +29,27 @@ console.log("📡 CoreClash event indexer starting…");
 
 let lastBlock = loadLastBlock() ?? ((await provider.getBlockNumber()) - 500);
 console.log("▶ Starting from block", lastBlock);
+
+/**
+ * Auto-update owner cache for a wallet
+ */
+async function updateWalletCache(wallet) {
+  wallet = wallet.toLowerCase();
+  console.log(`[AUTO-CACHE] Updating NFT cache for ${wallet}…`);
+
+  try {
+    const vkinIds = await fetchOwnedTokenIds(vkinContract, wallet, "VKIN");
+    const vqleIds = await fetchOwnedTokenIds(vqleContract, wallet, "VQLE");
+
+    const cache = readOwnerCache();
+    cache[wallet] = { VKIN: vkinIds, VQLE: vqleIds };
+    writeOwnerCache(cache);
+
+    console.log(`[AUTO-CACHE] Cache updated: ${vkinIds.length} VKIN, ${vqleIds.length} VQLE for ${wallet}`);
+  } catch (err) {
+    console.error(`[AUTO-CACHE] Failed to update cache for ${wallet}:`, err.message);
+  }
+}
 
 // ── POLLING LOOP ──
 setInterval(async () => {
@@ -73,13 +95,22 @@ setInterval(async () => {
             const from = parsed.args.from ? String(parsed.args.from).toLowerCase() : null;
             const to = parsed.args.to ? String(parsed.args.to).toLowerCase() : null;
 
+            const walletsToUpdate = [];
+
             if (from && from !== ethers.ZeroAddress) {
               deleteCache(`${contractName}_owned_${from}`);
               console.log(`♻️ ${contractName.toUpperCase()} cache invalidated for ${from}`);
+              walletsToUpdate.push(from);
             }
             if (to && to !== ethers.ZeroAddress) {
               deleteCache(`${contractName}_owned_${to}`);
               console.log(`♻️ ${contractName.toUpperCase()} cache invalidated for ${to}`);
+              walletsToUpdate.push(to);
+            }
+
+            // Auto-update owner cache asynchronously
+            for (const wallet of walletsToUpdate) {
+              updateWalletCache(wallet); // no await, runs in background
             }
           } catch (err) {
             console.warn(`⚠️ Failed to parse ${contractName.toUpperCase()} log:`, err);
