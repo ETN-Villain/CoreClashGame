@@ -445,7 +445,7 @@ const loadGames = useCallback(async () => {
   } finally {
     setLoadingGames(false);
   }
-}, [provider]);
+}, [provider, publicProvider]);
 
 // 🔥 Auto-load games when provider becomes available
 useEffect(() => {
