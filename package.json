@@ -56,5 +56,8 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "baseline-browser-mapping": "^2.9.19"
+  }
 }
