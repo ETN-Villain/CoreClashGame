@@ -472,13 +472,6 @@ useEffect(() => {
     loadGames();
 }, [loadGames]);
 
-// Optional: reload again when provider appears
-useEffect(() => {
-  if (provider) {
-    loadGames();
-  }
-}, [provider, loadGames]);
-
 useEffect(() => {
   if (process.env.NODE_ENV === "development") {
     window.__GAMES__ = games;
