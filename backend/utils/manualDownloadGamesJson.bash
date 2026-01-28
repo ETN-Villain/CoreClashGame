@@ -1,0 +1,1 @@
+nano ~/project/games.json
