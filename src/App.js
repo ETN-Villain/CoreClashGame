@@ -479,10 +479,11 @@ useEffect(() => {
   }
 }, [provider, loadGames]);
 
-if (process.env.NODE_ENV === "development") {
-  useEffect(() => {
+useEffect(() => {
+  if (process.env.NODE_ENV === "development") {
     window.__GAMES__ = games;
-  }, [games]);
+  }
+}, [games]);
 }
 
 /* ---------------- REVEAL SUCCESS – Trigger backend compute ---------------- */
