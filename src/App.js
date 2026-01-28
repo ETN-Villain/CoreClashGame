@@ -484,7 +484,6 @@ useEffect(() => {
     window.__GAMES__ = games;
   }
 }, [games]);
-}
 
 /* ---------------- REVEAL SUCCESS – Trigger backend compute ---------------- */
   const triggerBackendComputeIfNeeded = useCallback(async (gameId) => {
