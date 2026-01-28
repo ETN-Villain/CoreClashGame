@@ -111,19 +111,6 @@ useEffect(() => {
     return new ethers.Contract(GAME_ADDRESS, GameABI, signer);
   }, [provider, signer]);
 
-  /* DEBUG HELPER */
-  useEffect(() => {
-  if (gameContract && signer && account) {
-    window.__coreClash = {
-      gameContract,
-      signer,
-      account,
-      ethers,
-    };
-    console.log("🧪 Debug helpers exposed as window.__coreClash");
-  }
-}, [gameContract, signer, account]);
-
   /* ---------------- CONNECT WALLET ---------------- */
 const connectWallet = useCallback(async () => {
   if (!window.ethereum) {
@@ -482,14 +469,21 @@ const loadGames = useCallback(async () => {
 
 // 🔥 Auto-load games when provider becomes available
 useEffect(() => {
+    loadGames();
+}, [loadGames]);
+
+// Optional: reload again when provider appears
+useEffect(() => {
   if (provider) {
     loadGames();
   }
 }, [provider, loadGames]);
 
-useEffect(() => {
-  window.__GAMES__ = games;
-}, [games]);
+if (process.env.NODE_ENV === "development") {
+  useEffect(() => {
+    window.__GAMES__ = games;
+  }, [games]);
+}
 
 /* ---------------- REVEAL SUCCESS – Trigger backend compute ---------------- */
   const triggerBackendComputeIfNeeded = useCallback(async (gameId) => {
@@ -808,18 +802,6 @@ await loadGames();
   },
   [signer, account, gameContract, loadGames, triggerBackendComputeIfNeeded]  // dependencies
 );
-
-// 🔧 DEBUG ONLY — expose contract + helpers to console
-useEffect(() => {
-  if (gameContract && signer && account) {
-    window.__coreClash = {
-      gameContract,
-      signer,
-      account,
-    };
-    console.log("🧪 Debug helpers exposed as window.__coreClash");
-  }
-}, [gameContract, signer, account]);
 
 /* ---------------- REVEAL FILE UPLOAD ---------------- */
 const handleRevealFile = useCallback(async (e) => {
