@@ -9,7 +9,7 @@ import {
   VQLE_CONTRACT_ADDRESS,
 } from "./config.js";
 import { loadLastBlock, saveLastBlock } from "./utils/blockState.js";
-import { deleteCache } from "./utils/ownerCache.js";
+import { readOwnerCache, writeOwnerCache, deleteCache } from "./utils/ownerCache.js";
 import { reconcileAllGames } from "./reconcile.js";
 import { fetchOwnedTokenIds } from "./utils/nftUtils.js";
 import { loadGames, saveGames } from "./store/gamesStore.js";
@@ -61,8 +61,13 @@ async function updateWalletCache(wallet) {
   console.log(`[AUTO-CACHE] Updating NFT cache for ${wallet}…`);
 
   try {
-    const vkinIds = await fetchOwnedTokenIds(vkinContract, wallet, "VKIN");
-    const vqleIds = await fetchOwnedTokenIds(vqleContract, wallet, "VQLE");
+const [vkinResult, vqleResult] = await Promise.allSettled([
+  fetchOwnedTokenIds(vkinContract, wallet, "VKIN"),
+  fetchOwnedTokenIds(vqleContract, wallet, "VQLE")
+]);
+
+const vkinIds = vkinResult.status === "fulfilled" ? vkinResult.value : [];
+const vqleIds = vqleResult.status === "fulfilled" ? vqleResult.value : [];
 
     const cache = readOwnerCache();
     cache[wallet] = { VKIN: vkinIds, VQLE: vqleIds };
