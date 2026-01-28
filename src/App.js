@@ -106,7 +106,13 @@ useEffect(() => {
 }, [loading]);
 
 /* ---------------- GAME CONTRACT ---------------- */
-  const gameContract = useMemo(() => {
+const publicProvider = useMemo(() => {
+  return new ethers.JsonRpcProvider(
+    process.env.REACT_APP_RPC_URL
+  );
+}, []);
+
+const gameContract = useMemo(() => {
     if (!provider || !signer) return null;
     return new ethers.Contract(GAME_ADDRESS, GameABI, signer);
   }, [provider, signer]);
@@ -253,34 +259,6 @@ if (data.length === 0) {
     });
   };
 
-  /* --------- DEBUG GAMES LENGTH --------*/
-  // eslint-disable-next-line no-unused-vars
-  const debugGamesLength = async () => {
-  if (!provider) return alert("Provider not ready");
-
-  console.log("Checking on-chain games length...", debugGamesLength);
-
-  try {
-    const contract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
-    let i = 0;
-
-    while (true) {
-      try {
-        const g = await contract.games(i);
-        if (g.player1 === ethers.ZeroAddress) break;
-        i++;
-      } catch {
-        break;
-      }
-    }
-
-    alert(`On-chain games count: ${i}`);
-  } catch (err) {
-    console.error(err);
-    alert("Failed to read games length");
-  }
-};
-
 const validateTeam = useCallback(async () => {
   setValidating(true);
   try {
@@ -386,15 +364,19 @@ const downloadRevealBackup = useCallback(
   [account]
 );
 
-/* ---------------- LOAD GAMES – Improved merging ---------------- */
+/* ---------------- LOAD GAMES ---------------- */
 const loadGames = useCallback(async () => {
-  if (!provider) return;
   setLoadingGames(true);
 
   try {
-    // 1. Fetch on-chain games
-    const contract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
-    const loadedOnChain = [];   // renamed for clarity
+    const readProvider = provider ?? publicProvider;
+    const contract = new ethers.Contract(
+      GAME_ADDRESS,
+      GameABI,
+      readProvider
+    );
+
+    const loadedOnChain = [];
     let i = 0;
 
     while (true) {
@@ -412,10 +394,8 @@ const loadGames = useCallback(async () => {
           winner: gameData.winner,
           player1Revealed: gameData.player1Revealed,
           player2Revealed: gameData.player2Revealed,
-// ← NEW: include these critical backend-only fields
-        settleTxHash: gameData.settleTxHash || null,
-        backendWinner: gameData.backendWinner || null,
-        winnerResolvedAt: gameData.winnerResolvedAt || null,        });
+        });
+
         i++;
       } catch (err) {
         console.error(`Failed to load on-chain game ${i}:`, err);
@@ -1549,5 +1529,6 @@ border: "1px solid #333" }} />
   )}
 </div>
   </div>
-  </div>
-)};
+    </div>
+  );
+}
