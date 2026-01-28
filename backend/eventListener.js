@@ -12,6 +12,7 @@ import { loadLastBlock, saveLastBlock } from "./utils/blockState.js";
 import { deleteCache } from "./utils/ownerCache.js";
 import { reconcileAllGames } from "./reconcile.js";
 import { fetchOwnedTokenIds } from "./utils/nftUtils.js";
+import { loadGames, saveGames } from "./store/gamesStore.js";
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
@@ -31,6 +32,26 @@ console.log("📡 CoreClash event indexer starting…");
 
 let lastBlock = loadLastBlock() ?? ((await provider.getBlockNumber()) - 500);
 console.log("▶ Starting from block", lastBlock);
+
+async function handleGameCreated(id) {
+  const games = loadGames();
+  if (games.find(g => g.id === id)) return; // already exists
+
+  const onChain = await gameContract.games(id);
+  games.push({
+    id,
+    player1: onChain.player1,
+    player2: onChain.player2,
+    stakeAmount: onChain.stakeAmount.toString(),
+    stakeToken: onChain.stakeToken,
+    settled: onChain.settled,
+    winner: ethers.ZeroAddress,
+    cancelled: false,
+  });
+
+  saveGames(games);
+  console.log(`[EVENT] GameCreated #${id} added to games.json`);
+}
 
 /**
  * Auto-update owner cache for a wallet
@@ -75,6 +96,11 @@ const createdLogs = await provider.getLogs({
 if (createdLogs.length > 0) {
   console.log(`🆕 ${createdLogs.length} GameCreated event(s)`);
   await reconcileAllGames();
+}
+
+for (const log of createdLogs) {
+  const parsed = gameInterface.parseLog(log);
+  await handleGameCreated(parsed.args.gameId);
 }
 
 const joinedLogs = await provider.getLogs({
