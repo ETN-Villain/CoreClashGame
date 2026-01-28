@@ -138,11 +138,29 @@ if (joinedLogs.length > 0) {
         }
       }
 
-try {
-  const backendWinner = await contract.backendWinner(game.id);
-} catch (err) {
-  console.warn(`[RECONCILE] Cannot fetch backendWinner for game ${game.id}:`, err.message);
-  continue; // skip this game
+if (onChain.settled && !game.settled) {
+  console.log(`[RECONCILE] Settling game ${game.id}`);
+
+  let backendWinner;
+  try {
+    backendWinner = await contract.backendWinner(game.id);
+  } catch {
+    backendWinner = ethers.ZeroAddress;
+  }
+
+  game.settled = true;
+  game.settledAt = new Date().toISOString();
+
+  if (backendWinner && backendWinner !== ZERO) {
+    game.cancelled = false;
+    game.winner = backendWinner.toLowerCase();
+  } else {
+    // ✅ cancelled (includes cancelUnjoinedGame)
+    game.cancelled = true;
+    game.winner = null;
+  }
+
+  dirty = true;
 }
 
 if (!onChain.settled) {
