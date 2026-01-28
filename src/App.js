@@ -1126,7 +1126,7 @@ return (
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center",
         backgroundSize: "cover",
-        opacity: 0.75,
+        opacity: 0.50,
         pointerEvents: "none",
         zIndex: 0,
       }}
