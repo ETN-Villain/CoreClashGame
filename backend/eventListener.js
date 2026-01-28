@@ -23,6 +23,8 @@ const MAX_BLOCK_RANGE = 500; // safe range for RPC
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
 
 const gameInterface = new ethers.Interface(GameABI);
+const GAME_CREATED_TOPIC = gameInterface.getEvent("GameCreated").topic;
+const GAME_JOINED_TOPIC = gameInterface.getEvent("GameJoined").topic;
 const GAME_SETTLED_TOPIC = gameInterface.getEvent("GameSettled").topic;
 
 console.log("📡 CoreClash event indexer starting…");
@@ -63,7 +65,31 @@ setInterval(async () => {
       const toBlock = Math.min(fromBlock + MAX_BLOCK_RANGE - 1, currentBlock);
       console.log(`🔍 Fetching logs ${fromBlock} → ${toBlock}`);
 
-      // ----- GameSettled logs -----
+const createdLogs = await provider.getLogs({
+  address: GAME_ADDRESS,
+  topics: [GAME_CREATED_TOPIC],
+  fromBlock,
+  toBlock,
+});
+
+if (createdLogs.length > 0) {
+  console.log(`🆕 ${createdLogs.length} GameCreated event(s)`);
+  await reconcileAllGames();
+}
+
+const joinedLogs = await provider.getLogs({
+  address: GAME_ADDRESS,
+  topics: [GAME_JOINED_TOPIC],
+  fromBlock,
+  toBlock,
+});
+
+if (createdLogs.length > 0) {
+  console.log(`🆕 ${createdLogs.length} GameJoined event(s)`);
+  await reconcileAllGames();
+}
+
+// ----- GameSettled logs -----
       const settledLogs = await provider.getLogs({
         address: GAME_ADDRESS,
         topics: [GAME_SETTLED_TOPIC],
