@@ -202,12 +202,12 @@ const burnAmount = totalPot * (burnPercent / 100);
         : "Waiting for opponent"}
     </div>
 
-    <div style={{ fontSize: 14, marginTop: 2, opacity: isCancelled ? 0.6 : 1 }}>
-      Stake:{" "}
-      {g.player2 !== ethers.ZeroAddress && g.stakeAmount
-        ? Number(ethers.formatUnits(g.stakeAmount, 18))
-        : 0}
-    </div>
+<div style={{ fontSize: 14, marginTop: 6, opacity: isCancelled ? 0.6 : 1 }}>
+  Stake:{" "}
+  {g.stakeAmount
+    ? Number(ethers.formatUnits(g.stakeAmount, 18))
+    : 0}
+</div>
   </>
 )}
 
