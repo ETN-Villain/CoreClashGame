@@ -91,36 +91,38 @@ setInterval(async () => {
       const toBlock = Math.min(fromBlock + MAX_BLOCK_RANGE - 1, currentBlock);
       console.log(`🔍 Fetching logs ${fromBlock} → ${toBlock}`);
 
-const createdLogs = await provider.getLogs({
-  address: GAME_ADDRESS,
-  topics: [GAME_CREATED_TOPIC],
-  fromBlock,
-  toBlock,
-});
+      // ----- GameCreated events -----
+      const createdLogs = await provider.getLogs({
+        address: GAME_ADDRESS,
+        topics: [GAME_CREATED_TOPIC],
+        fromBlock,
+        toBlock,
+      });
 
-if (createdLogs.length > 0) {
-  console.log(`🆕 ${createdLogs.length} GameCreated event(s)`);
-  await reconcileAllGames();
-}
+      if (createdLogs.length > 0) {
+        console.log(`🆕 ${createdLogs.length} GameCreated event(s)`);
+        await reconcileAllGames(); // authoritative sync
+      }
 
-for (const log of createdLogs) {
-  const parsed = gameInterface.parseLog(log);
-  await handleGameCreated(parsed.args.gameId);
-}
+      for (const log of createdLogs) {
+        const parsed = gameInterface.parseLog(log);
+        await handleGameCreated(parsed.args.gameId);
+      }
 
-const joinedLogs = await provider.getLogs({
-  address: GAME_ADDRESS,
-  topics: [GAME_JOINED_TOPIC],
-  fromBlock,
-  toBlock,
-});
+      // ----- GameJoined events -----
+      const joinedLogs = await provider.getLogs({
+        address: GAME_ADDRESS,
+        topics: [GAME_JOINED_TOPIC],
+        fromBlock,
+        toBlock,
+      });
 
-if (joinedLogs.length > 0) {
-  console.log(`🆕 ${joinedLogs.length} GameJoined event(s)`);
-  await reconcileAllGames();
-}
+      if (joinedLogs.length > 0) {
+        console.log(`🆕 ${joinedLogs.length} GameJoined event(s)`);
+        await reconcileAllGames();
+      }
 
-// ----- GameSettled logs -----
+      // ----- GameSettled events -----
       const settledLogs = await provider.getLogs({
         address: GAME_ADDRESS,
         topics: [GAME_SETTLED_TOPIC],
@@ -128,45 +130,56 @@ if (joinedLogs.length > 0) {
         toBlock,
       });
 
-// 🔥 authoritative sync
       if (settledLogs.length > 0) {
         console.log(`🎯 ${settledLogs.length} GameSettled event(s) detected`);
-        try {
-          await reconcileAllGames(); // authoritative sync
-        } catch (err) {
-          console.error("❌ Reconcile failed:", err);
+
+        for (const log of settledLogs) {
+          const parsed = gameInterface.parseLog(log);
+          const gameId = parsed.args.gameId;
+          const games = loadGames();
+          const game = games.find(g => g.id === Number(gameId));
+          if (!game) continue;
+
+          let onChain;
+          try {
+            onChain = await contract.games(gameId);
+          } catch (err) {
+            console.error(`Failed to fetch on-chain game ${gameId}:`, err);
+            continue;
+          }
+
+          // If the game is settled on-chain but not in backend
+          if (onChain.settled && !game.settled) {
+            console.log(`[RECONCILE] Settling game ${game.id}`);
+
+            let backendWinner;
+            try {
+              backendWinner = await contract.backendWinner(game.id);
+            } catch {
+              backendWinner = ethers.ZeroAddress;
+            }
+
+            game.settled = true;
+            game.settledAt = new Date().toISOString();
+
+            if (backendWinner && backendWinner !== ethers.ZeroAddress) {
+              game.cancelled = false;
+              game.winner = backendWinner.toLowerCase();
+            } else {
+              // Cancelled or no winner
+              game.cancelled = true;
+              game.winner = null;
+            }
+
+            dirty = true;
+          } else if (!onChain.settled) {
+            console.log(`[RECONCILE] Game ${game.id} not settled yet, skipping backendWinner`);
+          }
         }
+
+        // Save backend state after processing all settled logs
+        saveGames(loadGames());
       }
-
-if (onChain.settled && !game.settled) {
-  console.log(`[RECONCILE] Settling game ${game.id}`);
-
-  let backendWinner;
-  try {
-    backendWinner = await contract.backendWinner(game.id);
-  } catch {
-    backendWinner = ethers.ZeroAddress;
-  }
-
-  game.settled = true;
-  game.settledAt = new Date().toISOString();
-
-  if (backendWinner && backendWinner !== ZERO) {
-    game.cancelled = false;
-    game.winner = backendWinner.toLowerCase();
-  } else {
-    // ✅ cancelled (includes cancelUnjoinedGame)
-    game.cancelled = true;
-    game.winner = null;
-  }
-
-  dirty = true;
-}
-
-if (!onChain.settled) {
-  console.log(`[RECONCILE] Game ${game.id} not settled yet, skipping backendWinner`);
-  continue;
-}
       
       // ----- NFT transfer logs (VKIN & VQLE) -----
       const getTransferLogs = async (address) =>
