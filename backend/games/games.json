@@ -937,5 +937,20 @@
     "winnerResolvedAt": "2026-01-25T23:56:15.401Z",
     "settled": true,
     "settleTxHash": "0x36e962d25b6fd376d3e21c5f582e842070c5ac21d6ade9ab95ecca0e43b0b989"
+  },
+  {
+    "id": 16,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": null,
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "50",
+    "createdAt": "2026-01-27T22:49:43.898Z",
+    "cancelled": false,
+    "winner": null,
+    "tie": false,
+    "_reveal": {
+      "player1": null,
+      "player2": null
+    }
   }
 ]
