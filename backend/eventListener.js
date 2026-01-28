@@ -137,6 +137,18 @@ if (joinedLogs.length > 0) {
           console.error("❌ Reconcile failed:", err);
         }
       }
+
+try {
+  const backendWinner = await contract.backendWinner(game.id);
+} catch (err) {
+  console.warn(`[RECONCILE] Cannot fetch backendWinner for game ${game.id}:`, err.message);
+  continue; // skip this game
+}
+
+if (!onChain.settled) {
+  console.log(`[RECONCILE] Game ${game.id} not settled yet, skipping backendWinner`);
+  continue;
+}
       
       // ----- NFT transfer logs (VKIN & VQLE) -----
       const getTransferLogs = async (address) =>
