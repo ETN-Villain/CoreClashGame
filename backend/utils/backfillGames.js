@@ -1,10 +1,10 @@
 import fs from "fs";
 import path from "path";
 import { ethers } from "ethers";
-import GameABI from "../src/abis/GameABI.json" assert { type: "json" };
+import GameABI from "../../src/abis/GameABI.json" assert { type: "json" };
 import { GAME_ADDRESS, RPC_URL } from "../config.js";
 
-const GAMES_FILE = path.join(process.cwd(), "backend/games/games.json"); // adjust path if needed
+const GAMES_FILE = path.join(process.cwd(), "games", "games.json");
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const contract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
 
