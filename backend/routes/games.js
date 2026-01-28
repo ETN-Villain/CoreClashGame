@@ -573,7 +573,13 @@ router.post("/:id/settle-game", async (req, res) => {
     const gameId = Number(req.params.id);
     if (!Number.isInteger(gameId)) return res.status(400).json({ error: "Invalid game ID" });
 
-    const games = loadGames();
+if (game.settled) {
+  return res.status(400).json({
+    error: "Game already settled in backend",
+  });
+}
+
+const games = loadGames();
     const game = games.find(g => g.id === gameId);
     if (!game) return res.status(404).json({ error: "Game not found" });
 
@@ -585,6 +591,7 @@ router.post("/:id/settle-game", async (req, res) => {
       await txWinner.wait();
 
       game.backendWinner = winnerAddress;
+      game.winner = winnerAddress;
       game.postWinnerTxHash = txWinner.hash;
       game.winnerResolvedAt = new Date().toISOString();
       game.tie = resolved.tie;

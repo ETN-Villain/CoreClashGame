@@ -938,19 +938,44 @@
     "settled": true,
     "settleTxHash": "0x36e962d25b6fd376d3e21c5f582e842070c5ac21d6ade9ab95ecca0e43b0b989"
   },
-  {
-    "id": 16,
-    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
-    "player2": null,
-    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
-    "stakeAmount": "50",
-    "createdAt": "2026-01-27T22:49:43.898Z",
-    "cancelled": false,
-    "winner": null,
-    "tie": false,
-    "_reveal": {
-      "player1": null,
-      "player2": null
-    }
+{
+  "id":16,
+  "player1":"0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+  "player2":"0x1b97871598857e03b4fd13be59e0a664e977aeb4",
+  "stakeToken":"0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+  "stakeAmount":"50",
+  "createdAt":"2026-01-27T22:49:43.898Z",
+  "cancelled":false,
+  "winner":"0x1b97871598857e03b4fd13be59e0a664e977aeb4",
+  "tie":false,
+  "_reveal":{
+    "player1":{"salt":"61334051221051994353906471352937793497847740348942548292490915491967517916728",
+    "nftContracts":["0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+    "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+    "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"],
+    "tokenIds":["469","266","440"],
+    "tokenURIs":["350.json","403.json","321.json"],
+    "backgrounds":["Silver","Verdant Green","Energy Vein Canyons"]},
+    "player2":{"salt":"58679764240874354890992706088655954278555111392625633743611035682339566432866",
+    "nftContracts":["0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+    "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+    "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0"],
+    "tokenIds":["57","175","1"],
+    "tokenURIs":["388.json","466.json","1.json"],
+    "backgrounds":["Silver","Gold","Rose Gold"]}
+    },
+  "player2JoinedAt":"2026-01-28T13:16:38.207Z",
+  "player1Revealed":true,
+  "player2Revealed":true,
+  "roundResults":[
+    {"round":1,"winner":"player1","diff":9},
+    {"round":2,"winner":"player2","diff":-2},
+    {"round":3,"winner":"player2","diff":-13}],
+    "settledAt": "2026-01-28T13:56:32.389Z",
+    "backendWinner": "0x1b97871598857e03b4fd13be59e0a664e977aeb4",
+    "postWinnerTxHash": "0xd78c78eb0f2f12236da7afbb93727aab014d3b1cdecaa8f5e12bfd284233ec5c",
+    "winnerResolvedAt": "2026-01-28T13:56:15.401Z",
+    "settled": true,
+    "settleTxHash": "0xe8e5462dcf093e5189f23f728c930f9dbe19ad2b4eceb754b113051fb8db07ad"
   }
 ]
