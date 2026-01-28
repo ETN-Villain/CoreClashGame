@@ -1118,18 +1118,19 @@ if (loading) {
 return (
   <div style={{ position: "relative", minHeight: "100vh", padding: 20, maxWidth: 900 }}>
     {/* ---------------- WATERMARK ---------------- */}
-<div
-  style={{
-    position: "fixed",
-    inset: 0,
-    backgroundImage: `url(${AppBackground})`,
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "center",
-    backgroundSize: "cover",
-    pointerEvents: "none",
-    zIndex: 0,
-  }}
-/>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundImage: `url(${AppBackground})`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "center",
+        backgroundSize: "cover",
+        opacity: 0.75,
+        pointerEvents: "none",
+        zIndex: 0,
+      }}
+    />
 
     {/* ---------------- APP CONTENT ---------------- */}
     <div style={{ position: "relative", zIndex: 1 }}>
