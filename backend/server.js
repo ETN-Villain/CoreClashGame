@@ -36,8 +36,6 @@ app.use("/games", gamesRouter);
 app.use("/events", sseRouter);
 app.use("/nfts", nftsRouter);
 
-await reconcileAllGames();
-
 // ---------------- METADATA ----------------
 app.get("/metadata/:collection/:tokenId", (req, res) => {
   const { collection, tokenId } = req.params;
