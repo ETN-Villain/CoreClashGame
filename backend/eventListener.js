@@ -84,8 +84,8 @@ const joinedLogs = await provider.getLogs({
   toBlock,
 });
 
-if (createdLogs.length > 0) {
-  console.log(`🆕 ${createdLogs.length} GameJoined event(s)`);
+if (joinedLogs.length > 0) {
+  console.log(`🆕 ${joinedLogs.length} GameJoined event(s)`);
   await reconcileAllGames();
 }
 
