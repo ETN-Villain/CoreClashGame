@@ -16,6 +16,7 @@ import sseRouter from "./routes/sse.js";
 import nftsRouter from "./routes/nfts.js";
 import { reconcileAllGames } from "./reconcile.js";
 import "./eventListener.js";
+import { initAdminWallet } from "./admin.js";
 
 const app = express();
 const GAMES_FILE = path.join(__dirname, "games", "games.json");
@@ -30,6 +31,9 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// 🔥 INIT ADMIN WALLET FIRST
+initAdminWallet();
 
 // ---------------- ROUTES ----------------
 app.use("/games", gamesRouter);

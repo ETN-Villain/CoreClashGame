@@ -14,6 +14,7 @@ import { fetchOwnedTokenIds } from "../utils/nftUtils.js";
 import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";
 import { reconcileAllGames } from "../reconcile.js";
 import { broadcast } from "./sse.js";
+import { adminContract, adminWalletReady } from "../admin.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -38,6 +39,7 @@ function loadTokenURIMapping() {
   for (const r of records) map[Number(r.token_id)] = r.token_uri;
   return map;
 }
+
 
 // GET /games — list all games, wallet-agnostic
 router.get("/", async (req, res) => {
@@ -196,6 +198,10 @@ router.post("/", async (req, res) => {
     }
   });
 
+for (const game of games) {
+  delete game.player1Reveal;
+  delete game.player2Reveal;
+}
   saveGames(games);
   console.log("✅ Game created:", gameId);
 
@@ -262,6 +268,10 @@ router.post("/:id/join", (req, res) => {
   game.player2 = player2.toLowerCase();
   game.player2JoinedAt = new Date().toISOString();
 
+for (const game of games) {
+  delete game.player1Reveal;
+  delete game.player2Reveal;
+}
   saveGames(games);
 
     broadcast("GameJoined", games);
@@ -351,6 +361,10 @@ router.post("/:id/reveal", async (req, res) => {  // ← make async so we can aw
     game.player1Revealed = !!game._reveal.player1;
     game.player2Revealed = !!game._reveal.player2;
 
+for (const game of games) {
+  delete game.player1Reveal;
+  delete game.player2Reveal;
+}
     saveGames(games);  // early save so state is persisted even if auto fails
 
     broadcast("GameRevealed", games);
@@ -437,6 +451,10 @@ if (game.settled && !game.cancelled) {
             }
           }
 
+for (const game of games) {
+  delete game.player1Reveal;
+  delete game.player2Reveal;
+}
           saveGames(games);
           return true;
 
@@ -490,6 +508,11 @@ router.post("/:id/backfill", async (req, res) => {
     if (!game) return res.status(404).json({ error: "Game not found" });
 
     game[field] = value;
+
+for (const game of games) {
+  delete game.player1Reveal;
+  delete game.player2Reveal;
+}
     saveGames(games);
 
     console.log(`Backfilled ${field} for game ${gameId}: ${value}`);
@@ -536,10 +559,17 @@ router.post("/:id/compute-results", async (req, res) => {
     }
 
     // Persist computation ONLY
-    game.roundResults = resolved.roundResults;
-    game.winner = resolved.winner ?? null; // off-chain winner
-    game.tie = !!resolved.tie;
+game.computedResults = {
+  winner,
+  tie,
+  roundResults
+};
+game.settlementState = "computed";
 
+for (const game of games) {
+  delete game.player1Reveal;
+  delete game.player2Reveal;
+}
     saveGames(games);
 
     console.log(`compute-results completed for game ${gameId}`, {
@@ -566,25 +596,25 @@ router.post("/:id/compute-results", async (req, res) => {
 router.post("/:id/post-winner", async (req, res) => {
   try {
     const gameId = Number(req.params.id);
+
+if (!adminWalletReady || !adminContract) {
+  return res.status(503).json({
+    success: false,
+    error: "Backend admin wallet not ready"
+  });
+}
+
     const games = loadGames();
     const game = games.find(g => g.id === gameId);
-
-    if (!contract || !contract.signer) {
-      return res.status(503).json({
-        error: "Backend admin wallet not ready, please try 'settle game' again in a few seconds"
-      });
-    }
-    
     if (!game) {
       return res.status(404).json({ error: "Game not found" });
     }
 
-    // Require reveals
     if (!game._reveal?.player1 || !game._reveal?.player2) {
       return res.status(400).json({ error: "Both players must reveal" });
     }
 
-    // Idempotency
+    // Idempotent: backend already posted
     if (game.postWinnerTxHash) {
       return res.json({
         success: true,
@@ -595,7 +625,7 @@ router.post("/:id/post-winner", async (req, res) => {
       });
     }
 
-    // Resolve game
+    // Resolve (pure computation)
     const resolved = await resolveGame(game);
     if (!resolved) {
       return res.status(400).json({ error: "Game could not be resolved" });
@@ -607,39 +637,44 @@ router.post("/:id/post-winner", async (req, res) => {
         ? game.player1
         : game.player2;
 
-    // Check chain first
-const onChainWinner = await contract.backendWinner(gameId);
-
-if (onChainWinner !== ethers.ZeroAddress) {
-  console.log(`Winner already posted on-chain for game ${gameId}`);
-  game.backendWinner = onChainWinner;
-  game.postWinnerTxHash = "already-on-chain";
-  game.winnerResolvedAt = new Date().toISOString();
-  saveGames(games);
-  return res.json({
-    success: true,
-    gameId,
-    winner: onChainWinner,
-    alreadyPosted: true,
-  });
+    // Check chain idempotency
+    const onChainWinner = await adminContract.backendWinner(gameId);
+    if (onChainWinner !== ethers.ZeroAddress) {
+      game.backendWinner = onChainWinner;
+      game.postWinnerTxHash = "already-on-chain";
+      game.winnerResolvedAt = new Date().toISOString();
+for (const game of games) {
+  delete game.player1Reveal;
+  delete game.player2Reveal;
 }
+      saveGames(games);
 
-    // 🔐 ADMIN TX
-    const tx = await contract.postWinner(gameId, winnerAddress);
+      return res.json({
+        success: true,
+        alreadyPosted: true,
+        winner: onChainWinner,
+      });
+    }
+
+    // 🔐 ADMIN TX (commit point)
+    const tx = await adminContract.postWinner(gameId, winnerAddress);
     console.log(`postWinner tx sent: ${tx.hash}`);
+    await tx.wait();
 
-    const receipt = await tx.wait();
-    console.log(`postWinner confirmed in block ${receipt.blockNumber}`);
-
-    // Persist ONLY after confirmation
-    game.backendWinner = winnerAddress;
+    // ✅ Commit backend state ONLY after success
+    game.winner = resolved.tie ? null : winnerAddress;
+    game.roundResults = resolved.roundResults;
     game.tie = resolved.tie;
+    game.backendWinner = winnerAddress;
     game.postWinnerTxHash = tx.hash;
     game.winnerResolvedAt = new Date().toISOString();
+    game.settlementState = "posted";
 
+for (const game of games) {
+  delete game.player1Reveal;
+  delete game.player2Reveal;
+}
     saveGames(games);
-
-console.log("ADMIN ADDRESS:", await contract.signer.getAddress());
 
     res.json({
       success: true,
@@ -682,6 +717,10 @@ const games = loadGames();
       game.postWinnerTxHash = txWinner.hash;
       game.winnerResolvedAt = new Date().toISOString();
       game.tie = resolved.tie;
+for (const game of games) {
+  delete game.player1Reveal;
+  delete game.player2Reveal;
+}
       saveGames(games);
       console.log(`Winner posted on-chain for game ${gameId}: ${winnerAddress}`);
     }
@@ -694,6 +733,10 @@ const games = loadGames();
     game.settled = true;
     game.settleTxHash = txSettle.hash;
     game.settledAt = new Date().toISOString();
+for (const game of games) {
+  delete game.player1Reveal;
+  delete game.player2Reveal;
+}
     saveGames(games);
 
     broadcast("GameSettled", games);
@@ -734,6 +777,10 @@ router.post("/:id/finalize-settle", (req, res) => {
     game.settledAt = new Date().toISOString();
     game.winner ??= game.backendWinner ?? ethers.ZeroAddress;
     
+for (const game of games) {
+  delete game.player1Reveal;
+  delete game.player2Reveal;
+}
     saveGames(games);
 
     res.json({
@@ -792,6 +839,10 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
     game.settledAt = new Date().toISOString();
     game.settleTxHash = tx.hash;
 
+for (const game of games) {
+  delete game.player1Reveal;
+  delete game.player2Reveal;
+}
     saveGames(games);
 
     broadcast("GameCancelled", games);

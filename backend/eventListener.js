@@ -33,6 +33,16 @@ console.log("📡 CoreClash event indexer starting…");
 let lastBlock = loadLastBlock() ?? ((await provider.getBlockNumber()) - 500);
 console.log("▶ Starting from block", lastBlock);
 
+async function safeGetOnChainGame(gamesLength, maxGameId) {
+  if (gamesLength > maxGameId) return null;
+
+  try {
+    return await gameContract.games(gamesLength);
+  } catch {
+    return null;
+  }
+}
+
 async function handleGameCreated(id) {
   const games = loadGames();
   if (games.find(g => g.id === id)) return; // already exists
@@ -79,9 +89,19 @@ const vqleIds = vqleResult.status === "fulfilled" ? vqleResult.value : [];
   }
 }
 
-// ── POLLING LOOP ──
+// POLLING LOOP
 setInterval(async () => {
   try {
+    // 🔐 STEP 0: determine authoritative max game ID
+    let maxGameId;
+    try {
+      const nextId = await gameContract.gamesLength();
+      maxGameId = Number(nextId) - 1;
+    } catch (err) {
+      console.error("❌ Failed to fetch maxGameId:", err.message);
+      return;
+    }
+
     const currentBlock = await provider.getBlockNumber();
     if (currentBlock <= lastBlock) return;
 
@@ -91,37 +111,6 @@ setInterval(async () => {
       const toBlock = Math.min(fromBlock + MAX_BLOCK_RANGE - 1, currentBlock);
       console.log(`🔍 Fetching logs ${fromBlock} → ${toBlock}`);
 
-      // ----- GameCreated events -----
-      const createdLogs = await provider.getLogs({
-        address: GAME_ADDRESS,
-        topics: [GAME_CREATED_TOPIC],
-        fromBlock,
-        toBlock,
-      });
-
-      if (createdLogs.length > 0) {
-        console.log(`🆕 ${createdLogs.length} GameCreated event(s)`);
-        await reconcileAllGames(); // authoritative sync
-      }
-
-      for (const log of createdLogs) {
-        const parsed = gameInterface.parseLog(log);
-        await handleGameCreated(parsed.args.gameId);
-      }
-
-      // ----- GameJoined events -----
-      const joinedLogs = await provider.getLogs({
-        address: GAME_ADDRESS,
-        topics: [GAME_JOINED_TOPIC],
-        fromBlock,
-        toBlock,
-      });
-
-      if (joinedLogs.length > 0) {
-        console.log(`🆕 ${joinedLogs.length} GameJoined event(s)`);
-        await reconcileAllGames();
-      }
-
       // ----- GameSettled events -----
       const settledLogs = await provider.getLogs({
         address: GAME_ADDRESS,
@@ -130,102 +119,51 @@ setInterval(async () => {
         toBlock,
       });
 
-      if (settledLogs.length > 0) {
-        console.log(`🎯 ${settledLogs.length} GameSettled event(s) detected`);
+      for (const log of settledLogs) {
+        const parsed = gameInterface.parseLog(log);
+        const gameId = Number(parsed.args.gameId);
 
-        for (const log of settledLogs) {
-          const parsed = gameInterface.parseLog(log);
-          const gameId = parsed.args.gameId;
-          const games = loadGames();
-          const game = games.find(g => g.id === Number(gameId));
-          if (!game) continue;
-
-          let onChain;
-          try {
-            onChain = await contract.games(gameId);
-          } catch (err) {
-            console.error(`Failed to fetch on-chain game ${gameId}:`, err);
-            continue;
-          }
-
-          // If the game is settled on-chain but not in backend
-          if (onChain.settled && !game.settled) {
-            console.log(`[RECONCILE] Settling game ${game.id}`);
-
-            let backendWinner;
-            try {
-              backendWinner = await contract.backendWinner(game.id);
-            } catch {
-              backendWinner = ethers.ZeroAddress;
-            }
-
-            game.settled = true;
-            game.settledAt = new Date().toISOString();
-
-            if (backendWinner && backendWinner !== ethers.ZeroAddress) {
-              game.cancelled = false;
-              game.winner = backendWinner.toLowerCase();
-            } else {
-              // Cancelled or no winner
-              game.cancelled = true;
-              game.winner = null;
-            }
-
-            dirty = true;
-          } else if (!onChain.settled) {
-            console.log(`[RECONCILE] Game ${game.id} not settled yet, skipping backendWinner`);
-          }
+        // 🚫 HARD GUARD
+        if (gameId > maxGameId) {
+          console.warn(`[SKIP] gameId ${gameId} > maxGameId ${maxGameId}`);
+          continue;
         }
 
-        // Save backend state after processing all settled logs
-        saveGames(loadGames());
+        const games = loadGames();
+        const game = games.find(g => g.id === gameId);
+        if (!game) continue;
+
+        const onChain = await safeGetOnChainGame(gameId, maxGameId);
+        if (!onChain) continue;
+
+        if (onChain.settled && !game.settled) {
+          console.log(`[RECONCILE] Settling game ${gameId}`);
+
+          let backendWinner = ethers.ZeroAddress;
+          try {
+            backendWinner = await gameContract.backendWinner(gameId);
+          } catch {}
+
+          game.settled = true;
+          game.settledAt = new Date().toISOString();
+
+          if (backendWinner !== ethers.ZeroAddress) {
+            game.cancelled = false;
+            game.winner = backendWinner.toLowerCase();
+          } else {
+            game.cancelled = true;
+            game.winner = null;
+          }
+
+          saveGames(games);
+        }
       }
-      
-      // ----- NFT transfer logs (VKIN & VQLE) -----
-      const getTransferLogs = async (address) =>
-        provider.getLogs({ address, topics: [TRANSFER_TOPIC], fromBlock, toBlock });
-
-      const vkinLogs = await getTransferLogs(VKIN_CONTRACT_ADDRESS);
-      const vqleLogs = await getTransferLogs(VQLE_CONTRACT_ADDRESS);
-
-      const processLogs = (logs, contractName, contractInstance) => {
-        for (const log of logs) {
-          try {
-            const parsed = contractInstance.interface.parseLog(log);
-            const from = parsed.args.from ? String(parsed.args.from).toLowerCase() : null;
-            const to = parsed.args.to ? String(parsed.args.to).toLowerCase() : null;
-
-            const walletsToUpdate = [];
-
-            if (from && from !== ethers.ZeroAddress) {
-              deleteCache(`${contractName}_owned_${from}`);
-              console.log(`♻️ ${contractName.toUpperCase()} cache invalidated for ${from}`);
-              walletsToUpdate.push(from);
-            }
-            if (to && to !== ethers.ZeroAddress) {
-              deleteCache(`${contractName}_owned_${to}`);
-              console.log(`♻️ ${contractName.toUpperCase()} cache invalidated for ${to}`);
-              walletsToUpdate.push(to);
-            }
-
-            // Auto-update owner cache asynchronously
-            for (const wallet of walletsToUpdate) {
-              updateWalletCache(wallet); // no await, runs in background
-            }
-          } catch (err) {
-            console.warn(`⚠️ Failed to parse ${contractName.toUpperCase()} log:`, err);
-          }
-        }
-      };
-
-      processLogs(vkinLogs, "vkin", vkinContract);
-      processLogs(vqleLogs, "vqle", vqleContract);
 
       lastBlock = toBlock;
       saveLastBlock(lastBlock);
       fromBlock = toBlock + 1;
 
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 200));
     }
   } catch (err) {
     console.error("❌ Event poll error:", err.message);
