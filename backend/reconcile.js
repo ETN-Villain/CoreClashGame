@@ -12,41 +12,32 @@ export async function discoverMissingGames() {
 
   const gamesLength = Number(await contract.gamesLength());
 
-  for (let id = 0; id < gamesLength; id++) {
+for (let id = 0; id < gamesLength; id++) {
+  try {
     if (knownIds.has(id)) continue;
 
     const onChain = await contract.games(id);
-    if (onChain.player1 === ZERO) continue;
-
-    console.log(`[DISCOVER] Found missing game ${id}`);
+    if (!onChain || onChain.player1 === ZERO) continue;
 
     games.push({
       id,
-      player1: onChain.player1.toLowerCase(),
-      player2: onChain.player2.toLowerCase(),
+      player1: typeof onChain.player1 === "string" ? onChain.player1.toLowerCase() : null,
+      player2: typeof onChain.player2 === "string" ? onChain.player2.toLowerCase() : null,
       stakeAmount: onChain.stakeAmount.toString(),
       stakeToken: onChain.stakeToken,
-
-      // terminal state cached, but derived
       settled: onChain.settled,
       cancelled: onChain.cancelled === true,
-      winner: onChain.settled ? onChain.winner.toLowerCase() : null,
-
-      // reveal cache (we’ll fill this next)
-      player1Revealed: onChain.player1Revealed,
-      player2Revealed: onChain.player2Revealed,
-
+      winner: onChain.settled && typeof onChain.winner === "string" ? onChain.winner.toLowerCase() : null,
+      player1Revealed: !!onChain.player1Revealed,
+      player2Revealed: !!onChain.player2Revealed,
       createdAt: new Date().toISOString(),
     });
-
     added++;
+  } catch (err) {
+    console.error(`[DISCOVER] Failed to load on-chain game ${id}:`, err);
+    continue; // skip this game
   }
-
-  if (games.length > gamesLength) {
-    console.warn(
-      `[WARN] Backend has ${games.length} games, but chain reports ${gamesLength}`
-    );
-  }
+}
 
   if (added > 0) {
     games.sort((a, b) => a.id - b.id);
@@ -98,12 +89,12 @@ const backendWinner = await contract.backendWinner(game.id);
     dirty = true;
   }
 
-if (onChain.player1Revealed && !game.player1Revealed) {
+if (!!onChain.player1Revealed && !game.player1Revealed) {
   game.player1Revealed = true;
   dirty = true;
 }
 
-if (onChain.player2Revealed && !game.player2Revealed) {
+if (!!onChain.player2Revealed && !game.player2Revealed) {
   game.player2Revealed = true;
   dirty = true;
 }
