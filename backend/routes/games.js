@@ -51,7 +51,7 @@ router.get("/", async (req, res) => {
     const onChainGames = [];
     let i = 0;
 
-const gameCount = Number(await contract.gameCount());
+const gameCount = Number(await contract.gamesLength());
 
 for (let i = 0; i < gameCount; i++) {
   const g = await contract.games(i);
