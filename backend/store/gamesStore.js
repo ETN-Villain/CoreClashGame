@@ -15,6 +15,8 @@ export function readGames() {
 
 // Write to games.json
 export function writeGames(games) {
+  const gamesDir = path.dirname(GAMES_FILE);
+  if (!fs.existsSync(gamesDir)) fs.mkdirSync(gamesDir, { recursive: true });
   fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), "utf8");
 }
 
