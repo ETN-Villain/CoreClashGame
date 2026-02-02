@@ -12,7 +12,7 @@ import { loadLastBlock, saveLastBlock } from "./utils/blockState.js";
 import { readOwnerCache, writeOwnerCache, deleteCache } from "./utils/ownerCache.js";
 import { reconcileAllGames } from "./reconcile.js";
 import { fetchOwnedTokenIds } from "./utils/nftUtils.js";
-import { loadGames, saveGames } from "./store/gamesStore.js";
+import { readGames, writeGames } from "./store/gamesStore.js";
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
@@ -43,7 +43,7 @@ async function safeGetOnChainGame(gameId, maxGameId) {
 }
 
 async function handleGameCreated(id) {
-  const games = loadGames();
+  const games = readGames();
   if (games.find(g => g.id === id)) return; // already exists
 
   const onChain = await gameContract.games(id);
@@ -58,7 +58,7 @@ async function handleGameCreated(id) {
     cancelled: false,
   });
 
-  saveGames(games);
+  writeGames(games);
   console.log(`[EVENT] GameCreated #${id} added to games.json`);
 }
 
@@ -141,7 +141,6 @@ setInterval(async () => {
         await reconcileAllGames();
       }
       
-      // ----- GameSettled events -----
 // ----- GameSettled events -----
 const settledLogs = await provider.getLogs({
   address: GAME_ADDRESS,
@@ -160,7 +159,7 @@ for (const log of settledLogs) {
     continue;
   }
 
-  const games = loadGames();
+  const games = readGames();
   const game = games.find(g => g.id === gameId);
   if (!game) continue;
 
@@ -185,7 +184,7 @@ for (const log of settledLogs) {
     game.winner = null;
   }
 
-  saveGames(games);
+  writeGames(games);
 }
 
       // ----- NFT transfer logs (VKIN & VQLE) -----

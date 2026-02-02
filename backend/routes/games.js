@@ -8,7 +8,7 @@ import { METADATA_JSON_DIR, REVEAL_DIR, MAPPING_FILE, loadMapping } from "../pat
 import { RPC_URL, BACKEND_PRIVATE_KEY, GAME_ADDRESS, 
   VKIN_CONTRACT_ADDRESS, VQLE_CONTRACT_ADDRESS } from "../config.js";
 import GameABI from "../../src/abis/GameABI.json" assert { type: "json" };
-import { loadGames, saveGames } from "../store/gamesStore.js";
+import { readGames, writeGames } from "../store/gamesStore.js";
 import { resolveGame } from "../gameLogic.js";
 import { fetchOwnedTokenIds } from "../utils/nftUtils.js";
 import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";
@@ -44,18 +44,17 @@ function loadTokenURIMapping() {
 // GET /games — list all games, wallet-agnostic
 router.get("/", async (req, res) => {
   try {
-    const backendGames = loadGames(); // load from games.json
+    const backendGames = readGames(); // load from games.json
     const readProvider = new ethers.JsonRpcProvider(RPC_URL); // public provider
     const contract = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
 
     const onChainGames = [];
     let i = 0;
 
-    while (true) {
-      try {
-        const g = await contract.games(i);
-        if (g.player1 === ethers.ZeroAddress) break; // no more games
+const gameCount = Number(await contract.gameCount());
 
+for (let i = 0; i < gameCount; i++) {
+  const g = await contract.games(i);
         onChainGames.push({
           id: i,
           player1: g.player1,
@@ -68,49 +67,43 @@ router.get("/", async (req, res) => {
           player2Revealed: g.player2Revealed,
           cancelled: g.cancelled || false,
         });
-
-        i++;
-      } catch (err) {
-        console.error(`Failed to load on-chain game ${i}:`, err);
-        break;
-      }
     }
 
     // Merge backend games — backend overrides computed/reveal fields
-    const merged = onChainGames.map(oc => {
-      const backend = backendGames.find(bg => bg.id === oc.id) || {};
+const merged = onChainGames.map(oc => {
+  const backend = backendGames.find(bg => bg.id === oc.id);
 
-      return {
-        ...oc,                  // start with on-chain data
-        ...backend,             // backend overrides reveal & settlement fields
-        player1Revealed: !!backend.player1Revealed || !!backend._reveal?.player1 || !!oc.player1Revealed,
-        player2Revealed: !!backend.player2Revealed || !!backend._reveal?.player2 || !!oc.player2Revealed,
-        player1Reveal: backend._reveal?.player1 || null,
-        player2Reveal: backend._reveal?.player2 || null,
-        roundResults: backend.roundResults || [],
-        winner: backend.winner || oc.winner || ethers.ZeroAddress,
-        tie: !!backend.tie,
-        settled: backend.settled === true || oc.settled,
-        settledAt: backend.settledAt || null,
-        cancelled: backend.cancelled === true || oc.cancelled === true,
-      };
-    });
+  return {
+    id: oc.id,
+
+    // players & stake — always chain
+    player1: oc.player1,
+    player2: oc.player2,
+    stakeAmount: oc.stakeAmount,
+    stakeToken: oc.stakeToken,
+
+    // reveal status — backend assists, chain confirms
+player1Revealed: oc.player1Revealed,
+player2Revealed: oc.player2Revealed,
+
+player1Reveal: backend?._reveal?.player1 ?? null,
+player2Reveal: backend?._reveal?.player2 ?? null,
+
+    // terminal state — CHAIN ONLY
+    settled: oc.settled,
+    cancelled: oc.cancelled === true,
+    winner: oc.settled ? oc.winner : null,
+
+    // metadata
+    settledAt: backend?.settledAt || null,
+    roundResults: backend?.roundResults || [],
+    tie: backend?.tie === true,
+  };
+});
 
     console.log(`GET /games — returning ${merged.length} merged games`);
     res.json(merged);
 
-  } catch (err) {
-    console.error("GET /games error:", err);
-    res.status(500).json({ error: "Failed to load games" });
-  }
-});
-
-// ---------------- LIST ALL GAMES ----------------
-router.get("/", (req, res) => {
-  try {
-    const games = loadGames();
-    console.log(`GET /games — returning ${games.length} games`);
-    res.json(games);
   } catch (err) {
     console.error("GET /games error:", err);
     res.status(500).json({ error: "Failed to load games" });
@@ -125,7 +118,7 @@ router.get("/:id", async (req, res) => {
       return res.status(400).json({ error: "Invalid game ID" });
     }
 
-    const games = loadGames();
+    const games = readGames();
     let game = games.find(g => g.id === gameId);
 
     if (!game) {
@@ -175,7 +168,7 @@ router.post("/", async (req, res) => {
   if (typeof gameId !== "number")
     return res.status(400).json({ error: "gameId required" });
 
-  const games = loadGames();
+  const games = readGames();
 
   if (games.some(g => g.id === gameId))
     return res.status(409).json({ error: "Game already exists" });
@@ -198,11 +191,7 @@ router.post("/", async (req, res) => {
     }
   });
 
-for (const game of games) {
-  delete game.player1Reveal;
-  delete game.player2Reveal;
-}
-  saveGames(games);
+  writeGames(games);
   console.log("✅ Game created:", gameId);
 
   broadcast("GameCreated", games);
@@ -250,7 +239,7 @@ router.post("/:id/join", (req, res) => {
     return res.status(400).json({ error: "Invalid payload" });
   }
 
-  const games = loadGames();
+  const games = readGames();
   const game = games.find(g => g.id === gameId);
 
   if (!game) {
@@ -272,7 +261,7 @@ for (const game of games) {
   delete game.player1Reveal;
   delete game.player2Reveal;
 }
-  saveGames(games);
+  writeGames(games);
 
     broadcast("GameJoined", games);
 
@@ -293,7 +282,7 @@ router.post("/:id/reveal", async (req, res) => {  // ← make async so we can aw
       return res.status(400).json({ error: "nftContracts and tokenIds length mismatch" });
     }
 
-    const games = loadGames();
+    const games = readGames();
     const game = games.find(g => g.id === gameId);
     if (!game) return res.status(404).json({ error: "Game not found" });
 
@@ -358,14 +347,14 @@ router.post("/:id/reveal", async (req, res) => {  // ← make async so we can aw
       backgrounds,
     };
 
-    game.player1Revealed = !!game._reveal.player1;
-    game.player2Revealed = !!game._reveal.player2;
+game.backendPlayer1Revealed = !!game._reveal.player1;
+game.backendPlayer2Revealed = !!game._reveal.player2;
 
 for (const game of games) {
   delete game.player1Reveal;
   delete game.player2Reveal;
 }
-    saveGames(games);  // early save so state is persisted even if auto fails
+    writeGames(games);  // early save so state is persisted even if auto fails
 
     broadcast("GameRevealed", games);
 
@@ -455,7 +444,7 @@ for (const game of games) {
   delete game.player1Reveal;
   delete game.player2Reveal;
 }
-          saveGames(games);
+          writeGames(games);
           return true;
 
         } catch (err) {
@@ -469,7 +458,7 @@ for (const game of games) {
       // Start the retry process (non-blocking)
       tryResolveAndSettle().catch(err => {
         console.error(`Background resolution failed for game ${gameId}:`, err);
-        // Optional: you could mark game.autoFailed = true; saveGames(games);
+        // Optional: you could mark game.autoFailed = true; writeGames(games);
       });
     }
 
@@ -503,7 +492,7 @@ router.post("/:id/backfill", async (req, res) => {
       return res.status(400).json({ error: "Invalid field" });
     }
 
-    const games = loadGames();
+    const games = readGames();
     const game = games.find(g => g.id === gameId);
     if (!game) return res.status(404).json({ error: "Game not found" });
 
@@ -513,7 +502,7 @@ for (const game of games) {
   delete game.player1Reveal;
   delete game.player2Reveal;
 }
-    saveGames(games);
+    writeGames(games);
 
     console.log(`Backfilled ${field} for game ${gameId}: ${value}`);
     res.json({ success: true, updated: { [field]: value } });
@@ -530,7 +519,7 @@ router.post("/:id/compute-results", async (req, res) => {
       return res.status(400).json({ error: "Invalid game ID" });
     }
 
-    const games = loadGames();
+    const games = readGames();
     const game = games.find(g => g.id === gameId);
     if (!game) {
       return res.status(404).json({ error: "Game not found" });
@@ -570,7 +559,7 @@ for (const game of games) {
   delete game.player1Reveal;
   delete game.player2Reveal;
 }
-    saveGames(games);
+    writeGames(games);
 
     console.log(`compute-results completed for game ${gameId}`, {
       winner: game.winner,
@@ -604,7 +593,7 @@ if (!adminWalletReady || !adminContract) {
   });
 }
 
-    const games = loadGames();
+    const games = readGames();
     const game = games.find(g => g.id === gameId);
     if (!game) {
       return res.status(404).json({ error: "Game not found" });
@@ -647,7 +636,7 @@ for (const game of games) {
   delete game.player1Reveal;
   delete game.player2Reveal;
 }
-      saveGames(games);
+      writeGames(games);
 
       return res.json({
         success: true,
@@ -674,7 +663,7 @@ for (const game of games) {
   delete game.player1Reveal;
   delete game.player2Reveal;
 }
-    saveGames(games);
+    writeGames(games);
 
     res.json({
       success: true,
@@ -701,7 +690,7 @@ if (game.settled) {
   });
 }
 
-const games = loadGames();
+const games = readGames();
     const game = games.find(g => g.id === gameId);
     if (!game) return res.status(404).json({ error: "Game not found" });
 
@@ -721,7 +710,7 @@ for (const game of games) {
   delete game.player1Reveal;
   delete game.player2Reveal;
 }
-      saveGames(games);
+      writeGames(games);
       console.log(`Winner posted on-chain for game ${gameId}: ${winnerAddress}`);
     }
 
@@ -737,7 +726,7 @@ for (const game of games) {
   delete game.player1Reveal;
   delete game.player2Reveal;
 }
-    saveGames(games);
+    writeGames(games);
 
     broadcast("GameSettled", games);
 
@@ -759,7 +748,7 @@ router.post("/:id/finalize-settle", (req, res) => {
       return res.status(400).json({ error: "Missing txHash" });
     }
 
-    const games = loadGames();
+    const games = readGames();
     const game = games.find(g => g.id === gameId);
     if (!game) return res.status(404).json({ error: "Game not found" });
 
@@ -781,7 +770,7 @@ for (const game of games) {
   delete game.player1Reveal;
   delete game.player2Reveal;
 }
-    saveGames(games);
+    writeGames(games);
 
     res.json({
       success: true,
@@ -811,7 +800,7 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
     // Ensure backend matches on-chain first
     await reconcileAllGames();
 
-    const games = loadGames();
+    const games = readGames();
     const game = games.find(g => g.id === gameId);
     if (!game) return res.status(404).json({ error: "Game not found" });
 
@@ -843,7 +832,7 @@ for (const game of games) {
   delete game.player1Reveal;
   delete game.player2Reveal;
 }
-    saveGames(games);
+    writeGames(games);
 
     broadcast("GameCancelled", games);
 

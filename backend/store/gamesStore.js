@@ -1,22 +1,21 @@
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 
-// ESM-compatible __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const GAMES_FILE = path.join(process.cwd(), "games", "games.json");
 
-// Now we can define GAMES_FILE
-export const GAMES_FILE = path.join(__dirname, "../games/games.json");
-
-export function loadGames() {
-  if (!fs.existsSync(GAMES_FILE)) {
-    fs.writeFileSync(GAMES_FILE, "[]"); // create empty array if missing
+// Read games.json safely
+export function readGames() {
+  if (!fs.existsSync(GAMES_FILE)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(GAMES_FILE, "utf8"));
+  } catch {
+    return [];
   }
-  const raw = fs.readFileSync(GAMES_FILE, "utf-8");
-  return JSON.parse(raw);
 }
 
-export function saveGames(games) {
-  fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2));
+// Write to games.json
+export function writeGames(games) {
+  fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), "utf8");
 }
+
+export default { readGames, writeGames };
