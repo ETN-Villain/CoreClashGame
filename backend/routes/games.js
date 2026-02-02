@@ -14,7 +14,6 @@ import { fetchOwnedTokenIds } from "../utils/nftUtils.js";
 import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";
 import { reconcileAllGames } from "../reconcile.js";
 import { broadcast } from "./sse.js";
-import { adminContract, adminWalletReady } from "../admin.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -39,7 +38,6 @@ function loadTokenURIMapping() {
   for (const r of records) map[Number(r.token_id)] = r.token_uri;
   return map;
 }
-
 
 // GET /games — list all games, wallet-agnostic
 router.get("/", async (req, res) => {
@@ -595,15 +593,23 @@ if (!adminWalletReady || !adminContract) {
 
     const games = readGames();
     const game = games.find(g => g.id === gameId);
+
+    if (!contract || !contract.signer) {
+      return res.status(503).json({
+        error: "Backend admin wallet not ready, please try 'settle game' again in a few seconds"
+      });
+    }
+    
     if (!game) {
       return res.status(404).json({ error: "Game not found" });
     }
 
+    // Require reveals
     if (!game._reveal?.player1 || !game._reveal?.player2) {
       return res.status(400).json({ error: "Both players must reveal" });
     }
 
-    // Idempotent: backend already posted
+    // Idempotency
     if (game.postWinnerTxHash) {
       return res.json({
         success: true,
@@ -614,7 +620,7 @@ if (!adminWalletReady || !adminContract) {
       });
     }
 
-    // Resolve (pure computation)
+    // Resolve game
     const resolved = await resolveGame(game);
     if (!resolved) {
       return res.status(400).json({ error: "Game could not be resolved" });
@@ -638,32 +644,40 @@ for (const game of games) {
 }
       writeGames(games);
 
-      return res.json({
-        success: true,
-        alreadyPosted: true,
-        winner: onChainWinner,
-      });
-    }
+if (onChainWinner !== ethers.ZeroAddress) {
+  console.log(`Winner already posted on-chain for game ${gameId}`);
+  game.backendWinner = onChainWinner;
+  game.postWinnerTxHash = "already-on-chain";
+  game.winnerResolvedAt = new Date().toISOString();
+  saveGames(games);
+  return res.json({
+    success: true,
+    gameId,
+    winner: onChainWinner,
+    alreadyPosted: true,
+  });
+}
 
-    // 🔐 ADMIN TX (commit point)
-    const tx = await adminContract.postWinner(gameId, winnerAddress);
+    // 🔐 ADMIN TX
+    const tx = await contract.postWinner(gameId, winnerAddress);
     console.log(`postWinner tx sent: ${tx.hash}`);
-    await tx.wait();
 
-    // ✅ Commit backend state ONLY after success
-    game.winner = resolved.tie ? null : winnerAddress;
-    game.roundResults = resolved.roundResults;
-    game.tie = resolved.tie;
+    const receipt = await tx.wait();
+    console.log(`postWinner confirmed in block ${receipt.blockNumber}`);
+
+    // Persist ONLY after confirmation
     game.backendWinner = winnerAddress;
+    game.tie = resolved.tie;
     game.postWinnerTxHash = tx.hash;
     game.winnerResolvedAt = new Date().toISOString();
-    game.settlementState = "posted";
 
 for (const game of games) {
   delete game.player1Reveal;
   delete game.player2Reveal;
 }
     writeGames(games);
+
+console.log("ADMIN ADDRESS:", await contract.signer.getAddress());
 
     res.json({
       success: true,

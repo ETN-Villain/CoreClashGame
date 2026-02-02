@@ -412,26 +412,30 @@ const loadGames = useCallback(async () => {
     const merged = loadedOnChain.map((onChainGame) => {
       const backendGame = backendGames.find(bg => bg.id === onChainGame.id) || {};
 
-return {
-  ...onChainGame, // base on-chain fields
+      return {
+        ...onChainGame,  // start with on-chain data
 
-  // Reveal flags (derived, not stored)
-  player1Revealed: !!backendGame._reveal?.player1,
-  player2Revealed: !!backendGame._reveal?.player2,
+        // Reveal flags & payloads — prefer backend
+        player1Revealed: !!backendGame.player1Revealed || !!backendGame._reveal?.player1,
+        player2Revealed: !!backendGame.player2Revealed || !!backendGame._reveal?.player2,
+        player1Reveal: backendGame._reveal?.player1 || null,
+        player2Reveal: backendGame._reveal?.player2 || null,
 
-  // Backend-computed results
-  roundResults: backendGame.roundResults || [],
-  winner: backendGame.winner || onChainGame.winner || ethers.ZeroAddress,
-  tie: !!backendGame.tie,
+        // Computed results — backend is source of truth
+        roundResults: backendGame.roundResults || [],
+        winner: backendGame.winner || onChainGame.winner || ethers.ZeroAddress,
+        tie: !!backendGame.tie,
 
-  // Settlement status (backend authoritative)
-  settled: backendGame.settled === true || onChainGame.settled,
-  settledAt: backendGame.settledAt || null,
+        // Settlement status — backend decides finality
+        settled: backendGame.settled === true || onChainGame.settled,
+        settledAt: backendGame.settledAt || null,
 
-  // Preserve backend overrides
-  stakeToken: backendGame.stakeToken || onChainGame.stakeToken,
-  cancelled: backendGame.cancelled === true || onChainGame.cancelled === true,
-};
+        // Preserve other useful backend fields if present
+        stakeToken: backendGame.stakeToken || onChainGame.stakeToken,
+        
+        // allows the cancelled filters to work
+        cancelled: backendGame.cancelled === true || onChainGame.cancelled === true,
+      };
     });
 
     console.log("Merged games count:", merged.length);

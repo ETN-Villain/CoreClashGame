@@ -33,15 +33,6 @@ console.log("📡 CoreClash event indexer starting…");
 let lastBlock = loadLastBlock() ?? ((await provider.getBlockNumber()) - 500);
 console.log("▶ Starting from block", lastBlock);
 
-async function safeGetOnChainGame(gameId, maxGameId) {
-  if (gameId > maxGameId) return null;
-  try {
-    return await gameContract.games(gameId);
-  } catch {
-    return null;
-  }
-}
-
 async function handleGameCreated(id) {
   const games = readGames();
   if (games.find(g => g.id === id)) return; // already exists
@@ -88,19 +79,9 @@ const vqleIds = vqleResult.status === "fulfilled" ? vqleResult.value : [];
   }
 }
 
-// POLLING LOOP
+// ── POLLING LOOP ──
 setInterval(async () => {
   try {
-    // 🔐 STEP 0: determine authoritative max game ID
-    let maxGameId;
-    try {
-      const nextId = await gameContract.gamesLength();
-      maxGameId = Number(nextId) - 1;
-    } catch (err) {
-      console.error("❌ Failed to fetch maxGameId:", err.message);
-      return;
-    }
-
     const currentBlock = await provider.getBlockNumber();
     if (currentBlock <= lastBlock) return;
 
@@ -163,30 +144,27 @@ for (const log of settledLogs) {
   const game = games.find(g => g.id === gameId);
   if (!game) continue;
 
-  const onChain = await safeGetOnChainGame(gameId, maxGameId);
-  if (!onChain || !onChain.settled || game.settled) continue;
+          // If the game is settled on-chain but not in backend
+          if (onChain.settled && !game.settled) {
+            console.log(`[RECONCILE] Settling game ${game.id}`);
 
-  console.log(`[RECONCILE] Settling game ${gameId}`);
+            let backendWinner;
+            try {
+              backendWinner = await contract.backendWinner(game.id);
+            } catch {
+              backendWinner = ethers.ZeroAddress;
+            }
 
-  let backendWinner = ethers.ZeroAddress;
-  try {
-    backendWinner = await gameContract.backendWinner(gameId);
-  } catch {}
-
-  game.settled = true;
-  game.settledAt = new Date().toISOString();
-
-  if (backendWinner !== ethers.ZeroAddress) {
-    game.cancelled = false;
-    game.winner = backendWinner.toLowerCase();
-  } else {
-    game.cancelled = true;
-    game.winner = null;
-  }
+            game.settled = true;
+            game.settledAt = new Date().toISOString();
 
   writeGames(games);
 }
 
+        // Save backend state after processing all settled logs
+        saveGames(loadGames());
+      }
+      
       // ----- NFT transfer logs (VKIN & VQLE) -----
       const getTransferLogs = async (address) =>
         provider.getLogs({ address, topics: [TRANSFER_TOPIC], fromBlock, toBlock });
@@ -226,12 +204,12 @@ for (const log of settledLogs) {
 
       processLogs(vkinLogs, "vkin", vkinContract);
       processLogs(vqleLogs, "vqle", vqleContract);
-      
+
       lastBlock = toBlock;
       saveLastBlock(lastBlock);
       fromBlock = toBlock + 1;
 
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 200));
     }
   } catch (err) {
     console.error("❌ Event poll error:", err.message);
