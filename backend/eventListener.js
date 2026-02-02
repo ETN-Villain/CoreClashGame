@@ -12,7 +12,7 @@ import { loadLastBlock, saveLastBlock } from "./utils/blockState.js";
 import { readOwnerCache, writeOwnerCache, deleteCache } from "./utils/ownerCache.js";
 import { reconcileAllGames } from "./reconcile.js";
 import { fetchOwnedTokenIds } from "./utils/nftUtils.js";
-import { loadGames, saveGames } from "./store/gamesStore.js";
+import { readGames, writeGames } from "./store/gamesStore.js";
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
@@ -34,7 +34,7 @@ let lastBlock = loadLastBlock() ?? ((await provider.getBlockNumber()) - 500);
 console.log("▶ Starting from block", lastBlock);
 
 async function handleGameCreated(id) {
-  const games = loadGames();
+  const games = readGames();
   if (games.find(g => g.id === id)) return; // already exists
 
   const onChain = await gameContract.games(id);
@@ -49,7 +49,7 @@ async function handleGameCreated(id) {
     cancelled: false,
   });
 
-  saveGames(games);
+  writeGames(games);
   console.log(`[EVENT] GameCreated #${id} added to games.json`);
 }
 
@@ -121,32 +121,28 @@ setInterval(async () => {
         console.log(`🆕 ${joinedLogs.length} GameJoined event(s)`);
         await reconcileAllGames();
       }
+      
+// ----- GameSettled events -----
+const settledLogs = await provider.getLogs({
+  address: GAME_ADDRESS,
+  topics: [GAME_SETTLED_TOPIC],
+  fromBlock,
+  toBlock,
+});
 
-      // ----- GameSettled events -----
-      const settledLogs = await provider.getLogs({
-        address: GAME_ADDRESS,
-        topics: [GAME_SETTLED_TOPIC],
-        fromBlock,
-        toBlock,
-      });
+for (const log of settledLogs) {
+  const parsed = gameInterface.parseLog(log);
+  const gameId = Number(parsed.args.gameId);
 
-      if (settledLogs.length > 0) {
-        console.log(`🎯 ${settledLogs.length} GameSettled event(s) detected`);
+  // 🚫 Hard guard: never read past chain
+  if (gameId > maxGameId) {
+    console.warn(`[SKIP] GameSettled for nonexistent game ${gameId}`);
+    continue;
+  }
 
-        for (const log of settledLogs) {
-          const parsed = gameInterface.parseLog(log);
-          const gameId = parsed.args.gameId;
-          const games = loadGames();
-          const game = games.find(g => g.id === Number(gameId));
-          if (!game) continue;
-
-          let onChain;
-          try {
-            onChain = await contract.games(gameId);
-          } catch (err) {
-            console.error(`Failed to fetch on-chain game ${gameId}:`, err);
-            continue;
-          }
+  const games = readGames();
+  const game = games.find(g => g.id === gameId);
+  if (!game) continue;
 
           // If the game is settled on-chain but not in backend
           if (onChain.settled && !game.settled) {
@@ -162,20 +158,8 @@ setInterval(async () => {
             game.settled = true;
             game.settledAt = new Date().toISOString();
 
-            if (backendWinner && backendWinner !== ethers.ZeroAddress) {
-              game.cancelled = false;
-              game.winner = backendWinner.toLowerCase();
-            } else {
-              // Cancelled or no winner
-              game.cancelled = true;
-              game.winner = null;
-            }
-
-            dirty = true;
-          } else if (!onChain.settled) {
-            console.log(`[RECONCILE] Game ${game.id} not settled yet, skipping backendWinner`);
-          }
-        }
+  writeGames(games);
+}
 
         // Save backend state after processing all settled logs
         saveGames(loadGames());

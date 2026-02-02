@@ -1,20 +1,22 @@
-import { loadGames, saveGames } from "./store/gamesStore.js";
+import { readGames, writeGames } from "./store/gamesStore.js";
 import { contract } from "./routes/games.js";
 import { ethers } from "ethers";
 
 const ZERO = ethers.ZeroAddress;
 
 export async function discoverMissingGames() {
-  const games = loadGames();
+  const games = readGames();
   const knownIds = new Set(games.map(g => g.id));
 
   let added = 0;
 
-  for (let id = 0; id < 1000; id++) { // cap for safety
+  const gameCount = Number(await contract.gameCount());
+
+  for (let id = 0; id < gameCount; id++) {
     if (knownIds.has(id)) continue;
 
     const onChain = await contract.games(id);
-    if (onChain.player1 === ethers.ZeroAddress) continue;
+    if (onChain.player1 === ZERO) continue;
 
     console.log(`[DISCOVER] Found missing game ${id}`);
 
@@ -24,18 +26,31 @@ export async function discoverMissingGames() {
       player2: onChain.player2.toLowerCase(),
       stakeAmount: onChain.stakeAmount.toString(),
       stakeToken: onChain.stakeToken,
+
+      // terminal state cached, but derived
       settled: onChain.settled,
-      cancelled: false,
-      winner: null,
+      cancelled: onChain.cancelled === true,
+      winner: onChain.settled ? onChain.winner.toLowerCase() : null,
+
+      // reveal cache (we’ll fill this next)
+      player1Revealed: onChain.player1Revealed,
+      player2Revealed: onChain.player2Revealed,
+
       createdAt: new Date().toISOString(),
     });
 
     added++;
   }
 
+  if (games.length > gameCount) {
+    console.warn(
+      `[WARN] Backend has ${games.length} games, but chain reports ${gameCount}`
+    );
+  }
+
   if (added > 0) {
     games.sort((a, b) => a.id - b.id);
-    saveGames(games);
+    writeGames(games);
     console.log(`[DISCOVER] Added ${added} missing game(s)`);
   }
 
@@ -52,12 +67,20 @@ const games = await discoverMissingGames();
     // Not terminal on-chain → ignore
     if (!onChain.settled) continue;
 
-    // Already reconciled
-    if (game.settled === true) continue;
+// Never overwrite terminal state if chain disagrees
+if (game.settled === true && onChain.settled === false) {
+  console.warn(`[RECONCILE] Backend settled but chain not settled for game ${game.id}`);
+  continue;
+}
 
-    console.log(`[RECONCILE] Settling game ${game.id}`);
+if (game.settled && onChain.winner !== game.winner) {
+  console.error(
+    `[DESYNC] Game ${game.id} winner mismatch`,
+    { chain: onChain.winner, backend: game.winner }
+  );
+}
 
-    const backendWinner = await contract.backendWinner(game.id);
+const backendWinner = await contract.backendWinner(game.id);
 
     game.settled = true;
     game.settledAt = new Date().toISOString();
@@ -75,8 +98,18 @@ const games = await discoverMissingGames();
     dirty = true;
   }
 
+if (onChain.player1Revealed && !game.player1Revealed) {
+  game.player1Revealed = true;
+  dirty = true;
+}
+
+if (onChain.player2Revealed && !game.player2Revealed) {
+  game.player2Revealed = true;
+  dirty = true;
+}
+
   if (dirty) {
-    saveGames(games);
+    writeGames(games);
     console.log("[RECONCILE] games.json updated");
   }
 }
