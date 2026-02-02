@@ -10,9 +10,9 @@ export async function discoverMissingGames() {
 
   let added = 0;
 
-  const gameCount = Number(await contract.gameCount());
+  const gamesLength = Number(await contract.gamesLength());
 
-  for (let id = 0; id < gameCount; id++) {
+  for (let id = 0; id < gamesLength; id++) {
     if (knownIds.has(id)) continue;
 
     const onChain = await contract.games(id);
@@ -42,9 +42,9 @@ export async function discoverMissingGames() {
     added++;
   }
 
-  if (games.length > gameCount) {
+  if (games.length > gamesLength) {
     console.warn(
-      `[WARN] Backend has ${games.length} games, but chain reports ${gameCount}`
+      `[WARN] Backend has ${games.length} games, but chain reports ${gamesLength}`
     );
   }
 
