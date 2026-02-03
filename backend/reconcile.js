@@ -69,13 +69,12 @@ export async function discoverMissingGames() {
     writeGames(games);
     console.log(`[DISCOVER] Added ${added} missing game(s)`);
   }
-
-  return games;
 }
 
 // -------------------- RECONCILE ALL GAMES --------------------
 export async function reconcileAllGames() {
-  const games = await discoverMissingGames();
+const games = readGames();
+await discoverMissingGames(); // append-only side effect
   let dirty = false;
 
   for (const game of games) {
