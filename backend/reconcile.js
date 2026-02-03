@@ -55,7 +55,6 @@ export async function discoverMissingGames() {
       player1Revealed: !!onChain.player1Revealed,
       player2Revealed: !!onChain.player2Revealed,
       createdAt: new Date().toISOString(),
-      _reveal: {}, // placeholder for backend reveal
     });
 
     added++;
@@ -122,8 +121,15 @@ export async function reconcileAllGames() {
     }
 
     // update reveal flags safely
-    game.player1Revealed = !!onChain.player1Revealed || !!game._reveal?.player1;
-    game.player2Revealed = !!onChain.player2Revealed || !!game._reveal?.player2;
+if (onChain.player1Revealed && !game.player1Revealed) {
+  game.player1Revealed = true;
+  dirty = true;
+}
+
+if (onChain.player2Revealed && !game.player2Revealed) {
+  game.player2Revealed = true;
+  dirty = true;
+}
 
     dirty = true;
   }
