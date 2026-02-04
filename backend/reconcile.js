@@ -8,7 +8,7 @@ const ZERO = ethers.ZeroAddress;
 export async function discoverMissingGames() {
   const games = readGames();
   const knownIds = new Set(games.map(g => g.id));
-  let added = 0;
+let added = 0;
 
   let gamesLength = 0;
   try {
@@ -73,7 +73,8 @@ export async function discoverMissingGames() {
 
 // -------------------- RECONCILE ALL GAMES --------------------
 export async function reconcileAllGames() {
-const games = readGames();
+  const games = readGames();
+  const preservedReveal = game._reveal;
 await discoverMissingGames(); // append-only side effect
   let dirty = false;
 
@@ -130,6 +131,10 @@ if (onChain.player2Revealed && !game.player2Revealed) {
   dirty = true;
 }
 
+  // 🔒 restore backend-only data
+  if (preservedReveal) {
+    game._reveal = preservedReveal;
+  }
     dirty = true;
   }
 
