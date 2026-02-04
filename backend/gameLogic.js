@@ -3,6 +3,24 @@ import axios from "axios";
 import { METADATA_JSON_DIR } from "./paths.js";
 import fs from "fs";
 import path from "path";
+import tokenMapping from "../src/mapping.json" assert { type: "json" };
+
+// Helper to map tokenId → tokenURI from mapping.json
+function tokenIdToTokenURI(collection, tokenId) {
+  const collectionMap = tokenMapping[collection];
+  if (!collectionMap) {
+    throw new Error(`No mapping for collection ${collection}`);
+  }
+
+  const entry = collectionMap[String(tokenId)];
+  if (!entry || !entry.token_uri) {
+    throw new Error(
+      `No token_uri mapping for ${collection} tokenId ${tokenId}`
+    );
+  }
+
+  return entry.token_uri;
+}
 
 // Ensure lowercase keys (matches .toLowerCase() usage)
 const addressToCollection = {
@@ -125,10 +143,10 @@ export async function resolveGame(game) {
   });
 
   if (!game.player2) return null;
-  if (!game._reveal?.player1?.tokenURIs || !game._reveal?.player2?.tokenURIs) {
-    console.warn("Missing reveal tokenURIs");
-    return null;
-  }
+if (!game.player1Reveal || !game.player2Reveal) {
+  console.warn("Missing reveal data");
+  return null;
+}
 
   const traits1 = [];
   const traits2 = [];
@@ -150,35 +168,39 @@ const extractTraits = (nftData) => {
 
 // Player 1 traits
 for (let i = 0; i < 3; i++) {
-    const uri = game._reveal.player1.tokenURIs[i];
-    const contractAddr = game._reveal.player1.nftContracts[i]?.toLowerCase() || "";
-    const collection = addressToCollection[contractAddr] || "VKIN";
+  const tokenId = game.player1Reveal.nftIds[i];
+  const contractAddr = game.player1Reveal.nftContracts[i]?.toLowerCase() || "";
+  const collection = addressToCollection[contractAddr] || "VKIN";
 
-    console.log(`P1 token ${i}: ${uri} in ${collection}`);
+  const uri = tokenIdToTokenURI(collection, tokenId);
 
-    const nftData = await fetchNFT(collection, uri);
-    if (!nftData) {
-      console.error("Missing metadata for P1 token", uri, "in", collection);
-      return null;
-    }
-    traits1.push(extractTraits(nftData));
+  console.log(`P1 token ${i}: tokenId ${tokenId} → ${uri} in ${collection}`);
+
+  const nftData = await fetchNFT(collection, uri);
+  if (!nftData) {
+    console.error("Missing metadata for P1 token", uri, "in", collection);
+    return null;
   }
+  traits1.push(extractTraits(nftData));
+}
 
-  // Player 2 (same pattern)
-  for (let i = 0; i < 3; i++) {
-    const uri = game._reveal.player2.tokenURIs[i];
-    const contractAddr = game._reveal.player2.nftContracts[i]?.toLowerCase() || "";
-    const collection = addressToCollection[contractAddr] || "VKIN";
+// Player 2 traits (same pattern)
+for (let i = 0; i < 3; i++) {
+  const tokenId = game.player2Reveal.nftIds[i];
+  const contractAddr = game.player2Reveal.nftContracts[i]?.toLowerCase() || "";
+  const collection = addressToCollection[contractAddr] || "VKIN";
 
-    console.log(`P2 token ${i}: ${uri} in ${collection}`);
+  const uri = tokenIdToTokenURI(collection, tokenId);
 
-    const nftData = await fetchNFT(collection, uri);
-    if (!nftData) {
-      console.error("Missing metadata for P2 token", uri, "in", collection);
-      return null;
-    }
-    traits2.push(extractTraits(nftData));
+  console.log(`P2 token ${i}: tokenId ${tokenId} → ${uri} in ${collection}`);
+
+  const nftData = await fetchNFT(collection, uri);
+  if (!nftData) {
+    console.error("Missing metadata for P2 token", uri, "in", collection);
+    return null;
   }
+  traits2.push(extractTraits(nftData));
+}
 
 // Compute winner
 const { winner, roundResults } = computeWinner(traits1, traits2);

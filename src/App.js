@@ -416,10 +416,11 @@ const loadGames = useCallback(async () => {
         ...onChainGame,  // start with on-chain data
 
         // Reveal flags & payloads — prefer backend
-        player1Revealed: !!backendGame.player1Revealed || !!backendGame._reveal?.player1,
-        player2Revealed: !!backendGame.player2Revealed || !!backendGame._reveal?.player2,
-        player1Reveal: backendGame._reveal?.player1 || null,
-        player2Reveal: backendGame._reveal?.player2 || null,
+// Reveal flags & payloads — prefer backend
+player1Revealed: !!backendGame.player1Revealed,
+player2Revealed: !!backendGame.player2Revealed,
+player1Reveal: backendGame.player1Reveal || null,
+player2Reveal: backendGame.player2Reveal || null,
 
         // Computed results — backend is source of truth
         roundResults: backendGame.roundResults || [],

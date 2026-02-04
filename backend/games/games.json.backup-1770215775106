@@ -1,0 +1,1190 @@
+[
+  {
+    "id": 0,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-21T11:10:03.109Z",
+    "cancelled": false,
+    "winner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "tie": false,
+    "_reveal": {
+      "player1": {
+        "salt": "41268807352356612944280114019062485200328433731679868246168250707956072830272",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "469",
+          "471",
+          "245"
+        ],
+        "tokenURIs": [
+          "350.json",
+          "426.json",
+          "324.json"
+        ],
+        "backgrounds": [
+          "Silver",
+          "Verdant Green",
+          "Energy Vein Canyons"
+        ]
+      },
+      "player2": {
+        "salt": "13572278581851709951797793487565857465533971113304434736027003905910615287625",
+        "nftContracts": [
+          "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "24",
+          "429",
+          "421"
+        ],
+        "tokenURIs": [
+          "24.json",
+          "368.json",
+          "417.json"
+        ],
+        "backgrounds": [
+          "Gold",
+          "Silver",
+          "Verdant Green"
+        ]
+      }
+    },
+    "settled": true,
+    "player2JoinedAt": "2026-01-21T12:43:39.295Z",
+    "player1Revealed": true,
+    "player2Revealed": true,
+    "roundResults": [
+      {
+        "round": 1,
+        "winner": "player2",
+        "diff": 0
+      },
+      {
+        "round": 2,
+        "winner": "player1",
+        "diff": 0
+      },
+      {
+        "round": 3,
+        "winner": "player2",
+        "diff": -13
+      }
+    ],
+    "settledAt": "2026-01-21T16:45:57.352Z",
+    "backendWinner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "winnerResolvedAt": "2026-01-21T16:45:41.855Z",
+    "settleTxHash": null
+  },
+  {
+    "id": 1,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-21T22:27:10.114Z",
+    "cancelled": false,
+    "winner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "tie": false,
+    "_reveal": {
+      "player1": {
+        "salt": "6893296484960118245375895264239238146675450053072124275761233124208060857297",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "468",
+          "462",
+          "59"
+        ],
+        "tokenURIs": [
+          "405.json",
+          "286.json",
+          "378.json"
+        ],
+        "backgrounds": [
+          "Verdant Green",
+          "Energy Vein Canyons",
+          "Silver"
+        ]
+      },
+      "player2": {
+        "salt": "38816899997474176765353430683751199526303152660614049308132383325298062219307",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "429",
+          "24",
+          "421"
+        ],
+        "tokenURIs": [
+          "368.json",
+          "24.json",
+          "417.json"
+        ],
+        "backgrounds": [
+          "Silver",
+          "Gold",
+          "Verdant Green"
+        ]
+      }
+    },
+    "settled": true,
+    "player2JoinedAt": "2026-01-21T22:29:27.033Z",
+    "player1Revealed": true,
+    "player2Revealed": true,
+    "roundResults": [
+      {
+        "round": 1,
+        "winner": "player1",
+        "diff": 0
+      },
+      {
+        "round": 2,
+        "winner": "player2",
+        "diff": -2
+      },
+      {
+        "round": 3,
+        "winner": "player2",
+        "diff": -16
+      }
+    ],
+    "settledAt": "2026-01-21T23:34:33.977Z",
+    "winnerResolvedAt": "2026-01-21T22:58:06.917Z",
+    "backendWinner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "settleTxHash": null
+  },
+  {
+    "id": 2,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": null,
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-22T09:49:43.898Z",
+    "cancelled": false,
+    "winner": null,
+    "tie": false,
+    "_reveal": {
+      "player1": null,
+      "player2": null
+    },
+    "settled": true,
+    "settledAt": "2026-01-22T16:07:02.312Z",
+    "settleTxHash": null
+  },
+  {
+    "id": 3,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": null,
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-22T13:22:24.591Z",
+    "cancelled": true,
+    "winner": null,
+    "tie": false,
+    "_reveal": {
+      "player1": null,
+      "player2": null
+    },
+    "settled": true,
+    "settledAt": "2026-01-22T16:55:05.545Z",
+    "settleTxHash": "on-chain-cancel"
+  },
+  {
+    "id": 4,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": null,
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-22T13:47:37.495Z",
+    "cancelled": true,
+    "winner": null,
+    "tie": false,
+    "_reveal": {
+      "player1": null,
+      "player2": null
+    },
+    "settled": true,
+    "settledAt": "2026-01-22T16:55:25.571Z",
+    "settleTxHash": "on-chain-cancel"
+  },
+  {
+    "id": 5,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": null,
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-22T19:08:21.205Z",
+    "cancelled": true,
+    "winner": null,
+    "tie": false,
+    "_reveal": {
+      "player1": null,
+      "player2": null
+    },
+    "settled": true,
+    "settledAt": "2026-01-22T22:12:37.910Z"
+  },
+  {
+    "id": 6,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": null,
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-22T22:14:11.134Z",
+    "cancelled": true,
+    "winner": null,
+    "tie": false,
+    "_reveal": {
+      "player1": null,
+      "player2": null
+    },
+    "settled": true,
+    "settledAt": "2026-01-22T22:45:47.694Z"
+  },
+  {
+    "id": 7,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": null,
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-22T22:49:17.071Z",
+    "cancelled": true,
+    "winner": null,
+    "tie": false,
+    "_reveal": {
+      "player1": null,
+      "player2": null
+    },
+    "settled": true,
+    "settledAt": "2026-01-23T08:34:31.231Z"
+  },
+  {
+    "id": 8,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-23T11:23:48.167Z",
+    "cancelled": false,
+    "winner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "tie": false,
+    "_reveal": {
+      "player1": {
+        "salt": "6885853302157839315252094379943464915606601553712820087132767146475854330531",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "59",
+          "446",
+          "245"
+        ],
+        "tokenURIs": [
+          "378.json",
+          "399.json",
+          "324.json"
+        ],
+        "backgrounds": [
+          "Silver",
+          "Verdant Green",
+          "Energy Vein Canyons"
+        ]
+      },
+      "player2": {
+        "salt": "44041517619660549213933245631941081455068972885559593682733520854647023946604",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0"
+        ],
+        "tokenIds": [
+          "429",
+          "421",
+          "24"
+        ],
+        "tokenURIs": [
+          "368.json",
+          "417.json",
+          "24.json"
+        ],
+        "backgrounds": [
+          "Silver",
+          "Verdant Green",
+          "Gold"
+        ]
+      }
+    },
+    "player2JoinedAt": "2026-01-23T11:25:21.658Z",
+    "player1Revealed": true,
+    "player2Revealed": true,
+    "settled": true,
+    "settledAt": "2026-01-23T21:48:15.528Z",
+    "roundResults": [
+      {
+        "round": 1,
+        "winner": "player1",
+        "diff": 0
+      },
+      {
+        "round": 2,
+        "winner": "player2",
+        "diff": 0
+      },
+      {
+        "round": 3,
+        "winner": "player2",
+        "diff": -13
+      }
+    ],
+    "backendWinner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "winnerResolvedAt": "2026-01-23T21:48:15.545Z"
+  },
+  {
+    "id": 9,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-23T21:50:03.459Z",
+    "cancelled": false,
+    "winner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "tie": false,
+    "_reveal": {
+      "player1": {
+        "salt": "102837576548652611029650927856648946445351897460787041247628764394777611820995",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "255",
+          "440",
+          "469"
+        ],
+        "tokenURIs": [
+          "397.json",
+          "321.json",
+          "350.json"
+        ],
+        "backgrounds": [
+          "Verdant Green",
+          "Energy Vein Canyons",
+          "Silver"
+        ]
+      },
+      "player2": {
+        "salt": "26620586070048264771579820627623219489324944165407565648546515127300648666598",
+        "nftContracts": [
+          "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "24",
+          "421",
+          "429"
+        ],
+        "tokenURIs": [
+          "24.json",
+          "417.json",
+          "368.json"
+        ],
+        "backgrounds": [
+          "Gold",
+          "Verdant Green",
+          "Silver"
+        ]
+      }
+    },
+    "player2JoinedAt": "2026-01-23T21:51:52.688Z",
+    "player1Revealed": true,
+    "player2Revealed": true,
+    "roundResults": [
+      {
+        "round": 1,
+        "winner": "player2",
+        "diff": 0
+      },
+      {
+        "round": 2,
+        "winner": "player2",
+        "diff": -13
+      },
+      {
+        "round": 3,
+        "winner": "player1",
+        "diff": 0
+      }
+    ],
+    "settledAt": "2026-01-23T23:19:51.238Z",
+    "winnerResolvedAt": "2026-01-23T23:19:51.241Z",
+    "settled": true,
+    "backendWinner": "0x2871835ca982f248f61c3a1995931e205c9d5243"
+  },
+  {
+    "id": 10,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-24T13:48:23.982Z",
+    "cancelled": true,
+    "winner": null,
+    "tie": false,
+    "_reveal": {
+      "player1": {
+        "salt": "6396196530242073921670534830966546654809086861284574194408099265641648521667",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "59",
+          "266",
+          "245"
+        ],
+        "tokenURIs": [
+          "378.json",
+          "403.json",
+          "324.json"
+        ],
+        "backgrounds": [
+          "Silver",
+          "Verdant Green",
+          "Energy Vein Canyons"
+        ]
+      },
+      "player2": {
+        "salt": "112267653419437091861732174436761322043760889353240569980993717668798648038094",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "425",
+          "24",
+          "442"
+        ],
+        "tokenURIs": [
+          "332.json",
+          "24.json",
+          "421.json"
+        ],
+        "backgrounds": [
+          "Silver",
+          "Gold",
+          "Verdant Green"
+        ]
+      }
+    },
+    "player2JoinedAt": "2026-01-24T13:56:21.691Z",
+    "player1Revealed": true,
+    "player2Revealed": true,
+    "roundResults": [
+      {
+        "round": 1,
+        "winner": "player2",
+        "diff": -15
+      },
+      {
+        "round": 2,
+        "winner": "player2",
+        "diff": 0
+      },
+      {
+        "round": 3,
+        "winner": "player1",
+        "diff": 0
+      }
+    ],
+    "settledAt": "2026-01-24T13:57:42.494Z",
+    "settled": true
+  },
+  {
+    "id": 11,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-24T14:32:28.034Z",
+    "cancelled": true,
+    "winner": null,
+    "tie": false,
+    "_reveal": {
+      "player1": {
+        "salt": "73107292865027294859434079439128989882980781578377461293478201193175529532946",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "444",
+          "446",
+          "59"
+        ],
+        "tokenURIs": [
+          "322.json",
+          "399.json",
+          "378.json"
+        ],
+        "backgrounds": [
+          "Energy Vein Canyons",
+          "Verdant Green",
+          "Silver"
+        ]
+      },
+      "player2": {
+        "salt": "52590939987669522078177011974821192440400606829281475258928703438463876550421",
+        "nftContracts": [
+          "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "24",
+          "429",
+          "421"
+        ],
+        "tokenURIs": [
+          "24.json",
+          "368.json",
+          "417.json"
+        ],
+        "backgrounds": [
+          "Gold",
+          "Silver",
+          "Verdant Green"
+        ]
+      }
+    },
+    "player2JoinedAt": "2026-01-24T14:34:25.807Z",
+    "player1Revealed": true,
+    "player2Revealed": true,
+    "roundResults": [
+      {
+        "round": 1,
+        "winner": "player2",
+        "diff": -13
+      },
+      {
+        "round": 2,
+        "winner": "player1",
+        "diff": 0
+      },
+      {
+        "round": 3,
+        "winner": "player2",
+        "diff": -16
+      }
+    ],
+    "settledAt": "2026-01-24T14:36:07.042Z",
+    "settled": true
+  },
+  {
+    "id": 12,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-24T15:12:16.257Z",
+    "cancelled": false,
+    "winner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "tie": false,
+    "_reveal": {
+      "player1": {
+        "salt": "38436845010287840178269667661603993194044797074220942733607268592333461001612",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "59",
+          "290",
+          "452"
+        ],
+        "tokenURIs": [
+          "378.json",
+          "408.json",
+          "276.json"
+        ],
+        "backgrounds": [
+          "Silver",
+          "Verdant Green",
+          "Energy Vein Canyons"
+        ]
+      },
+      "player2": {
+        "salt": "24812746063251022691318098412674700320336087568967208516290525891457123970710",
+        "nftContracts": [
+          "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "24",
+          "429",
+          "421"
+        ],
+        "tokenURIs": [
+          "24.json",
+          "368.json",
+          "417.json"
+        ],
+        "backgrounds": [
+          "Gold",
+          "Silver",
+          "Verdant Green"
+        ]
+      }
+    },
+    "player2JoinedAt": "2026-01-24T15:13:35.502Z",
+    "player1Revealed": true,
+    "player2Revealed": true,
+    "roundResults": [
+      {
+        "round": 1,
+        "winner": "player2",
+        "diff": -16
+      },
+      {
+        "round": 2,
+        "winner": "player1",
+        "diff": 0
+      },
+      {
+        "round": 3,
+        "winner": "player2",
+        "diff": 0
+      }
+    ],
+    "settledAt": "2026-01-25T23:36:17.106Z",
+    "winnerResolvedAt": "2026-01-25T23:33:44.095Z",
+    "backendWinner": "0x2871835CA982F248F61c3A1995931E205c9d5243",
+    "postWinnerTxHash": "already-on-chain",
+    "settled": true
+  },
+  {
+    "id": 13,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-25T12:06:26.009Z",
+    "cancelled": false,
+    "winner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "tie": false,
+    "_reveal": {
+      "player1": {
+        "salt": "12727278196745333687577709919468949119185885360105525621435006842803266910357",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "59",
+          "266",
+          "316"
+        ],
+        "tokenURIs": [
+          "378.json",
+          "403.json",
+          "309.json"
+        ],
+        "backgrounds": [
+          "Silver",
+          "Verdant Green",
+          "Energy Vein Canyons"
+        ]
+      },
+      "player2": {
+        "salt": "50778771902140161160290799768398600149626906118288025195430333948686022515284",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "429",
+          "24",
+          "421"
+        ],
+        "tokenURIs": [
+          "368.json",
+          "24.json",
+          "417.json"
+        ],
+        "backgrounds": [
+          "Silver",
+          "Gold",
+          "Verdant Green"
+        ]
+      }
+    },
+    "player2JoinedAt": "2026-01-25T12:09:25.285Z",
+    "player1Revealed": true,
+    "player2Revealed": true,
+    "roundResults": [
+      {
+        "round": 1,
+        "winner": "player1",
+        "diff": 0
+      },
+      {
+        "round": 2,
+        "winner": "player2",
+        "diff": 0
+      },
+      {
+        "round": 3,
+        "winner": "player2",
+        "diff": -13
+      }
+    ],
+    "settledAt": "2026-01-25T23:32:34.812Z",
+    "winnerResolvedAt": "2026-01-25T23:14:51.982Z",
+    "postWinnerTxHash": "0x365d941a0396ca20e8ab1821842cc6d78309400b892eb4692a374ed1ad9d681d",
+    "backendWinner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "settled": true
+  },
+  {
+    "id": 14,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "0.01",
+    "createdAt": "2026-01-25T23:39:03.645Z",
+    "cancelled": false,
+    "winner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "tie": false,
+    "_reveal": {
+      "player1": {
+        "salt": "103000825455735129540981653962306730923976217572058851153928301023803938417279",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "290",
+          "444",
+          "469"
+        ],
+        "tokenURIs": [
+          "408.json",
+          "322.json",
+          "350.json"
+        ],
+        "backgrounds": [
+          "Verdant Green",
+          "Energy Vein Canyons",
+          "Silver"
+        ]
+      },
+      "player2": {
+        "salt": "67646302135691394896280854706798956016757525686790782589759134208146409226643",
+        "nftContracts": [
+          "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "24",
+          "425",
+          "442"
+        ],
+        "tokenURIs": [
+          "24.json",
+          "332.json",
+          "421.json"
+        ],
+        "backgrounds": [
+          "Gold",
+          "Silver",
+          "Verdant Green"
+        ]
+      }
+    },
+    "player2JoinedAt": "2026-01-25T23:40:32.304Z",
+    "player1Revealed": true,
+    "player2Revealed": true,
+    "roundResults": [
+      {
+        "round": 1,
+        "winner": "player2",
+        "diff": -20
+      },
+      {
+        "round": 2,
+        "winner": "player2",
+        "diff": -5
+      },
+      {
+        "round": 3,
+        "winner": "player1",
+        "diff": 0
+      }
+    ],
+    "settledAt": "2026-01-25T23:51:43.486Z",
+    "backendWinner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "postWinnerTxHash": "0x5a2da8f831d2876b03991e60d59c2cb5499659ff2e46a34ef314fcf4bca578fb",
+    "winnerResolvedAt": "2026-01-25T23:41:59.119Z",
+    "settled": true,
+    "settleTxHash": "0x53c4a211e889c20076dc27c423865a38f6351fb97f7685a1f9d91cbfd22db4b4"
+  },
+  {
+    "id": 15,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "5",
+    "createdAt": "2026-01-25T23:53:33.998Z",
+    "cancelled": false,
+    "winner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "tie": false,
+    "_reveal": {
+      "player1": {
+        "salt": "29115289215068407595544748745677535712985780282949236589964896130167760194724",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "290",
+          "59",
+          "440"
+        ],
+        "tokenURIs": [
+          "408.json",
+          "378.json",
+          "321.json"
+        ],
+        "backgrounds": [
+          "Verdant Green",
+          "Silver",
+          "Energy Vein Canyons"
+        ]
+      },
+      "player2": {
+        "salt": "81570651162937842461311356338383737233290579478163208197231977492343773647578",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0"
+        ],
+        "tokenIds": [
+          "429",
+          "421",
+          "24"
+        ],
+        "tokenURIs": [
+          "368.json",
+          "417.json",
+          "24.json"
+        ],
+        "backgrounds": [
+          "Silver",
+          "Verdant Green",
+          "Gold"
+        ]
+      }
+    },
+    "player2JoinedAt": "2026-01-25T23:54:56.172Z",
+    "player1Revealed": true,
+    "player2Revealed": true,
+    "roundResults": [
+      {
+        "round": 1,
+        "winner": "player1",
+        "diff": 0
+      },
+      {
+        "round": 2,
+        "winner": "player2",
+        "diff": -16
+      },
+      {
+        "round": 3,
+        "winner": "player2",
+        "diff": -13
+      }
+    ],
+    "settledAt": "2026-01-25T23:56:32.389Z",
+    "backendWinner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "postWinnerTxHash": "0x2bfc6dc9715bf0d5d286d7ed99a318864f626e0e73aa76e224fa79d8c2c130a9",
+    "winnerResolvedAt": "2026-01-25T23:56:15.401Z",
+    "settled": true,
+    "settleTxHash": "0x36e962d25b6fd376d3e21c5f582e842070c5ac21d6ade9ab95ecca0e43b0b989"
+  },
+  {
+    "id": 16,
+    "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "player2": "0x1b97871598857e03b4fd13be59e0a664e977aeb4",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "50",
+    "createdAt": "2026-01-27T22:49:43.898Z",
+    "cancelled": false,
+    "winner": "0x1b97871598857e03b4fd13be59e0a664e977aeb4",
+    "tie": false,
+    "_reveal": {
+      "player1": {
+        "salt": "61334051221051994353906471352937793497847740348942548292490915491967517916728",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "469",
+          "266",
+          "440"
+        ],
+        "tokenURIs": [
+          "350.json",
+          "403.json",
+          "321.json"
+        ],
+        "backgrounds": [
+          "Silver",
+          "Verdant Green",
+          "Energy Vein Canyons"
+        ]
+      },
+      "player2": {
+        "salt": "58679764240874354890992706088655954278555111392625633743611035682339566432866",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0"
+        ],
+        "tokenIds": [
+          "57",
+          "175",
+          "1"
+        ],
+        "tokenURIs": [
+          "388.json",
+          "466.json",
+          "1.json"
+        ],
+        "backgrounds": [
+          "Silver",
+          "Gold",
+          "Rose Gold"
+        ]
+      }
+    },
+    "player2JoinedAt": "2026-01-28T13:16:38.207Z",
+    "player1Revealed": true,
+    "player2Revealed": true,
+    "roundResults": [
+      {
+        "round": 1,
+        "winner": "player1",
+        "diff": 9
+      },
+      {
+        "round": 2,
+        "winner": "player2",
+        "diff": -2
+      },
+      {
+        "round": 3,
+        "winner": "player2",
+        "diff": -13
+      }
+    ],
+    "settledAt": "2026-01-28T13:56:32.389Z",
+    "backendWinner": "0x1b97871598857e03b4fd13be59e0a664e977aeb4",
+    "postWinnerTxHash": "0xd78c78eb0f2f12236da7afbb93727aab014d3b1cdecaa8f5e12bfd284233ec5c",
+    "winnerResolvedAt": "2026-01-28T13:56:15.401Z",
+    "settled": true,
+    "settleTxHash": "0xe8e5462dcf093e5189f23f728c930f9dbe19ad2b4eceb754b113051fb8db07ad"
+  },
+  {
+    "id": 17,
+    "player1": "0x9343E399d44e701Fc26130bDbF8817D78F086867",
+    "player2": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "stakeAmount": "250",
+    "createdAt": "2026-01-28T14:01:24.591Z",
+    "cancelled": false,
+    "winner": null,
+    "tie": false,
+    "_reveal": {
+      "player1": null,
+      "player2": {
+        "salt": "82140760174217034381193491830769275403449116007507071142066978817678739113899",
+        "nftContracts": [
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+          "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+        ],
+        "tokenIds": [
+          "255",
+          "316",
+          "469"
+        ],
+        "tokenURIs": [
+          "397.json",
+          "309.json",
+          "350.json"
+        ],
+        "backgrounds": [
+          "Verdant Green",
+          "Energy Vein Canyons",
+          "Silver"
+        ]
+      }
+    },
+    "player2JoinedAt": "2026-01-28T14:56:03.302Z",
+    "player1Revealed": false,
+    "player2Revealed": true
+  },
+  {
+    "id": 18,
+    "player1": "0x2871835CA982F248F61c3A1995931E205c9d5243",
+    "player2": "0x0000000000000000000000000000000000000000",
+    "stakeAmount": "50000000000000000000",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "settled": true,
+    "winner": "0x0000000000000000000000000000000000000000",
+    "player1Revealed": false,
+    "player2Revealed": false,
+    "cancelled": false,
+    "backendWinner": "0x0000000000000000000000000000000000000000",
+    "player1TokenIds": [],
+    "player2TokenIds": [],
+    "player1Backgrounds": [],
+    "player2Backgrounds": [],
+    "roundResults": [],
+    "player1Reveal": null,
+    "player2Reveal": null,
+    "tie": false,
+    "settledAt": null
+  },
+  {
+    "id": 19,
+    "player1": "0x2871835CA982F248F61c3A1995931E205c9d5243",
+    "player2": "0x0000000000000000000000000000000000000000",
+    "stakeAmount": "25000000000000000000",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "settled": false,
+    "winner": "0x0000000000000000000000000000000000000000",
+    "player1Revealed": false,
+    "player2Revealed": false,
+    "cancelled": false,
+    "backendWinner": "0x0000000000000000000000000000000000000000",
+    "player1TokenIds": [],
+    "player2TokenIds": [],
+    "player1Backgrounds": [],
+    "player2Backgrounds": [],
+    "roundResults": [],
+    "player1Reveal": null,
+    "player2Reveal": null,
+    "tie": false,
+    "settledAt": null
+  },
+{
+  "id": 20,
+  "player1": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+  "player2": "0x9343e399d44e701fc26130bdbf8817d78f086867",
+  "stakeAmount": "30000000000000000000",
+  "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+
+  "settled": false,
+  "cancelled": false,
+  "winner": "0x0000000000000000000000000000000000000000",
+  "backendWinner": "0x0000000000000000000000000000000000000000",
+
+  "player1Revealed": true,
+  "player2Revealed": true,
+
+  "_reveal": {
+    "player1": {
+      "salt": "84152212458511396203141495546294323301366418398388017285423442890417220572439",
+      "nftContracts": [
+        "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+        "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+        "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0"
+      ],
+      "nftIds": [421, 425, 24],
+      "backgrounds": ["Verdant Green", "Silver", "Gold"]
+    },
+    "player2": {
+      "salt": "57721093145150341697101497099468371631904465025203152722809312534281202785453",
+      "nftContracts": [
+        "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+        "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+        "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0"
+      ],
+      "nftIds": [295, 186, 9],
+      "backgrounds": ["Verdant Green", "Zephyros Surface", "Rose Gold"]
+    }
+  },
+  "backendPlayer1Revealed": true,
+  "backendPlayer2Revealed": true,
+  "roundResults": [],
+  "tie": false,
+  "settledAt": null
+},
+{
+  "id": 21,
+  "player1": "0x2871835CA982F248F61c3A1995931E205c9d5243",
+  "player2": "0x6c44d354Df1bD621d9d073163D7Db043F514623B",
+
+  "player1Revealed": false,
+  "player2Revealed": true,
+
+  "_reveal": {
+    "player2": {
+      "salt": "73039992159949804281484878654149053716677366419044116757766181454990397496324",
+      "nftContracts": [
+        "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+        "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+        "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+      ],
+      "tokenIds": ["355", "223", "68"],
+      "tokenURIs": [
+        "355.json",
+        "223.json",
+        "68.json"
+      ],
+      "backgrounds": [
+        "Silver",
+        "Verdant Green",
+        "Zephyros Surface"
+      ]
+    }
+  },
+
+  "player1Reveal": null,
+  "player2Reveal": null,
+
+  "roundResults": [],
+  "winner": "0x0000000000000000000000000000000000000000",
+  "settled": false
+}
+]

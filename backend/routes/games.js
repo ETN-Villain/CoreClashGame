@@ -69,7 +69,7 @@ for (let i = 0; i < gameCount; i++) {
         });
     }
 
-    // Merge backend games — backend overrides computed/reveal fields
+// Merge backend games — backend overrides computed fields
 const merged = onChainGames.map(oc => {
   const backend = backendGames.find(bg => bg.id === oc.id);
 
@@ -83,11 +83,12 @@ const merged = onChainGames.map(oc => {
     stakeToken: oc.stakeToken,
 
     // reveal status — backend assists, chain confirms
-player1Revealed: oc.player1Revealed,
-player2Revealed: oc.player2Revealed,
+    player1Revealed: oc.player1Revealed,
+    player2Revealed: oc.player2Revealed,
 
-player1Reveal: backend?._reveal?.player1 ?? null,
-player2Reveal: backend?._reveal?.player2 ?? null,
+    // read directly from backendReveal fields
+    player1Reveal: backend?.player1Reveal || null,
+    player2Reveal: backend?.player2Reveal || null,
 
     // terminal state — CHAIN ONLY
     settled: oc.settled,
@@ -175,21 +176,19 @@ router.post("/", async (req, res) => {
 
   const player1Lc = creator.toLowerCase();
 
-  games.push({
-    id: gameId,
-    player1: player1Lc,
-    player2: null,
-    stakeToken,
-    stakeAmount,
-    createdAt: new Date().toISOString(),
-    cancelled: false,
-    winner: null,
-    tie: false,
-    _reveal: {
-      player1: null,
-      player2: null
-    }
-  });
+games.push({
+  id: gameId,
+  player1: player1Lc,
+  player2: null,
+  stakeToken,
+  stakeAmount,
+  createdAt: new Date().toISOString(),
+  cancelled: false,
+  winner: null,
+  tie: false,
+  player1Reveal: null,
+  player2Reveal: null
+});
 
   writeGames(games);
   console.log("✅ Game created:", gameId);
@@ -283,15 +282,31 @@ router.post("/:id/reveal", async (req, res) => {  // ← make async so we can aw
     if (!game) return res.status(404).json({ error: "Game not found" });
 
     const playerLc = player.toLowerCase();
-    let slot;
-    if (game.player1 === playerLc) slot = "player1";
-    else if (game.player2 === playerLc) slot = "player2";
-    else return res.status(403).json({ error: "Not a game participant" });
+// Determine slot
+let slot;
+if (game.player1 === playerLc) slot = "player1";
+else if (game.player2 === playerLc) slot = "player2";
+else return res.status(403).json({ error: "Not a game participant" });
 
-    game._reveal ??= {};
-    if (game._reveal[slot]) {
-      return res.status(400).json({ error: "Reveal already submitted" });
-    }
+// Check if reveal already submitted
+if (game[slot + "Reveal"]) {
+  return res.status(400).json({ error: "Reveal already submitted" });
+}
+
+// Save reveal data directly
+const revealData = {
+  salt,
+  nftContracts: [...nftContracts],
+  tokenIds: [...tokenIds],
+  tokenURIs,
+  backgrounds,
+};
+
+game[slot + "Reveal"] = revealData;
+
+// Update backend flags
+game.backendPlayer1Revealed = !!game.player1Reveal;
+game.backendPlayer2Revealed = !!game.player2Reveal;
 
     // ---- Map addresses to collection folders ----
     const addressToCollection = {
@@ -333,18 +348,6 @@ router.post("/:id/reveal", async (req, res) => {  // ← make async so we can aw
       tokenURIs.push(jsonFile);
       backgrounds.push(background);
     }
-
-    // Save reveal data
-    game._reveal[slot] = {
-      salt,
-      nftContracts: [...nftContracts],
-      tokenIds: [...tokenIds],
-      tokenURIs,
-      backgrounds,
-    };
-
-game.backendPlayer1Revealed = !!game._reveal.player1;
-game.backendPlayer2Revealed = !!game._reveal.player2;
 
     writeGames(games);  // early save so state is persisted even if auto fails
 
@@ -496,6 +499,7 @@ router.post("/:id/backfill", async (req, res) => {
   }
 });
 
+// ---------------- COMPUTE RESULTS ----------------
 router.post("/:id/compute-results", async (req, res) => {
   try {
     const gameId = Number(req.params.id);
@@ -510,7 +514,7 @@ router.post("/:id/compute-results", async (req, res) => {
     }
 
     // Require both reveals
-    if (!game._reveal?.player1 || !game._reveal?.player2) {
+    if (!game.player1Reveal || !game.player2Reveal) {
       return res.status(400).json({ error: "Both players must reveal first" });
     }
 
@@ -532,27 +536,27 @@ router.post("/:id/compute-results", async (req, res) => {
     }
 
     // Persist computation ONLY
-game.computedResults = {
-  winner,
-  tie,
-  roundResults
-};
-game.settlementState = "computed";
+    game.computedResults = {
+      winner: resolved.winner,
+      tie: resolved.tie,
+      roundResults: resolved.roundResults
+    };
+    game.settlementState = "computed";
 
     writeGames(games);
 
     console.log(`compute-results completed for game ${gameId}`, {
-      winner: game.winner,
-      tie: game.tie,
-      rounds: game.roundResults.length,
+      winner: resolved.winner,
+      tie: resolved.tie,
+      rounds: resolved.roundResults.length,
     });
 
     res.json({
       success: true,
       gameId,
-      roundResults: game.roundResults,
-      winner: game.winner,
-      tie: game.tie,
+      roundResults: resolved.roundResults,
+      winner: resolved.winner,
+      tie: resolved.tie,
     });
 
   } catch (err) {
@@ -579,9 +583,9 @@ if (!adminWalletReady || !adminContract) {
       return res.status(404).json({ error: "Game not found" });
     }
 
-    if (!game._reveal?.player1 || !game._reveal?.player2) {
-      return res.status(400).json({ error: "Both players must reveal" });
-    }
+if (!game.player1Reveal || !game.player2Reveal) {
+  return res.status(400).json({ error: "Both players must reveal" });
+}
 
     // Idempotent: backend already posted
     if (game.postWinnerTxHash) {
