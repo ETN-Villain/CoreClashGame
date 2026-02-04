@@ -8,11 +8,6 @@ import {
   VQLE_CONTRACT_ADDRESS
 } from "../config.js";
 
-export async function handleEvent(e) {
-  const games = readGames();
-  const eventName = e.eventName;
-  const args = e.args;
-
 // Sanitize BigInt values in args for logging and broadcasting
   function sanitizeBigInt(value) {
   if (typeof value === "bigint") {
@@ -33,7 +28,7 @@ export async function handleEvent(e) {
 }
 
   // ---------------- TRANSFER HANDLING ----------------
-  if (eventName === "Transfer") {
+  if (e.eventName === "Transfer") {
     const contractAddr = e.address.toLowerCase();
     const from = args?.from?.toLowerCase();
     const to = args?.to?.toLowerCase();
@@ -62,6 +57,11 @@ export async function handleEvent(e) {
   }
 
   // ---------------- GAME EVENTS ----------------
+export async function handleEvent(e) {
+  const games = readGames();
+  const eventName = e.eventName;
+  const args = e.args;
+
   if (!args || args.length === 0) return;
 
   const gameId = Number(args[0]);
@@ -79,43 +79,38 @@ export async function handleEvent(e) {
     games.push(game);
   }
 
-  switch (eventName) {
-    case "GameCreated": {
-      const player1 = args[1];
-      if (!player1) break;
-
+switch (eventName) {
+  case "GameCreated": {
+    const player1 = args[1];
+    if (player1) {
       game.player1 = player1.toLowerCase();
       game.createdAt = new Date().toISOString();
-      break;
     }
+    break;
+  }
 
-    case "GameJoined": {
-      const player2 = args[1];
-      if (!player2) break;
-
+  case "GameJoined": {
+    const player2 = args[1];
+    if (player2) {
       game.player2 = player2.toLowerCase();
       game.player2JoinedAt = new Date().toISOString();
-      break;
     }
+    break;
+  }
 
-    case "GameCancelled": {
-      game.cancelled = true;
-      game.cancelledAt = new Date().toISOString();
-      break;
-    }
+  case "GameCancelled": {
+    game.cancelled = true;
+    game.cancelledAt = new Date().toISOString();
+    break;
+  }
 
-    case "GameSettled": {
-      const winner = args[1];
-      if (!winner) break;
-
-      game.settled = true;
-      game.winner = winner.toLowerCase();
-      game.settledAt = new Date().toISOString();
-      break;
-    }
-
-    default:
-      return;
+  case "GameSettled": {
+    const winner = args[1];
+    game.settled = true;
+    game.winner = winner.toLowerCase();
+    game.settledAt = new Date().toISOString();
+    break;
+  }
   }
 
   writeGames(games);
