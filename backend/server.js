@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { readOwnerCache, writeOwnerCache } from "./utils/ownerCache.js";
+import { initAdminWallet } from "./admin.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,6 +67,13 @@ app.get("/metadata/:collection/:tokenId", (req, res) => {
 await generateMapping();
 
 const PORT = 3001;
+
+try {
+  initAdminWallet();
+} catch (err) {
+  console.error("❌ Failed to initialize admin wallet:", err.message);
+  process.exit(1); // hard fail — backend must not run without admin
+}
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend server running at https://coreclashgame.onrender.com:${PORT}`);
