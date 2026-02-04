@@ -13,6 +13,25 @@ export async function handleEvent(e) {
   const eventName = e.eventName;
   const args = e.args;
 
+// Sanitize BigInt values in args for logging and broadcasting
+  function sanitizeBigInt(value) {
+  if (typeof value === "bigint") {
+    return value.toString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(sanitizeBigInt);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, sanitizeBigInt(v)])
+    );
+  }
+
+  return value;
+}
+
   // ---------------- TRANSFER HANDLING ----------------
   if (eventName === "Transfer") {
     const contractAddr = e.address.toLowerCase();
@@ -101,10 +120,8 @@ export async function handleEvent(e) {
 
   writeGames(games);
 
-  broadcast(eventName, {
-    gameId,
-    args: args.map(a =>
-      typeof a === "bigint" ? a.toString() : a
-    )
-  });
+broadcast(eventName, sanitizeBigInt({
+  gameId,
+  args
+}));
 }
