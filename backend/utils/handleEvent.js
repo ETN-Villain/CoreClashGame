@@ -37,16 +37,17 @@ if (event.event === "Transfer") {
 
   const gameId = Number(args[0]);
 
-  let game = games.find(g => g.id === gameId);
-  if (!game) {
-    game = {
-      id: gameId,
-      cancelled: false,
-      settled: false,
-      _reveal: {}
-    };
-    games.push(game);
-  }
+let game = games.find(g => g.id === gameId);
+if (!game) {
+  game = {
+    id: gameId,
+    cancelled: false,
+    settled: false,
+    player1Reveal: null,
+    player2Reveal: null,
+  };
+  games.push(game);
+}
 
 if (!game) {
   console.warn(`⚠ Event for unknown game ${id} ignored`);

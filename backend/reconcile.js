@@ -74,8 +74,7 @@ let added = 0;
 // -------------------- RECONCILE ALL GAMES --------------------
 export async function reconcileAllGames() {
   const games = readGames();
-  const preservedReveal = game._reveal;
-await discoverMissingGames(); // append-only side effect
+  await discoverMissingGames(); // append-only side effect
   let dirty = false;
 
   for (const game of games) {
@@ -98,7 +97,10 @@ await discoverMissingGames(); // append-only side effect
 
     // detect desync
     if (game.settled && onChain.winner !== game.winner) {
-      console.error(`[DESYNC] Game ${game.id} winner mismatch`, { chain: onChain.winner, backend: game.winner });
+      console.error(
+        `[DESYNC] Game ${game.id} winner mismatch`,
+        { chain: onChain.winner, backend: game.winner }
+      );
     }
 
     // fetch backendWinner safely
@@ -109,6 +111,7 @@ await discoverMissingGames(); // append-only side effect
       backendWinner = null;
     }
 
+    // update game settled state
     game.settled = true;
     game.settledAt = new Date().toISOString();
 
@@ -121,21 +124,21 @@ await discoverMissingGames(); // append-only side effect
     }
 
     // update reveal flags safely
-if (onChain.player1Revealed && !game.player1Revealed) {
-  game.player1Revealed = true;
-  dirty = true;
-}
+    if (onChain.player1Revealed && !game.player1Revealed) {
+      game.player1Revealed = true;
+      dirty = true;
+    }
 
-if (onChain.player2Revealed && !game.player2Revealed) {
-  game.player2Revealed = true;
-  dirty = true;
-}
+    if (onChain.player2Revealed && !game.player2Revealed) {
+      game.player2Revealed = true;
+      dirty = true;
+    }
 
-  // 🔒 restore backend-only data
-  if (preservedReveal) {
-    game._reveal = preservedReveal;
-  }
-    dirty = true;
+    // 🔒 remove _reveal entirely
+    if (game._reveal) {
+      delete game._reveal;
+      dirty = true;
+    }
   }
 
   if (dirty) {
