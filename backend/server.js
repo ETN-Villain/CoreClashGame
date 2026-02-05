@@ -15,7 +15,7 @@ import { loadMapping, METADATA_JSON_DIR } from "./paths.js";
 import gamesRouter from "./routes/games.js";
 import sseRouter from "./routes/sse.js";
 import nftsRouter from "./routes/nfts.js";
-import { reconcileAllGames } from "./reconcile.js";
+import { reconcileAllGamesScheduled } from "./reconcile.js";
 import "./eventListener.js";
 
 const app = express();
@@ -82,7 +82,7 @@ app.listen(PORT, () => {
 /* ---------- RECONCILE GAMES WITH CHAIN --------*/
 (async () => {
   try {
-    await reconcileAllGames();
+    await reconcileAllGamesScheduled();
     console.log("[SERVER] Reconciliation complete");
   } catch (err) {
     console.error("[SERVER] Reconciliation failed", err);

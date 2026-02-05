@@ -12,7 +12,7 @@ import { readGames, writeGames } from "../store/gamesStore.js";
 import { resolveGame } from "../gameLogic.js";
 import { fetchOwnedTokenIds } from "../utils/nftUtils.js";
 import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";
-import { reconcileAllGames } from "../reconcile.js";
+import { reconcileAllGamesScheduled } from "../reconcile.js";
 import { broadcast } from "./sse.js";
 import { adminContract, adminWalletReady } from "../admin.js";
 
@@ -818,7 +818,7 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
     }
 
     // Ensure backend matches on-chain first
-    await reconcileAllGames();
+    await reconcileAllGamesScheduled();
 
     const games = readGames();
     const game = games.find(g => g.id === gameId);
