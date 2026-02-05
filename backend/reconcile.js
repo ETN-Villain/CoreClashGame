@@ -3,7 +3,6 @@ import { contract } from "./routes/games.js";
 import { ethers } from "ethers";
 import { withLock } from "./utils/mutex.js";
 import PQueue from "p-queue"; // for throttling promises
-import { ZERO } from "./constants.js";
 
 const ZERO = ethers.ZeroAddress;
 
