@@ -1,6 +1,7 @@
 import { readGames, writeGames } from "./store/gamesStore.js";
 import { contract } from "./routes/games.js";
 import { ethers } from "ethers";
+import { withLock } from "./utils/mutex.js";
 
 const ZERO = ethers.ZeroAddress;
 
@@ -8,50 +9,42 @@ const ZERO = ethers.ZeroAddress;
 export async function discoverMissingGames() {
   const games = readGames();
   const knownIds = new Set(games.map(g => g.id));
-let added = 0;
+  const maxKnownId = games.length
+    ? Math.max(...games.map(g => g.id))
+    : -1;
 
-  let gamesLength = 0;
+  let gamesLength;
   try {
     gamesLength = Number(await contract.gamesLength());
   } catch (err) {
     console.error("[DISCOVER] Failed to get gamesLength:", err.message);
-    return games; // return existing games
+    return { added: 0 };
   }
 
-  for (let id = 0; id < gamesLength; id++) {
-    if (knownIds.has(id)) continue;
+  let added = 0;
 
+  // 🔥 Only fetch new IDs
+  for (let id = maxKnownId + 1; id < gamesLength; id++) {
     let onChain;
     try {
       onChain = await contract.games(id);
-    } catch (err) {
-      // handle RPC rate-limit
-      if (err.info?.error?.message?.includes("Too many requests")) {
-        console.warn(`[DISCOVER] Rate-limited on game ${id}, retrying in 10s...`);
-        await new Promise(r => setTimeout(r, 10000));
-        try {
-          onChain = await contract.games(id);
-        } catch (retryErr) {
-          console.error(`[DISCOVER] Retry failed for game ${id}:`, retryErr.message);
-          continue;
-        }
-      } else {
-        console.error(`[DISCOVER] Failed to load on-chain game ${id}:`, err.message);
-        continue; // skip this game
-      }
+    } catch {
+      break; // stop on RPC instability
     }
 
     if (!onChain || onChain.player1 === ZERO) continue;
 
     games.push({
       id,
-      player1: typeof onChain.player1 === "string" ? onChain.player1.toLowerCase() : null,
-      player2: typeof onChain.player2 === "string" ? onChain.player2.toLowerCase() : null,
+      player1: onChain.player1.toLowerCase(),
+      player2: onChain.player2?.toLowerCase() || null,
       stakeAmount: onChain.stakeAmount?.toString() || "0",
       stakeToken: onChain.stakeToken || null,
       settled: !!onChain.settled,
-      cancelled: onChain.cancelled === true,
-      winner: onChain.settled && typeof onChain.winner === "string" ? onChain.winner.toLowerCase() : null,
+      cancelled: !!onChain.cancelled,
+      winner: onChain.settled && onChain.winner !== ZERO
+        ? onChain.winner.toLowerCase()
+        : null,
       player1Revealed: !!onChain.player1Revealed,
       player2Revealed: !!onChain.player2Revealed,
       createdAt: new Date().toISOString(),
@@ -60,70 +53,36 @@ let added = 0;
     added++;
   }
 
-  if (games.length > gamesLength) {
-    console.warn(`[WARN] Backend has ${games.length} games, but chain reports ${gamesLength}`);
+  if (added > 0) {
+    writeGames(games);
+    console.log(`[DISCOVER] Added ${added} new games`);
   }
 
-  if (added > 0) {
-    games.sort((a, b) => a.id - b.id);
-    writeGames(games);
-    console.log(`[DISCOVER] Added ${added} missing game(s)`);
-  }
+  return { added };
 }
 
 // -------------------- RECONCILE ALL GAMES --------------------
 export async function reconcileAllGames() {
-  const games = readGames();
-  await discoverMissingGames(); // append-only side effect
+  await withLock(async () => {
+  let games = readGames();
   let dirty = false;
+
+  // 1️⃣ Append-only discovery
+  const { added } = await discoverMissingGames();
+  if (added > 0) {
+    games = readGames(); // re-read after disk write
+    dirty = true;
+  }
 
   for (const game of games) {
     let onChain;
     try {
       onChain = await contract.games(game.id);
-    } catch (err) {
-      console.error(`[RECONCILE] Failed to fetch on-chain game ${game.id}:`, err.message);
-      continue;
-    }
-
-    // skip if not settled
-    if (!onChain?.settled) continue;
-
-    // prevent overwriting terminal state incorrectly
-    if (game.settled === true && !onChain.settled) {
-      console.warn(`[RECONCILE] Backend settled but chain not settled for game ${game.id}`);
-      continue;
-    }
-
-    // detect desync
-    if (game.settled && onChain.winner !== game.winner) {
-      console.error(
-        `[DESYNC] Game ${game.id} winner mismatch`,
-        { chain: onChain.winner, backend: game.winner }
-      );
-    }
-
-    // fetch backendWinner safely
-    let backendWinner;
-    try {
-      backendWinner = await contract.backendWinner(game.id);
     } catch {
-      backendWinner = null;
+      continue;
     }
 
-    // update game settled state
-    game.settled = true;
-    game.settledAt = new Date().toISOString();
-
-    if (backendWinner && backendWinner !== ZERO) {
-      game.cancelled = false;
-      game.winner = typeof backendWinner === "string" ? backendWinner.toLowerCase() : null;
-    } else {
-      game.cancelled = true;
-      game.winner = null;
-    }
-
-    // update reveal flags safely
+    // 2️⃣ Reveal flags are safe mirrors
     if (onChain.player1Revealed && !game.player1Revealed) {
       game.player1Revealed = true;
       dirty = true;
@@ -134,15 +93,31 @@ export async function reconcileAllGames() {
       dirty = true;
     }
 
-    // 🔒 remove _reveal entirely
-    if (game._reveal) {
-      delete game._reveal;
+    // 3️⃣ Settlement mirror (non-authoritative)
+    if (onChain.settled && !game.settled) {
+      game.settled = true;
+      game.settledAt ??= new Date().toISOString();
       dirty = true;
+    }
+
+    // 4️⃣ Winner mirror ONLY if backend missing
+    if (onChain.settled && !game.winner) {
+      try {
+        const backendWinner = await contract.backendWinner(game.id);
+        if (backendWinner && backendWinner !== ZERO) {
+          game.winner = backendWinner.toLowerCase();
+          game.cancelled = false;
+          dirty = true;
+        }
+      } catch {
+        // ignore
+      }
     }
   }
 
   if (dirty) {
     writeGames(games);
-    console.log("[RECONCILE] games.json updated");
+    console.log("[RECONCILE] games.json updated safely");
   }
+});
 }
