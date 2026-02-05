@@ -501,6 +501,7 @@ router.post("/:id/backfill", async (req, res) => {
 
 // ---------------- COMPUTE RESULTS ----------------
 router.post("/:id/compute-results", async (req, res) => {
+  await withLock(async () => {
   try {
     const gameId = Number(req.params.id);
     if (!Number.isInteger(gameId)) {
@@ -536,12 +537,10 @@ router.post("/:id/compute-results", async (req, res) => {
     }
 
     // Persist computation ONLY
-    game.computedResults = {
-      winner: resolved.winner,
-      tie: resolved.tie,
-      roundResults: resolved.roundResults
-    };
-    game.settlementState = "computed";
+game.roundResults = resolved.roundResults;
+game.tie = resolved.tie;
+game.winner = resolved.tie ? null : resolved.winner;
+game.settlementState = "computed";
 
     writeGames(games);
 
@@ -564,18 +563,22 @@ router.post("/:id/compute-results", async (req, res) => {
     res.status(500).json({ error: err.message || "Internal error" });
   }
 });
+});
 
 /* ---------------- POST WINNER ---------------- */
 router.post("/:id/post-winner", async (req, res) => {
+  await withLock(async () => {
   try {
     const gameId = Number(req.params.id);
+    if (!Number.isInteger(gameId)) {
+      return res.status(400).json({ error: "Invalid game ID" });
+    }
 
-if (!adminWalletReady || !adminContract) {
-  return res.status(503).json({
-    success: false,
-    error: "Backend admin wallet not ready"
-  });
-}
+    if (!adminWalletReady || !adminContract) {
+      return res.status(503).json({
+        error: "Backend admin wallet not ready",
+      });
+    }
 
     const games = readGames();
     const game = games.find(g => g.id === gameId);
@@ -583,70 +586,45 @@ if (!adminWalletReady || !adminContract) {
       return res.status(404).json({ error: "Game not found" });
     }
 
-if (!game.player1Reveal || !game.player2Reveal) {
-  return res.status(400).json({ error: "Both players must reveal" });
-}
-
-    // Idempotent: backend already posted
-    if (game.postWinnerTxHash) {
+    // Idempotent
+    if (game.backendWinner) {
       return res.json({
         success: true,
         alreadyPosted: true,
-        txHash: game.postWinnerTxHash,
-        winner: game.tie ? null : game.backendWinner,
-        tie: game.tie,
+        winner: game.backendWinner,
       });
     }
 
-    // Resolve (pure computation)
-    const resolved = await resolveGame(game);
-    if (!resolved) {
-      return res.status(400).json({ error: "Game could not be resolved" });
+    // Require computed results
+    if (!Array.isArray(game.roundResults) || game.roundResults.length === 0) {
+      return res.status(400).json({
+        error: "Results not computed yet",
+      });
     }
 
-    const winnerAddress = resolved.tie
+    const winnerAddress = game.tie
       ? ethers.ZeroAddress
-      : resolved.winner.toLowerCase() === game.player1.toLowerCase()
+      : game.winner?.toLowerCase() === game.player1?.toLowerCase()
         ? game.player1
         : game.player2;
 
-    // Check chain idempotency
+    // Chain idempotency
     const onChainWinner = await adminContract.backendWinner(gameId);
-    if (onChainWinner !== ethers.ZeroAddress) {
-      game.backendWinner = onChainWinner;
-      game.postWinnerTxHash = "already-on-chain";
-      game.winnerResolvedAt = new Date().toISOString();
-
-      writeGames(games);
-
-      return res.json({
-        success: true,
-        alreadyPosted: true,
-        winner: onChainWinner,
-      });
+    if (onChainWinner === ethers.ZeroAddress) {
+      const tx = await adminContract.postWinner(gameId, winnerAddress);
+      await tx.wait();
+      game.postWinnerTxHash = tx.hash;
     }
 
-    // 🔐 ADMIN TX (commit point)
-    const tx = await adminContract.postWinner(gameId, winnerAddress);
-    console.log(`postWinner tx sent: ${tx.hash}`);
-    await tx.wait();
-
-    // ✅ Commit backend state ONLY after success
-    game.winner = resolved.tie ? null : winnerAddress;
-    game.roundResults = resolved.roundResults;
-    game.tie = resolved.tie;
     game.backendWinner = winnerAddress;
-    game.postWinnerTxHash = tx.hash;
     game.winnerResolvedAt = new Date().toISOString();
-    game.settlementState = "posted";
+    game.settlementState = "winner-posted";
 
     writeGames(games);
 
     res.json({
       success: true,
-      txHash: tx.hash,
-      winner: resolved.tie ? null : winnerAddress,
-      tie: resolved.tie,
+      winner: winnerAddress,
     });
 
   } catch (err) {
@@ -654,97 +632,172 @@ if (!game.player1Reveal || !game.player2Reveal) {
     res.status(500).json({ error: err.message });
   }
 });
+});
 
-/* ---------------- MANUAL SETTLE GAME ---------------- */
+/* ---------------- MANUAL SETTLE GAME (ORCHESTRATOR) ---------------- */
 router.post("/:id/settle-game", async (req, res) => {
+  await withLock(async () => {
   try {
     const gameId = Number(req.params.id);
-    if (!Number.isInteger(gameId)) return res.status(400).json({ error: "Invalid game ID" });
-
-if (game.settled) {
-  return res.status(400).json({
-    error: "Game already settled in backend",
-  });
-}
-
-const games = readGames();
-    const game = games.find(g => g.id === gameId);
-    if (!game) return res.status(404).json({ error: "Game not found" });
-
-    // Ensure winner is posted on-chain
-    if (!game.backendWinner) {
-      const resolved = await resolveGame(game);
-      const winnerAddress = resolved.winner ? (resolved.winner.toLowerCase() === game.player1.toLowerCase() ? game.player1 : game.player2) : ethers.ZeroAddress;
-      const txWinner = await contract.postWinner(gameId, winnerAddress);
-      await txWinner.wait();
-
-      game.backendWinner = winnerAddress;
-      game.winner = winnerAddress;
-      game.postWinnerTxHash = txWinner.hash;
-      game.winnerResolvedAt = new Date().toISOString();
-      game.tie = resolved.tie;
-
-      writeGames(games);
-      console.log(`Winner posted on-chain for game ${gameId}: ${winnerAddress}`);
+    if (!Number.isInteger(gameId)) {
+      return res.status(400).json({ error: "Invalid game ID" });
     }
 
-    // Send settleGame tx
+    // ---- Load game FIRST (fixes TDZ bug) ----
+    const games = readGames();
+    const game = games.find(g => g.id === gameId);
+    if (!game) {
+      return res.status(404).json({ error: "Game not found" });
+    }
+
+    // ---- Idempotency ----
+    if (game.settled === true) {
+      return res.json({
+        success: true,
+        alreadySettled: true,
+        gameId,
+      });
+    }
+
+    // ---- Require reveals ----
+    if (!game.player1Reveal || !game.player2Reveal) {
+      return res.status(400).json({
+        error: "Both players must reveal before settling",
+      });
+    }
+
+    // ------------------------------------------------------------
+    // 1️⃣ ENSURE RESULTS COMPUTED (pure backend state)
+    // ------------------------------------------------------------
+    let resolved;
+    if (!Array.isArray(game.roundResults) || game.roundResults.length === 0) {
+      resolved = await resolveGame(game);
+      if (!resolved || !resolved.roundResults) {
+        return res.status(500).json({ error: "Failed to compute results" });
+      }
+
+      game.roundResults = resolved.roundResults;
+      game.tie = resolved.tie;
+      game.winner = resolved.tie ? null : resolved.winner;
+      game.settlementState = "computed";
+
+      writeGames(games);
+    } else {
+      resolved = {
+        winner: game.winner,
+        tie: game.tie,
+        roundResults: game.roundResults,
+      };
+    }
+
+    // ------------------------------------------------------------
+    // 2️⃣ ENSURE WINNER POSTED ON-CHAIN (ADMIN ONLY)
+    // ------------------------------------------------------------
+    if (!game.backendWinner) {
+      if (!adminWalletReady || !adminContract) {
+        return res.status(503).json({
+          error: "Backend admin wallet not ready",
+        });
+      }
+
+      const winnerAddress = resolved.tie
+        ? ethers.ZeroAddress
+        : resolved.winner.toLowerCase() === game.player1.toLowerCase()
+          ? game.player1
+          : game.player2;
+
+      // Chain idempotency check
+      const onChainWinner = await adminContract.backendWinner(gameId);
+      if (onChainWinner === ethers.ZeroAddress) {
+        const tx = await adminContract.postWinner(gameId, winnerAddress);
+        await tx.wait();
+
+        game.postWinnerTxHash = tx.hash;
+      }
+
+      game.backendWinner = winnerAddress;
+      game.winnerResolvedAt = new Date().toISOString();
+      game.settlementState = "winner-posted";
+
+      writeGames(games);
+    }
+
+    // ------------------------------------------------------------
+    // 3️⃣ SETTLE GAME ON-CHAIN
+    // ------------------------------------------------------------
     const txSettle = await contract.settleGame(gameId);
     await txSettle.wait();
 
-    // Update backend state
+    // ------------------------------------------------------------
+    // 4️⃣ FINAL BACKEND COMMIT (SINGLE TERMINAL WRITE)
+    // ------------------------------------------------------------
     game.settled = true;
     game.settleTxHash = txSettle.hash;
     game.settledAt = new Date().toISOString();
+    game.settlementState = "settled";
 
     writeGames(games);
 
-    broadcast("GameSettled", games);
+    // 🔔 Minimal broadcast payload (NO BigInts)
+    broadcast("GameSettled", {
+      gameId,
+      txHash: txSettle.hash,
+    });
 
-    console.log(`Game ${gameId} settled on-chain with tx: ${txSettle.hash}`);
-    res.json({ success: true, gameId, txHash: txSettle.hash });
+    console.log(`✅ Game ${gameId} fully settled`);
+
+    return res.json({
+      success: true,
+      gameId,
+      txHash: txSettle.hash,
+    });
+
   } catch (err) {
     console.error("manual settle-game error:", err);
-    res.status(500).json({ error: err.message || "Failed to settle game" });
+    return res.status(500).json({
+      error: err.message || "Failed to settle game",
+    });
   }
+});
 });
 
 /* ---------------- FINALIZE SETTLE ---------------- */
-router.post("/:id/finalize-settle", (req, res) => {
+router.post("/:id/finalize-settle", async (req, res) => {
+  const gameId = Number(req.params.id);
+  const { txHash } = req.body;
+
+  if (!txHash) {
+    return res.status(400).json({ error: "Missing txHash" });
+  }
+
   try {
-    const gameId = Number(req.params.id);
-    const { txHash } = req.body;
+    await withLock(async () => {
+      const games = readGames();
+      const game = games.find(g => g.id === gameId);
+      if (!game) return res.status(404).json({ error: "Game not found" });
 
-    if (!txHash) {
-      return res.status(400).json({ error: "Missing txHash" });
-    }
+      if (game.settled) {
+        return res.json({ success: true, alreadySettled: true });
+      }
 
-    const games = readGames();
-    const game = games.find(g => g.id === gameId);
-    if (!game) return res.status(404).json({ error: "Game not found" });
+      if (!game.backendWinner && !game.tie) {
+        return res.status(400).json({ error: "Winner not posted yet" });
+      }
 
-    if (game.settled) {
-      return res.json({ success: true, alreadySettled: true });
-    }
+      // ✅ Canonical settlement
+      game.settled = true;
+      game.settleTxHash = txHash;
+      game.settledAt = new Date().toISOString();
+      game.winner ??= game.backendWinner ?? ethers.ZeroAddress;
 
-    if (!game.backendWinner && !game.tie) {
-      return res.status(400).json({ error: "Winner not posted yet" });
-    }
+      writeGames(games);
 
-    // ✅ Canonical settlement
-    game.settled = true;
-    game.settleTxHash = txHash;
-    game.settledAt = new Date().toISOString();
-    game.winner ??= game.backendWinner ?? ethers.ZeroAddress;
-    
-    writeGames(games);
-
-    res.json({
-      success: true,
-      gameId,
-      txHash,
+      res.json({
+        success: true,
+        gameId,
+        txHash,
+      });
     });
-
   } catch (err) {
     console.error("finalize-settle error:", err);
     res.status(500).json({ error: err.message });
