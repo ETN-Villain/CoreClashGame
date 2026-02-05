@@ -15,6 +15,7 @@ import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";
 import { reconcileAllGamesScheduled } from "../reconcile.js";
 import { broadcast } from "./sse.js";
 import { adminContract, adminWalletReady } from "../admin.js";
+import { withLock } from "./utils/mutex.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
