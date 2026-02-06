@@ -3,6 +3,7 @@ import { contract } from "./routes/games.js";
 import { ethers } from "ethers";
 import { withLock } from "./utils/mutex.js";
 import PQueue from "p-queue";
+import { isCatchingUp } from "./eventListener.js";
 
 const ZERO = ethers.ZeroAddress;
 const RPC_CONCURRENCY = 5;

@@ -222,3 +222,5 @@ for (const log of settledLogs) {
   }
 
 }, POLL_INTERVAL_MS);
+
+export { isCatchingUp };
