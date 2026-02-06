@@ -1089,17 +1089,17 @@
     "player2": "0x9343e399d44e701fc26130bdbf8817d78f086867",
     "stakeAmount": "30000000000000000000",
     "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
-    "settled": false,
+    "settled": true,
     "cancelled": false,
-    "winner": "0x0000000000000000000000000000000000000000",
-    "backendWinner": "0x0000000000000000000000000000000000000000",
+    "winner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+    "backendWinner": "0x2871835ca982f248f61c3a1995931e205c9d5243",
     "player1Revealed": true,
     "player2Revealed": true,
     "backendPlayer1Revealed": true,
     "backendPlayer2Revealed": true,
-    "roundResults": [],
+    "roundResults":[{"round":1,"winner":"player1","diff":8},{"round":2,"winner":"player1","diff":21},{"round":3,"winner":"player1","diff":0}],
     "tie": false,
-    "settledAt": null,
+    "settledAt": "2026-02-05T22:37:36.178Z",
     "player1Reveal": {
       "salt": "84152212458511396203141495546294323301366418398388017285423442890417220572439",
       "nftContracts": [
@@ -1135,7 +1135,9 @@
         "Zephyros Surface",
         "Rose Gold"
       ]
-    }
+    },
+  "settlementState":"settled",
+  "settleTxHash":"0x004b990c32f2dc54e289e52ea6853a0cd07f22701a0f3e9c7bc9dbe79ab41271"
   },
   {
     "id": 21,
