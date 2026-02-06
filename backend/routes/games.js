@@ -273,11 +273,11 @@ const revealData = {
   backgrounds,
 };
 
-game[slot + "Reveal"] = revealData;
-
 // Update backend flags
 game.backendPlayer1Revealed = !!game.player1Reveal;
 game.backendPlayer2Revealed = !!game.player2Reveal;
+
+game[slot + "Reveal"] = revealData;
 
     writeGames(games);  // early save so state is persisted even if auto fails
 
