@@ -138,10 +138,7 @@ for (const log of settledLogs) {
   const games = readGames();
   const game = games.find(g => g.id === gameId);
   if (!game) continue;
-
-        // Save backend state after processing all settled logs
-        saveGames(loadGames());
-      }
+    }
       
       // ----- NFT transfer logs (VKIN & VQLE) -----
       const getTransferLogs = async (address) =>
