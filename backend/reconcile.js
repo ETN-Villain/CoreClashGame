@@ -79,6 +79,10 @@ setInterval(discoverMissingGamesScheduled, 60 * 1000);
 const reconcileQueue = new PQueue({ concurrency: RPC_CONCURRENCY });
 
 export async function reconcileAllGamesScheduled() {
+if (isCatchingUp) {
+  console.log("[SKIP] Skipping reconcile while catching up");
+  return;
+}
   await withLock(async () => {
     const games = readGames();
     let dirty = false;
@@ -98,15 +102,19 @@ export async function reconcileAllGamesScheduled() {
             }
 
             // ---- Winner reconciliation (trust chain) ----
-            let backendWinner;
-            try {
-              backendWinner = await contract.backendWinner(game.id);
-            } catch (err) {
-              console.warn(
-                `[RECONCILE] backendWinner fetch failed for game ${game.id}`
-              );
-              return; // do NOT touch backend state
-            }
+let backendWinner;
+try {
+  backendWinner = await contract.backendWinner(game.id);
+} catch (err) {
+  if (err.message?.includes("Too many requests")) {
+    console.warn(`[RECONCILE] Rate-limited for game ${game.id}, retrying 5s...`);
+    await new Promise(r => setTimeout(r, 5000));
+    backendWinner = await contract.backendWinner(game.id).catch(() => null);
+  } else {
+    console.warn(`[RECONCILE] backendWinner fetch failed for game ${game.id}`);
+    return;
+  }
+}
 
             if (backendWinner === ZERO) {
               // cancelled or tie
