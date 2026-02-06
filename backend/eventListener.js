@@ -106,7 +106,7 @@ setInterval(async () => {
 
       for (const log of createdLogs) {
         const parsed = gameInterface.parseLog(log);
-        await handleGameCreated(parsed.args.gameId);
+      await handleGameCreated(Number(parsed.args.gameId));
       }
 
       // ----- GameJoined events -----
