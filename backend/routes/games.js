@@ -638,128 +638,131 @@ router.post("/:id/post-winner", async (req, res) => {
 /* ---------------- MANUAL SETTLE GAME (ORCHESTRATOR) ---------------- */
 router.post("/:id/settle-game", async (req, res) => {
   await withLock(async () => {
-  try {
-    const gameId = Number(req.params.id);
-    if (!Number.isInteger(gameId)) {
-      return res.status(400).json({ error: "Invalid game ID" });
-    }
-
-    // ---- Load game FIRST (fixes TDZ bug) ----
-    const games = readGames();
-    const game = games.find(g => g.id === gameId);
-    if (!game) {
-      return res.status(404).json({ error: "Game not found" });
-    }
-
-    // ---- Idempotency ----
-    if (game.settled === true) {
-      return res.json({
-        success: true,
-        alreadySettled: true,
-        gameId,
-      });
-    }
-
-    // ---- Require reveals ----
-    if (!game.player1Reveal || !game.player2Reveal) {
-      return res.status(400).json({
-        error: "Both players must reveal before settling",
-      });
-    }
-
-    // ------------------------------------------------------------
-    // 1️⃣ ENSURE RESULTS COMPUTED (pure backend state)
-    // ------------------------------------------------------------
-    let resolved;
-    if (!Array.isArray(game.roundResults) || game.roundResults.length === 0) {
-      resolved = await resolveGame(game);
-      if (!resolved || !resolved.roundResults) {
-        return res.status(500).json({ error: "Failed to compute results" });
+    try {
+      const gameId = Number(req.params.id);
+      if (!Number.isInteger(gameId)) {
+        return res.status(400).json({ error: "Invalid game ID" });
       }
 
-      game.roundResults = resolved.roundResults;
-      game.tie = resolved.tie;
-      game.winner = resolved.tie ? null : resolved.winner;
-      game.settlementState = "computed";
+      // ---- Load backend state FIRST ----
+      const games = readGames();
+      const game = games.find(g => g.id === gameId);
+      if (!game) {
+        return res.status(404).json({ error: "Game not found" });
+      }
 
-      writeGames(games);
-    } else {
-      resolved = {
-        winner: game.winner,
-        tie: game.tie,
-        roundResults: game.roundResults,
-      };
-    }
-
-    // ------------------------------------------------------------
-    // 2️⃣ ENSURE WINNER POSTED ON-CHAIN (ADMIN ONLY)
-    // ------------------------------------------------------------
-    if (!game.backendWinner) {
-      if (!adminWalletReady || !adminContract) {
-        return res.status(503).json({
-          error: "Backend admin wallet not ready",
+      // ---- Idempotency ----
+      if (game.settled === true) {
+        return res.json({
+          success: true,
+          alreadySettled: true,
+          gameId,
         });
       }
 
-      const winnerAddress = resolved.tie
-        ? ethers.ZeroAddress
-        : resolved.winner.toLowerCase() === game.player1.toLowerCase()
-          ? game.player1
-          : game.player2;
-
-      // Chain idempotency check
-      const onChainWinner = await adminContract.backendWinner(gameId);
-      if (onChainWinner === ethers.ZeroAddress) {
-        const tx = await adminContract.postWinner(gameId, winnerAddress);
-        await tx.wait();
-
-        game.postWinnerTxHash = tx.hash;
+      // ---- Require reveals ----
+      if (!game.player1Reveal || !game.player2Reveal) {
+        return res.status(400).json({
+          error: "Both players must reveal before settling",
+        });
       }
 
-      game.backendWinner = winnerAddress;
-      game.winnerResolvedAt = new Date().toISOString();
-      game.settlementState = "winner-posted";
+      // ------------------------------------------------------------
+      // 0️⃣ TRUST CHAIN FIRST (hydrate backendWinner if exists)
+      // ------------------------------------------------------------
+      let onChainWinner;
+      try {
+        onChainWinner = await contract.backendWinner(gameId);
+      } catch (err) {
+        return res.status(503).json({
+          error: "Failed to read winner from chain",
+        });
+      }
+
+      if (onChainWinner !== ethers.ZeroAddress) {
+        game.backendWinner = onChainWinner.toLowerCase();
+        game.winner = onChainWinner.toLowerCase();
+      }
+
+      // ------------------------------------------------------------
+      // 1️⃣ ENSURE RESULTS COMPUTED (pure backend)
+      // ------------------------------------------------------------
+      let resolved;
+      if (!Array.isArray(game.roundResults) || game.roundResults.length === 0) {
+        resolved = await resolveGame(game);
+        if (!resolved || !resolved.roundResults) {
+          return res.status(500).json({ error: "Failed to compute results" });
+        }
+
+        game.roundResults = resolved.roundResults;
+        game.tie = resolved.tie;
+        game.winner = resolved.tie ? null : resolved.winner;
+        game.settlementState = "computed";
+
+        writeGames(games);
+      } else {
+        resolved = {
+          winner: game.winner,
+          tie: game.tie,
+          roundResults: game.roundResults,
+        };
+      }
+
+      // ------------------------------------------------------------
+      // 2️⃣ ENSURE WINNER POSTED ON-CHAIN
+      // ------------------------------------------------------------
+      if (!game.backendWinner) {
+        if (!adminWalletReady || !adminContract) {
+          return res.status(503).json({
+            error: "Backend admin wallet not ready",
+          });
+        }
+
+        const winnerAddress = resolved.tie
+          ? ethers.ZeroAddress
+          : resolved.winner.toLowerCase() === game.player1.toLowerCase()
+            ? game.player1
+            : game.player2;
+
+        if (onChainWinner === ethers.ZeroAddress) {
+          const tx = await adminContract.postWinner(gameId, winnerAddress);
+          await tx.wait();
+          game.postWinnerTxHash = tx.hash;
+        }
+
+        game.backendWinner = winnerAddress;
+        game.winnerResolvedAt = new Date().toISOString();
+        game.settlementState = "winner-posted";
+
+        writeGames(games);
+      }
+
+      // ------------------------------------------------------------
+      // 3️⃣ SETTLE GAME ON-CHAIN
+      // ------------------------------------------------------------
+      const txSettle = await adminContract.settleGame(gameId);
+      await txSettle.wait();
+
+      game.settled = true;
+      game.settleTxHash = txSettle.hash;
+      game.settledAt = new Date().toISOString();
+      game.settlementState = "settled";
 
       writeGames(games);
+
+      return res.json({
+        success: true,
+        gameId,
+        txHash: txSettle.hash,
+      });
+
+    } catch (err) {
+      console.error("manual settle-game error:", err);
+      return res.status(500).json({
+        error: err.message || "Failed to settle game",
+      });
     }
-
-    // ------------------------------------------------------------
-    // 3️⃣ SETTLE GAME ON-CHAIN
-    // ------------------------------------------------------------
-    const txSettle = await contract.settleGame(gameId);
-    await txSettle.wait();
-
-    // ------------------------------------------------------------
-    // 4️⃣ FINAL BACKEND COMMIT (SINGLE TERMINAL WRITE)
-    // ------------------------------------------------------------
-    game.settled = true;
-    game.settleTxHash = txSettle.hash;
-    game.settledAt = new Date().toISOString();
-    game.settlementState = "settled";
-
-    writeGames(games);
-
-    // 🔔 Minimal broadcast payload (NO BigInts)
-    broadcast("GameSettled", {
-      gameId,
-      txHash: txSettle.hash,
-    });
-
-    console.log(`✅ Game ${gameId} fully settled`);
-
-    return res.json({
-      success: true,
-      gameId,
-      txHash: txSettle.hash,
-    });
-
-  } catch (err) {
-    console.error("manual settle-game error:", err);
-    return res.status(500).json({
-      error: err.message || "Failed to settle game",
-    });
-  }
-});
+  });
 });
 
 /* ---------------- FINALIZE SETTLE ---------------- */

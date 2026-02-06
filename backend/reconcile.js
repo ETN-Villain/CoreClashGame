@@ -2,13 +2,16 @@ import { readGames, writeGames } from "./store/gamesStore.js";
 import { contract } from "./routes/games.js";
 import { ethers } from "ethers";
 import { withLock } from "./utils/mutex.js";
-import PQueue from "p-queue"; // for throttling promises
+import PQueue from "p-queue";
 
 const ZERO = ethers.ZeroAddress;
+const RPC_CONCURRENCY = 5;
 
-// -------------------- DISCOVER MISSING GAMES --------------------
-// backend/schedulers.js
-const queue = new PQueue({ concurrency: 5 }); // max 5 RPC calls at a time
+/* ================================================================
+   DISCOVER MISSING GAMES (every 1 min)
+   ================================================================ */
+
+const discoverQueue = new PQueue({ concurrency: RPC_CONCURRENCY });
 
 export async function discoverMissingGamesScheduled() {
   const games = readGames();
@@ -19,7 +22,7 @@ export async function discoverMissingGamesScheduled() {
   try {
     gamesLength = Number(await contract.gamesLength());
   } catch (err) {
-    console.error("[DISCOVER SCHEDULED] Failed to fetch gamesLength:", err.message);
+    console.error("[DISCOVER] Failed to fetch gamesLength:", err.message);
     return;
   }
 
@@ -32,7 +35,7 @@ export async function discoverMissingGamesScheduled() {
 
   await Promise.all(
     missingIds.map(id =>
-      queue.add(async () => {
+      discoverQueue.add(async () => {
         try {
           const onChain = await contract.games(id);
           if (!onChain || onChain.player1 === ZERO) return;
@@ -53,7 +56,7 @@ export async function discoverMissingGamesScheduled() {
 
           added++;
         } catch (err) {
-          console.warn(`[DISCOVER SCHEDULED] Failed on game ${id}:`, err.message);
+          console.warn(`[DISCOVER] Failed on game ${id}:`, err.message);
         }
       })
     )
@@ -62,73 +65,99 @@ export async function discoverMissingGamesScheduled() {
   if (added > 0) {
     games.sort((a, b) => a.id - b.id);
     writeGames(games);
-    console.log(`[DISCOVER SCHEDULED] Added ${added} missing game(s)`);
+    console.log(`[DISCOVER] Added ${added} missing game(s)`);
   }
 }
 
-// Schedule every 1 minute
+// every 1 minute
 setInterval(discoverMissingGamesScheduled, 60 * 1000);
 
-// -------------------- RECONCILE ALL GAMES --------------------
+/* ================================================================
+   RECONCILE ALL GAMES (every 10 min)
+   ================================================================ */
+
+const reconcileQueue = new PQueue({ concurrency: RPC_CONCURRENCY });
+
 export async function reconcileAllGamesScheduled() {
   await withLock(async () => {
-  const games = readGames();
-  let dirty = false;
+    const games = readGames();
+    let dirty = false;
 
-  const queue = new PQueue({ concurrency: 5 });
-
-  await Promise.all(
-    games.map(game =>
-      queue.add(async () => {
-        try {
-          const onChain = await contract.games(game.id);
-          if (!onChain?.settled) return;
-
-          game.settled = true;
-          game.settledAt = new Date().toISOString();
-
-          let backendWinner;
+    await Promise.all(
+      games.map(game =>
+        reconcileQueue.add(async () => {
           try {
-            backendWinner = await contract.backendWinner(game.id);
-          } catch {
-            backendWinner = null;
-          }
+            const onChain = await contract.games(game.id);
+            if (!onChain?.settled) return;
 
-          if (backendWinner && backendWinner !== ZERO) {
-            game.cancelled = false;
-            game.winner = backendWinner.toLowerCase();
-          } else {
-            game.cancelled = true;
-            game.winner = null;
-          }
+            // ---- Chain is settled → backend must reflect it ----
+            if (!game.settled) {
+              game.settled = true;
+              game.settledAt = new Date().toISOString();
+              dirty = true;
+            }
 
-          if (onChain.player1Revealed && !game.player1Revealed) {
-            game.player1Revealed = true;
-            dirty = true;
-          }
+            // ---- Winner reconciliation (trust chain) ----
+            let backendWinner;
+            try {
+              backendWinner = await contract.backendWinner(game.id);
+            } catch (err) {
+              console.warn(
+                `[RECONCILE] backendWinner fetch failed for game ${game.id}`
+              );
+              return; // do NOT touch backend state
+            }
 
-          if (onChain.player2Revealed && !game.player2Revealed) {
-            game.player2Revealed = true;
-            dirty = true;
-          }
+            if (backendWinner === ZERO) {
+              // cancelled or tie
+              if (!game.cancelled) {
+                game.cancelled = true;
+                game.winner = null;
+                game.backendWinner = null;
+                dirty = true;
+              }
+            } else {
+              const winner = backendWinner.toLowerCase();
+              if (game.backendWinner !== winner) {
+                game.cancelled = false;
+                game.backendWinner = winner;
+                game.winner = winner;
+                dirty = true;
+              }
+            }
 
-          if (game._reveal) {
-            delete game._reveal;
-            dirty = true;
-          }
-        } catch (err) {
-          console.warn(`[RECONCILE SCHEDULED] Failed for game ${game.id}:`, err.message);
-        }
-      })
-    )
-  );
+            // ---- Reveal flags ----
+            if (onChain.player1Revealed && !game.player1Revealed) {
+              game.player1Revealed = true;
+              dirty = true;
+            }
 
-  if (dirty) {
-    writeGames(games);
-    console.log("[RECONCILE SCHEDULED] games.json updated");
-  }
+            if (onChain.player2Revealed && !game.player2Revealed) {
+              game.player2Revealed = true;
+              dirty = true;
+            }
+
+            // ---- Cleanup legacy temp fields ----
+            if (game._reveal) {
+              delete game._reveal;
+              dirty = true;
+            }
+          } catch (err) {
+            console.warn(
+              `[RECONCILE] Failed for game ${game.id}:`,
+              err.message
+            );
+          }
+        })
+      )
+    );
+
+    if (dirty) {
+      writeGames(games);
+      console.log("[RECONCILE] games.json updated");
+    }
   });
 }
 
-// Schedule every 10 minutes
+// every 10 minutes
 setInterval(reconcileAllGamesScheduled, 10 * 60 * 1000);
