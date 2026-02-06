@@ -199,12 +199,19 @@ router.post("/:id/reveal", async (req, res) => {  // ← make async so we can aw
     const game = games.find(g => g.id === gameId);
     if (!game) return res.status(404).json({ error: "Game not found" });
 
-    const playerLc = player.toLowerCase();
-// Determine slot
+const walletLc = req.wallet.toLowerCase(); // connected wallet
+const p1 = game.player1.toLowerCase();
+const p2 = game.player2.toLowerCase();
+
 let slot;
-if (game.player1 === playerLc) slot = "player1";
-else if (game.player2 === playerLc) slot = "player2";
+if (walletLc === p1) slot = "player1";
+else if (walletLc === p2) slot = "player2";
 else return res.status(403).json({ error: "Not a game participant" });
+
+// Optional sanity check
+if (player && player.toLowerCase() !== walletLc) {
+  return res.status(400).json({ error: "Reveal file player mismatch" });
+}
 
 // Check if reveal already submitted
 if (game[slot + "Reveal"]) {
