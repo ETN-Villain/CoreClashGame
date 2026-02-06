@@ -1,6 +1,6 @@
 import express from "express";
 const router = express.Router();
-
+import PQueue from "p-queue";
 import fs from "fs";
 import path from "path";
 import { ethers } from "ethers";
@@ -13,6 +13,22 @@ import VKIN_ABI from "../../src/abis/VKINABI.json" assert { type: "json" };
 import VQLE_ABI from "../../src/abis/VQLEABI.json" assert { type: "json" };
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
+const RPC_CONCURRENCY = 5; // max 5 concurrent RPC calls
+const RETRY_COUNT = 3; 
+const RETRY_DELAY_MS = 1000;
+
+// Retry wrapper
+async function retryRpc(fn, retries = RETRY_COUNT, delayMs = RETRY_DELAY_MS) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      console.warn(`RPC attempt ${attempt} failed: ${err.message}`);
+      if (attempt < retries) await delay(delayMs);
+      else throw err;
+    }
+  }
+}
 
 const addressToCollection = {
   [VKIN_CONTRACT_ADDRESS.toLowerCase()]: "VKIN",
@@ -77,10 +93,10 @@ router.post("/force-cache/:wallet", async (req, res) => {
     const vqle = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLE_ABI, provider);
 
     console.log("Force-scanning VKIN...");
-    const vkinIds = await fetchOwnedTokenIds(vkin, wallet, "VKIN");
+const vkinIds = await retryRpc(() => fetchOwnedTokenIds(vkin, wallet, "VKIN"));
 
     console.log("Force-scanning VQLE...");
-    const vqleIds = await fetchOwnedTokenIds(vqle, wallet, "VQLE");
+const vqleIds = await retryRpc(() => fetchOwnedTokenIds(vqle, wallet, "VQLE"));
 
     cache[wallet] = { VKIN: vkinIds, VQLE: vqleIds };
     writeOwnerCache(cache);
@@ -111,6 +127,8 @@ router.get("/owned/:wallet", async (req, res) => {
       const vkin = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
       const vqle = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLE_ABI, provider);
 
+      const queue = new PQueue({ concurrency: RPC_CONCURRENCY });
+
       console.log("Scanning VKIN...");
       const vkinIds = await fetchOwnedTokenIds(vkin, wallet, "VKIN");  // ← fixed: "VKIN"
 
@@ -122,13 +140,14 @@ router.get("/owned/:wallet", async (req, res) => {
       writeOwnerCache(cache);
 
       console.log(`Cache filled: ${vkinIds.length} VKIN, ${vqleIds.length} VQLE`);
-    } catch (err) {
+} catch (err) {
       console.error("On-chain scan failed:", err.message);
+      return res.status(500).json({ error: err.message });
     }
   } else {
     console.log("Cache hit — using cached data");
   }
-
+  
   // Enrich and return (your existing code)
 // After cache fill or cache hit
 const result = [];

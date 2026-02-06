@@ -80,6 +80,7 @@ const vqleIds = vqleResult.status === "fulfilled" ? vqleResult.value : [];
 }
 
 // ── POLLING LOOP ──
+let isCatchingUp = true; // startup flag
 setInterval(async () => {
   try {
     const currentBlock = await provider.getBlockNumber();
@@ -209,9 +210,15 @@ for (const log of settledLogs) {
       saveLastBlock(lastBlock);
       fromBlock = toBlock + 1;
 
+  if (toBlock === currentBlock) {
+  isCatchingUp = false;
+  console.log("✅ Event indexer caught up to latest block");
+}
+
       await new Promise((r) => setTimeout(r, 200));
     }
   } catch (err) {
     console.error("❌ Event poll error:", err.message);
   }
+
 }, POLL_INTERVAL_MS);
