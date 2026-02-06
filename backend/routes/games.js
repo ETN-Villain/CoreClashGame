@@ -42,70 +42,11 @@ function loadTokenURIMapping() {
 }
 
 
-// GET /games — list all games, wallet-agnostic
-router.get("/", async (req, res) => {
+// GET /games — list all games (NO CHAIN CALLS)
+router.get("/", (req, res) => {
   try {
-    const backendGames = readGames(); // load from games.json
-    const readProvider = new ethers.JsonRpcProvider(RPC_URL); // public provider
-    const contract = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
-
-    const onChainGames = [];
-    let i = 0;
-
-const gameCount = Number(await contract.gamesLength());
-
-for (let i = 0; i < gameCount; i++) {
-  const g = await contract.games(i);
-        onChainGames.push({
-          id: i,
-          player1: g.player1,
-          player2: g.player2,
-          stakeAmount: g.stakeAmount.toString(),
-          stakeToken: g.stakeToken,
-          settled: g.settled,
-          winner: g.winner,
-          player1Revealed: g.player1Revealed,
-          player2Revealed: g.player2Revealed,
-          cancelled: g.cancelled || false,
-        });
-    }
-
-// Merge backend games — backend overrides computed fields
-const merged = onChainGames.map(oc => {
-  const backend = backendGames.find(bg => bg.id === oc.id);
-
-  return {
-    id: oc.id,
-
-    // players & stake — always chain
-    player1: oc.player1,
-    player2: oc.player2,
-    stakeAmount: oc.stakeAmount,
-    stakeToken: oc.stakeToken,
-
-    // reveal status — backend assists, chain confirms
-    player1Revealed: oc.player1Revealed,
-    player2Revealed: oc.player2Revealed,
-
-    // read directly from backendReveal fields
-    player1Reveal: backend?.player1Reveal || null,
-    player2Reveal: backend?.player2Reveal || null,
-
-    // terminal state — CHAIN ONLY
-    settled: oc.settled,
-    cancelled: oc.cancelled === true,
-    winner: oc.settled ? oc.winner : null,
-
-    // metadata
-    settledAt: backend?.settledAt || null,
-    roundResults: backend?.roundResults || [],
-    tie: backend?.tie === true,
-  };
-});
-
-    console.log(`GET /games — returning ${merged.length} merged games`);
-    res.json(merged);
-
+    const games = readGames();
+    res.json(games);
   } catch (err) {
     console.error("GET /games error:", err);
     res.status(500).json({ error: "Failed to load games" });
@@ -113,7 +54,7 @@ const merged = onChainGames.map(oc => {
 });
 
 // ---------------- GET SINGLE GAME ----------------
-router.get("/:id", async (req, res) => {
+router.get("/:id", (req, res) => {
   try {
     const gameId = Number(req.params.id);
     if (!Number.isInteger(gameId)) {
@@ -121,34 +62,10 @@ router.get("/:id", async (req, res) => {
     }
 
     const games = readGames();
-    let game = games.find(g => g.id === gameId);
+    const game = games.find(g => g.id === gameId);
 
     if (!game) {
-      // fallback: try fetching from on-chain contract
-      try {
-        const readProvider = new ethers.JsonRpcProvider(RPC_URL);
-        const contractRead = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
-        const onChainGame = await contractRead.games(gameId);
-
-        if (onChainGame.player1 === ethers.ZeroAddress) {
-          return res.status(404).json({ error: "Game not found" });
-        }
-
-        game = {
-          id: gameId,
-          player1: onChainGame.player1,
-          player2: onChainGame.player2,
-          stakeAmount: onChainGame.stakeAmount.toString(),
-          stakeToken: onChainGame.stakeToken,
-          settled: onChainGame.settled,
-          winner: onChainGame.winner,
-          player1Revealed: onChainGame.player1Revealed,
-          player2Revealed: onChainGame.player2Revealed,
-        };
-      } catch (err) {
-        console.error(`Failed to fetch on-chain game ${gameId}:`, err);
-        return res.status(404).json({ error: "Game not found" });
-      }
+      return res.status(404).json({ error: "Game not found" });
     }
 
     res.json(game);
