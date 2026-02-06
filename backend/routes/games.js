@@ -16,6 +16,7 @@ import { reconcileAllGamesScheduled } from "../reconcile.js";
 import { broadcast } from "./sse.js";
 import { adminContract, adminWalletReady } from "../admin.js";
 import { withLock } from "../utils/mutex.js";
+import { authWallet } from "../middleware/authWallet.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -182,14 +183,14 @@ router.post("/:id/join", (req, res) => {
   res.json({ success: true });
 });
 
-router.post("/:id/reveal", async (req, res) => {  // ← make async so we can await contract calls
+router.post("/:id/reveal", authWallet, async (req, res) => {
   try {
     const gameId = Number(req.params.id);
-    const { player, salt, nftContracts, tokenIds } = req.body;
+const { player, salt, nftContracts, tokenIds } = req.body;
 
-    if (!player || !salt || !Array.isArray(nftContracts) || !Array.isArray(tokenIds)) {
-      return res.status(400).json({ error: "Missing reveal data" });
-    }
+if (!salt || !Array.isArray(nftContracts) || !Array.isArray(tokenIds)) {
+  return res.status(400).json({ error: "Missing reveal data" });
+}
 
     if (nftContracts.length !== tokenIds.length) {
       return res.status(400).json({ error: "nftContracts and tokenIds length mismatch" });
@@ -199,7 +200,11 @@ router.post("/:id/reveal", async (req, res) => {  // ← make async so we can aw
     const game = games.find(g => g.id === gameId);
     if (!game) return res.status(404).json({ error: "Game not found" });
 
-const walletLc = req.wallet.toLowerCase(); // connected wallet
+if (!req.wallet) {
+  return res.status(401).json({ error: "Wallet not authenticated" });
+}
+
+const walletLc = req.wallet.toLowerCase();
 const p1 = game.player1.toLowerCase();
 const p2 = game.player2.toLowerCase();
 
@@ -217,17 +222,6 @@ if (player && player.toLowerCase() !== walletLc) {
 if (game[slot + "Reveal"]) {
   return res.status(400).json({ error: "Reveal already submitted" });
 }
-
-// Save reveal data directly
-const revealData = {
-  salt,
-  nftContracts: [...nftContracts],
-  tokenIds: [...tokenIds],
-  tokenURIs,
-  backgrounds,
-};
-
-game[slot + "Reveal"] = revealData;
 
 // Update backend flags
 game.backendPlayer1Revealed = !!game.player1Reveal;
@@ -273,6 +267,17 @@ game.backendPlayer2Revealed = !!game.player2Reveal;
       tokenURIs.push(jsonFile);
       backgrounds.push(background);
     }
+
+    // Save reveal data directly
+const revealData = {
+  salt,
+  nftContracts: [...nftContracts],
+  tokenIds: [...tokenIds],
+  tokenURIs,
+  backgrounds,
+};
+
+game[slot + "Reveal"] = revealData;
 
     writeGames(games);  // early save so state is persisted even if auto fails
 
