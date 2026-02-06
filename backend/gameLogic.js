@@ -135,94 +135,125 @@ export function computeWinner(traits1Arr, traits2Arr) {
  * Populates winner, tie
  */
 export async function resolveGame(game) {
+  // ---- Basic validation ----
+  if (!game.player1 || !game.player2) return null;
+
+  if (!game.player1Reveal || !game.player2Reveal) {
+    console.warn("Missing reveal data");
+    return null;
+  }
+
+  const {
+    tokenIds: p1TokenIds,
+    nftContracts: p1Contracts,
+    tokenURIs: p1Uris,
+    backgrounds: p1Backgrounds = [],
+  } = game.player1Reveal;
+
+  const {
+    tokenIds: p2TokenIds,
+    nftContracts: p2Contracts,
+    tokenURIs: p2Uris,
+    backgrounds: p2Backgrounds = [],
+  } = game.player2Reveal;
+
+  // ---- Hard guard: reveal structure ----
+  if (
+    !Array.isArray(p1TokenIds) ||
+    !Array.isArray(p2TokenIds) ||
+    !Array.isArray(p1Contracts) ||
+    !Array.isArray(p2Contracts) ||
+    !Array.isArray(p1Uris) ||
+    !Array.isArray(p2Uris)
+  ) {
+    throw new Error("Invalid reveal data structure");
+  }
+
   console.log("Resolving game:", {
     id: game.id,
-    roundResults: game.roundResults,
-    player1Backgrounds: game.player1Backgrounds,
-    player2Backgrounds: game.player2Backgrounds,
+    p1Tokens: p1TokenIds,
+    p2Tokens: p2TokenIds,
   });
-
-  if (!game.player2) return null;
-if (!game.player1Reveal || !game.player2Reveal) {
-  console.warn("Missing reveal data");
-  return null;
-}
 
   const traits1 = [];
   const traits2 = [];
 
-  // Helper to extract traits from attributes array
-const extractTraits = (nftData) => {
+  // ---- Trait extraction helper ----
+  const extractTraits = (nftData) => {
     const findValue = (name) => {
-      const trait = nftData.attributes?.find(a => a.trait_type?.toLowerCase() === name.toLowerCase());
+      const trait = nftData.attributes?.find(
+        (a) => a.trait_type?.toLowerCase() === name.toLowerCase()
+      );
       return trait ? Number(trait.value) : 0;
     };
+
     return [
       findValue("Attack"),
       findValue("Defense"),
       findValue("Vitality"),
       findValue("Agility"),
-      findValue("CORE")
+      findValue("CORE"),
     ];
   };
 
-// Player 1 traits
-for (let i = 0; i < 3; i++) {
-  const tokenId = game.player1Reveal.nftIds[i];
-  const contractAddr = game.player1Reveal.nftContracts[i]?.toLowerCase() || "";
-  const collection = addressToCollection[contractAddr] || "VKIN";
+  // ---- Player 1 ----
+  for (let i = 0; i < 3; i++) {
+    const tokenId = p1TokenIds[i];
+    const contractAddr = p1Contracts[i]?.toLowerCase() || "";
+    const collection = addressToCollection[contractAddr] || "VKIN";
+    const uri = p1Uris[i];
 
-  const uri = tokenIdToTokenURI(collection, tokenId);
+    console.log(`P1 token ${i}: ${collection} ${tokenId} → ${uri}`);
 
-  console.log(`P1 token ${i}: tokenId ${tokenId} → ${uri} in ${collection}`);
+    const nftData = await fetchNFT(collection, uri);
+    if (!nftData) {
+      console.error("Missing metadata for P1 token", uri);
+      return null;
+    }
 
-  const nftData = await fetchNFT(collection, uri);
-  if (!nftData) {
-    console.error("Missing metadata for P1 token", uri, "in", collection);
-    return null;
+    traits1.push(extractTraits(nftData));
   }
-  traits1.push(extractTraits(nftData));
-}
 
-// Player 2 traits (same pattern)
-for (let i = 0; i < 3; i++) {
-  const tokenId = game.player2Reveal.nftIds[i];
-  const contractAddr = game.player2Reveal.nftContracts[i]?.toLowerCase() || "";
-  const collection = addressToCollection[contractAddr] || "VKIN";
+  // ---- Player 2 ----
+  for (let i = 0; i < 3; i++) {
+    const tokenId = p2TokenIds[i];
+    const contractAddr = p2Contracts[i]?.toLowerCase() || "";
+    const collection = addressToCollection[contractAddr] || "VKIN";
+    const uri = p2Uris[i];
 
-  const uri = tokenIdToTokenURI(collection, tokenId);
+    console.log(`P2 token ${i}: ${collection} ${tokenId} → ${uri}`);
 
-  console.log(`P2 token ${i}: tokenId ${tokenId} → ${uri} in ${collection}`);
+    const nftData = await fetchNFT(collection, uri);
+    if (!nftData) {
+      console.error("Missing metadata for P2 token", uri);
+      return null;
+    }
 
-  const nftData = await fetchNFT(collection, uri);
-  if (!nftData) {
-    console.error("Missing metadata for P2 token", uri, "in", collection);
-    return null;
+    traits2.push(extractTraits(nftData));
   }
-  traits2.push(extractTraits(nftData));
-}
 
-// Compute winner
-const { winner, roundResults } = computeWinner(traits1, traits2);
+  // ---- Compute winner ----
+  const { winner, roundResults } = computeWinner(traits1, traits2);
 
-// Map winner string ("player1"/"player2"/"tie") → Ethereum address
-const winnerAddress = winner === "tie"
-  ? null
-  : winner === "player1"
-    ? game.player1
-    : game.player2;
+  const winnerAddress =
+    winner === "tie"
+      ? null
+      : winner === "player1"
+      ? game.player1
+      : game.player2;
 
-// Update game object
-game.roundResults = roundResults;
-game.winner = winnerAddress;     // store actual address
-game.tie = winner === "tie";
-game.settledAt = new Date().toISOString();
+  // ---- Persist result ----
+  game.roundResults = roundResults;
+  game.winner = winnerAddress;
+  game.tie = winner === "tie";
+  game.settledAt = new Date().toISOString();
 
-console.log("Game resolved:", {
-  winner: game.winner,
-  tie: game.tie,
-  roundResults: game.roundResults
-});
+  console.log("Game resolved:", {
+    gameId: game.id,
+    winner: game.winner,
+    tie: game.tie,
+    rounds: roundResults.length,
+  });
 
-return game;
+  return game;
 }
