@@ -223,10 +223,6 @@ if (game[slot + "Reveal"]) {
   return res.status(400).json({ error: "Reveal already submitted" });
 }
 
-// Update backend flags
-game.backendPlayer1Revealed = !!game.player1Reveal;
-game.backendPlayer2Revealed = !!game.player2Reveal;
-
     // ---- Map addresses to collection folders ----
     const addressToCollection = {
       [VKIN_CONTRACT_ADDRESS.toLowerCase()]: "VKIN",
@@ -278,6 +274,10 @@ const revealData = {
 };
 
 game[slot + "Reveal"] = revealData;
+
+// Update backend flags
+game.backendPlayer1Revealed = !!game.player1Reveal;
+game.backendPlayer2Revealed = !!game.player2Reveal;
 
     writeGames(games);  // early save so state is persisted even if auto fails
 
