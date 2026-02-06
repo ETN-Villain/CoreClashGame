@@ -1143,9 +1143,31 @@
     "id": 21,
     "player1": "0x2871835CA982F248F61c3A1995931E205c9d5243",
     "player2": "0x6c44d354Df1bD621d9d073163D7Db043F514623B",
-    "player1Revealed": false,
+    "player1Revealed": true,
     "player2Revealed": true,
-    "player1Reveal": null,
+    "player1Reveal": {
+      "salt":"30054131136538022284120281648509765802541801050559053374849617430421750158559",
+      "nftContracts":[
+        "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+        "0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+        "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0"
+      ],
+      "tokenIds":[
+        "425",
+        "442",
+        "24"
+      ],
+      "tokenURIs":[
+        "332.json",
+        "421.json",
+        "24.json"
+      ],
+      "backgrounds":[
+        "Silver",
+        "Verdant Green",
+        "Gold"
+      ]
+    },
     "player2Reveal": {
       "salt": "73039992159949804281484878654149053716677366419044116757766181454990397496324",
       "nftContracts": [
@@ -1171,6 +1193,8 @@
     },
     "roundResults": [],
     "winner": "0x0000000000000000000000000000000000000000",
-    "settled": false
+    "settled": false,
+    "backendPlayer1Revealed":true,
+    "backendPlayer2Revealed":true
   }
 ]
