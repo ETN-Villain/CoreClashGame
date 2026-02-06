@@ -135,32 +135,9 @@ for (const log of settledLogs) {
   const parsed = gameInterface.parseLog(log);
   const gameId = Number(parsed.args.gameId);
 
-  // 🚫 Hard guard: never read past chain
-  if (gameId > maxGameId) {
-    console.warn(`[SKIP] GameSettled for nonexistent game ${gameId}`);
-    continue;
-  }
-
   const games = readGames();
   const game = games.find(g => g.id === gameId);
   if (!game) continue;
-
-          // If the game is settled on-chain but not in backend
-          if (onChain.settled && !game.settled) {
-            console.log(`[RECONCILE] Settling game ${game.id}`);
-
-            let backendWinner;
-            try {
-              backendWinner = await contract.backendWinner(game.id);
-            } catch {
-              backendWinner = ethers.ZeroAddress;
-            }
-
-            game.settled = true;
-            game.settledAt = new Date().toISOString();
-
-  writeGames(games);
-}
 
         // Save backend state after processing all settled logs
         saveGames(loadGames());
