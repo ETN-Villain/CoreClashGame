@@ -410,35 +410,47 @@ const loadGames = useCallback(async () => {
     const backendGames = await res.json();
 
     // 3. Merge: backend takes precedence for computed/reveal fields
-    const merged = loadedOnChain.map((onChainGame) => {
-      const backendGame = backendGames.find(bg => bg.id === onChainGame.id) || {};
+const merged = backendGames.map((backendGame) => {
+  const onChainGame =
+    loadedOnChain.find(g => g.id === backendGame.id) || {};
 
-      return {
-        ...onChainGame,  // start with on-chain data
+  return {
+    id: backendGame.id,
 
-        // Reveal flags & payloads — prefer backend
-// Reveal flags & payloads — prefer backend
-player1Revealed: !!backendGame.player1Revealed,
-player2Revealed: !!backendGame.player2Revealed,
-player1Reveal: backendGame.player1Reveal || null,
-player2Reveal: backendGame.player2Reveal || null,
+    // players
+    player1: onChainGame.player1 || backendGame.player1 || ethers.ZeroAddress,
+    player2: onChainGame.player2 || backendGame.player2 || ethers.ZeroAddress,
 
-        // Computed results — backend is source of truth
-        roundResults: backendGame.roundResults || [],
-        winner: backendGame.winner || onChainGame.winner || ethers.ZeroAddress,
-        tie: !!backendGame.tie,
+    // stake
+    stakeAmount:
+      onChainGame.stakeAmount || backendGame.stakeAmount || "0",
+    stakeToken:
+      backendGame.stakeToken || onChainGame.stakeToken,
 
-        // Settlement status — backend decides finality
-        settled: backendGame.settled === true || onChainGame.settled,
-        settledAt: backendGame.settledAt || null,
+    // reveals
+    player1Revealed: !!backendGame.player1Revealed,
+    player2Revealed: !!backendGame.player2Revealed,
+    player1Reveal: backendGame.player1Reveal || null,
+    player2Reveal: backendGame.player2Reveal || null,
 
-        // Preserve other useful backend fields if present
-        stakeToken: backendGame.stakeToken || onChainGame.stakeToken,
-        
-        // allows the cancelled filters to work
-        cancelled: backendGame.cancelled === true || onChainGame.cancelled === true,
-      };
-    });
+    // results
+    roundResults: backendGame.roundResults || [],
+    winner:
+      backendGame.winner ||
+      onChainGame.winner ||
+      ethers.ZeroAddress,
+    tie: !!backendGame.tie,
+
+    // settlement
+    settled:
+      backendGame.settled === true ||
+      onChainGame.settled === true,
+    settledAt: backendGame.settledAt || null,
+
+    // cancellation
+    cancelled: backendGame.cancelled === true,
+  };
+});
 
     console.log("Merged games count:", merged.length);
     setGames(merged);
