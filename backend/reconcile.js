@@ -93,7 +93,12 @@ if (isCatchingUp) {
         reconcileQueue.add(async () => {
           try {
             const onChain = await contract.games(game.id);
-            if (!onChain?.settled) return;
+
+            if (onChain.settled) {
+              game.settled = true;
+              game.backendWinner = onChain.winner.toLowerCase();
+              game.settlementState = "settled";
+            }
 
             // ---- Chain is settled → backend must reflect it ----
             if (!game.settled) {

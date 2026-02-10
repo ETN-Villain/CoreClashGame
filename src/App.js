@@ -365,11 +365,12 @@ const downloadRevealBackup = useCallback(
 );
 
 /* ---------------- LOAD GAMES ---------------- */
+
 const loadGames = useCallback(async () => {
   setLoadingGames(true);
 
   try {
-    const readProvider = provider ?? publicProvider;
+    const readProvider = publicProvider;
     const contract = new ethers.Contract(
       GAME_ADDRESS,
       GameABI,
@@ -446,7 +447,7 @@ player2Reveal: backendGame.player2Reveal || null,
   } finally {
     setLoadingGames(false);
   }
-}, [provider, publicProvider]);
+}, [publicProvider]);
 
 // 🔥 Auto-load games when provider becomes available
 useEffect(() => {
@@ -1439,8 +1440,40 @@ border: "1px solid #333" }} />
       </div>
 
 {/* ---------------- GAMES GRID ---------------- */}
-<h2 style={{ marginTop: 40 }}>Games</h2>
-{loadingGames && <p>Loading games…</p>}
+<div style={{ marginTop: 40, marginBottom: 10 }}>
+  <h2
+    style={{
+      fontWeight: "bold",
+      fontSize: 26,
+      letterSpacing: 1.5,
+      textTransform: "uppercase",
+      color: "#18bb1a",
+      marginBottom: 6,
+      textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
+    }}
+  >
+    Core Clashes
+  </h2>
+
+<button
+  onClick={() => window.location.reload()}
+  disabled={loadingGames}
+  style={{
+    background: "#222",
+    color: "#18bb1a",
+    border: "1px solid #18bb1a",
+    padding: "6px 12px",
+    borderRadius: 4,
+    cursor: loadingGames ? "not-allowed" : "pointer",
+    fontSize: 13,
+    opacity: loadingGames ? 0.6 : 1,
+  }}
+>
+  🔄 Refresh Games
+</button>
+</div>
+
+{loadingGames ? "Refreshing…" : "🔄 Refresh Games"}
 
 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
   {/* Open Games */}
