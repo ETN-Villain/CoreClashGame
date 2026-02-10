@@ -274,10 +274,9 @@ const revealData = {
 };
 
 // Update backend flags
+game[slot + "Reveal"] = revealData;
 game.backendPlayer1Revealed = !!game.player1Reveal;
 game.backendPlayer2Revealed = !!game.player2Reveal;
-
-game[slot + "Reveal"] = revealData;
 
     writeGames(games);  // early save so state is persisted even if auto fails
 
@@ -287,7 +286,7 @@ game[slot + "Reveal"] = revealData;
     // ────────────────────────────────────────────────────────────────
     // Auto-resolve + post + settle WHEN BOTH PLAYERS HAVE REVEALED
     // ────────────────────────────────────────────────────────────────
-    if (game.player1Revealed && game.player2Revealed) {
+    if (game.player1Reveal && game.player2Reveal) {
       console.log(`Both backend reveals saved for game ${gameId}. Waiting for on-chain confirmation...`);
 
       // Helper function to attempt resolution
@@ -314,7 +313,7 @@ game[slot + "Reveal"] = revealData;
 
           // Compute results if not already done
           if (!game.roundResults?.length || !game.winner) {
-            const resolved = resolveGame(game);
+            const resolved = await resolveGame(game);
             if (!resolved) {
               console.warn(`resolveGame failed`);
               return false;
@@ -322,33 +321,33 @@ game[slot + "Reveal"] = revealData;
             game.roundResults = resolved.rounds || [];
             game.winner = resolved.winner || null;
             game.tie = !!resolved.tie;
-            console.log(`Resolved game ${gameId}: winner=${game.winner || 'tie'}, rounds=${game.roundResults.length}`);
+            console.log(`Resolved game ${gameId}: winner=${game.winner ?? 'tie'}`);
           }
 
           // Post winner if needed
           if (!game.backendWinner) {
             const currentOnChain = await contract.games(gameId); // refresh
-            if (currentOnChain.winner !== ethers.ZeroAddress) {
-              game.backendWinner = currentOnChain.winner;
+            if (currentOnChain.winner !== ethers.ZeroAddress.toLowerCase()) {
+              game.backendWinner = currentOnChain.winner.toLowerCase();
               console.log(`Winner already on-chain: ${game.backendWinner}`);
             } else {
-              let winnerAddr = ethers.ZeroAddress;
-              if (!game.tie && game.winner) {
+              let winnerAddr = ethers.ZeroAddress.toLowerCase();
+              if (!game.tie && game.winner.toLowerCase()) {
                 winnerAddr = game.winner.toLowerCase() === game.player1.toLowerCase()
                   ? game.player1
                   : game.player2;
               }
               console.log(`Sending postWinner(${gameId}, ${winnerAddr})`);
               const tx = await contract.postWinner(gameId, winnerAddr, { gasLimit: 450000 });
-              await tx.wait();
-              game.backendWinner = winnerAddr;
+              await tx.wait(1);
+              game.backendWinner = winnerAddr.toLowerCase();
               game.winnerResolvedAt = new Date().toISOString();
               console.log(`postWinner success: ${tx.hash}`);
             }
           }
 
           // Settle if needed
-if (game.settled && !game.cancelled) {
+if (!game.settled && !game.cancelled) {
               const latestOnChain = await contract.games(gameId);
             if (latestOnChain.settled) {
               game.settled = true;
@@ -357,7 +356,7 @@ if (game.settled && !game.cancelled) {
             } else {
               console.log(`Sending settleGame(${gameId})`);
               const tx = await contract.settleGame(gameId, { gasLimit: 350000 });
-              await tx.wait();
+              await tx.wait(1);
               game.settled = true;
               game.settleTxHash = tx.hash;
               game.settledAt = new Date().toISOString();
@@ -392,7 +391,7 @@ if (game.settled && !game.cancelled) {
         tokenURIs,
         backgrounds,
       },
-      message: game.player1Revealed && game.player2Revealed
+      message: game.player1Reveal && game.player2Reveal
         ? "Both reveals received — waiting for on-chain confirmation and automatic settlement..."
         : "Reveal saved. Waiting for the other player to reveal.",
     });
@@ -455,7 +454,7 @@ router.post("/:id/compute-results", async (req, res) => {
         success: true,
         alreadyComputed: true,
         roundResults: game.roundResults,
-        winner: game.winner,
+        winner: game.winner.toLowerCase(),
         tie: game.tie,
       });
     }
@@ -533,20 +532,20 @@ router.post("/:id/post-winner", async (req, res) => {
     }
 
     const winnerAddress = game.tie
-      ? ethers.ZeroAddress
+      ? ethers.ZeroAddress.toLowerCase()
       : game.winner?.toLowerCase() === game.player1?.toLowerCase()
         ? game.player1
         : game.player2;
 
     // Chain idempotency
-    const onChainWinner = await adminContract.backendWinner(gameId);
-    if (onChainWinner === ethers.ZeroAddress) {
+    const onChainWinner = await adminContract.backendWinner(gameId).toLowerCase();
+    if (onChainWinner === ethers.ZeroAddress.toLowerCase()) {
       const tx = await adminContract.postWinner(gameId, winnerAddress);
-      await tx.wait();
+      await tx.wait(1);
       game.postWinnerTxHash = tx.hash;
     }
 
-    game.backendWinner = winnerAddress;
+    game.backendWinner = winnerAddress.toLowerCase();
     game.winnerResolvedAt = new Date().toISOString();
     game.settlementState = "winner-posted";
 
@@ -601,14 +600,14 @@ router.post("/:id/settle-game", async (req, res) => {
       // ------------------------------------------------------------
       let onChainWinner;
       try {
-        onChainWinner = await contract.backendWinner(gameId);
+        onChainWinner = await contract.backendWinner(gameId).toLowerCase();
       } catch (err) {
         return res.status(503).json({
           error: "Failed to read winner from chain",
         });
       }
 
-      if (onChainWinner !== ethers.ZeroAddress) {
+      if (onChainWinner !== ethers.ZeroAddress.toLowerCase()) {
         game.backendWinner = onChainWinner.toLowerCase();
         game.winner = onChainWinner.toLowerCase();
       }
@@ -626,12 +625,12 @@ router.post("/:id/settle-game", async (req, res) => {
         game.roundResults = resolved.roundResults;
         game.tie = resolved.tie;
         game.winner = resolved.tie ? null : resolved.winner;
-        game.settlementState = "computed";
+        game.settlementState = "pending-confirmation";
 
         writeGames(games);
       } else {
         resolved = {
-          winner: game.winner,
+          winner: game.winner.toLowerCase(),
           tie: game.tie,
           roundResults: game.roundResults,
         };
@@ -648,18 +647,18 @@ router.post("/:id/settle-game", async (req, res) => {
         }
 
         const winnerAddress = resolved.tie
-          ? ethers.ZeroAddress
+          ? ethers.ZeroAddress.toLowerCase()
           : resolved.winner.toLowerCase() === game.player1.toLowerCase()
             ? game.player1
             : game.player2;
 
-        if (onChainWinner === ethers.ZeroAddress) {
+        if (onChainWinner === ethers.ZeroAddress.toLowerCase()) {
           const tx = await adminContract.postWinner(gameId, winnerAddress);
-          await tx.wait();
+          await tx.wait(1);
           game.postWinnerTxHash = tx.hash;
         }
 
-        game.backendWinner = winnerAddress;
+        game.backendWinner = winnerAddress.toLowerCase();
         game.winnerResolvedAt = new Date().toISOString();
         game.settlementState = "winner-posted";
 
@@ -670,7 +669,7 @@ router.post("/:id/settle-game", async (req, res) => {
       // 3️⃣ SETTLE GAME ON-CHAIN
       // ------------------------------------------------------------
       const txSettle = await adminContract.settleGame(gameId);
-      await txSettle.wait();
+      await txSettle.wait(1);
 
       game.settled = true;
       game.settleTxHash = txSettle.hash;
@@ -721,7 +720,7 @@ router.post("/:id/finalize-settle", async (req, res) => {
       game.settled = true;
       game.settleTxHash = txHash;
       game.settledAt = new Date().toISOString();
-      game.winner ??= game.backendWinner ?? ethers.ZeroAddress;
+      game.winner ??= game.backendWinner ?? ethers.ZeroAddress.toLowerCase();
 
       writeGames(games);
 
@@ -758,7 +757,7 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
     if (!game) return res.status(404).json({ error: "Game not found" });
 
     // Must be unjoined
-    if (game.player2 && game.player2 !== ethers.ZeroAddress) {
+    if (game.player2 && game.player2 !== ethers.ZeroAddress.toLowerCase()) {
       return res.status(400).json({ error: "Game already joined - cannot cancel" });
     }
 

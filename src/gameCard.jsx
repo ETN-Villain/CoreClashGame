@@ -11,6 +11,8 @@ const addressToCollection = {
   // add more if needed
 };
 
+const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
+
 /* ---------------- Stable Image Component ---------------- */
 export const StableImage = ({ src, alt }) => {
   const [status, setStatus] = React.useState('loading');
@@ -93,6 +95,11 @@ const playerWinnings = tie
   : totalPot * 0.95; // if you want loser to get 0, use 0 instead of 0.95
 const burnPercent = 1; 
 const burnAmount = totalPot * (burnPercent / 100);
+
+/* ----- Deadline Calculation ----- */
+const revealDeadlinePassed =
+  g.player2JoinedAt &&
+  Date.now() - new Date(g.player2JoinedAt).getTime() >= FIVE_DAYS_MS;
 
   /* --------- GAME STATES --------- */
   const isCancelled = g.cancelled === true || g.cancelled === "true";
@@ -270,33 +277,63 @@ const burnAmount = totalPot * (burnPercent / 100);
         </div>
       )}
 
-      {/* Reveal Upload */}
-      {g.player2 !== ethers.ZeroAddress &&
-        ((isPlayer1 && !g.player1Revealed) || (isPlayer2 && !g.player2Revealed)) && (
-    <>
-      <button
-        onClick={() => document.getElementById(`reveal-file-${g.id}`).click()}
-        style={{
-          background: "#18bb1a",
-          color: "#fff",
-          padding: "6px 12px",
-          borderRadius: 4,
-          cursor: "pointer",
-          marginLeft: 8,
-        }}
-      >
-        Upload Reveal
-      </button>
+{/* Reveal Upload + Expired Settle */}
+{g.player2 !== ethers.ZeroAddress &&
+  !isSettled &&
+  !isCancelled &&
+  (
+    ((isPlayer1 && !g.player1Revealed) ||
+     (isPlayer2 && !g.player2Revealed)) ||
+    revealDeadlinePassed
+  ) && (
+    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+      {/* Upload Reveal (only if still allowed) */}
+      {!revealDeadlinePassed && (
+        <>
+          <button
+            onClick={() => document.getElementById(`reveal-file-${g.id}`).click()}
+            style={{
+              background: "#18bb1a",
+              color: "#fff",
+              padding: "6px 12px",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+          >
+            Upload Reveal
+          </button>
 
-      <input
-        id={`reveal-file-${g.id}`}
-        type="file"
-        accept=".json"
-        style={{ display: "none" }}
-        onChange={handleRevealFile}
-      />
-    </>
-  )}
+          <input
+            id={`reveal-file-${g.id}`}
+            type="file"
+            accept=".json"
+            style={{ display: "none" }}
+            onChange={handleRevealFile}
+          />
+        </>
+      )}
+
+{/* Settle after 5 days */}
+{revealDeadlinePassed && (
+  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <button
+      onClick={() => manualSettleGame(g.id)}
+      style={{
+        background: "#ff9800",
+        color: "#000",
+        padding: "6px 12px",
+        borderRadius: 4,
+        cursor: "pointer",
+      }}
+    >
+      Settle Game
+    </button>
+
+    <div style={{ fontSize: 12, color: "#ffb74d" }}>
+      ⏱ Reveal window expired
+    </div>
+  </div>
+)}
   
       {/* Manual Settle */}
       {canSettle && !isCancelled && (
@@ -431,5 +468,7 @@ const burnAmount = totalPot * (burnPercent / 100);
 )}
     </div>
     </div>
+  )}
   );
-}   
+  </div>
+  )}
