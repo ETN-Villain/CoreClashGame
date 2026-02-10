@@ -469,6 +469,5 @@ const revealDeadlinePassed =
     </div>
     </div>
   )}
-  );
   </div>
   )}
