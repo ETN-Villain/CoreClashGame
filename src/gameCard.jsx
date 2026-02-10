@@ -335,24 +335,26 @@ const revealDeadlinePassed =
   </div>
 )}
   
-      {/* Manual Settle */}
-      {canSettle && !isCancelled && (
-  <button
-    onClick={() => manualSettleGame(g.id)}
-    style={{
-      background: "#18bb1a",
-      color: "#fff",
-      padding: "6px 12px",
-      borderRadius: 4,
-      cursor: "pointer",
-      marginLeft: 8,
-    }}
-  >
-    Settle Game
-  </button>
-)}
+  {/* Manual Settle */}
+  {canSettle && !isCancelled && (
+    <button
+      onClick={() => manualSettleGame(g.id)}
+      style={{
+        background: "#18bb1a",
+        color: "#fff",
+        padding: "6px 12px",
+        borderRadius: 4,
+        cursor: "pointer",
+        marginLeft: 8,
+      }}
+    >
+      Settle Game
+    </button>
+  )}
+</div>
+  )}
 
-      {/* Teams + Round Results */}
+  {/* Teams + Round Results */}
       {bothRevealed && (
         <div style={{ marginTop: 16 }}>
           {/* Player 1 Team */}
@@ -467,7 +469,6 @@ const revealDeadlinePassed =
 </div>
 )}
     </div>
-    </div>
-  )}
   </div>
-  )}
+  );
+}
