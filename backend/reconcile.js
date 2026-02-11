@@ -94,6 +94,19 @@ if (isCatchingUp) {
           try {
             const onChain = await contract.games(game.id);
 
+// ---- Sync cancelled directly from chain ----
+if (game.cancelled !== onChain.cancelled) {
+  game.cancelled = onChain.cancelled;
+  dirty = true;
+}
+
+// If not settled on chain, it cannot be cancelled via settlement logic
+if (!onChain.settled && game.settled) {
+  game.settled = false;
+  game.settledAt = null;
+  dirty = true;
+}
+
 // ---- Settlement sync (trust chain only) ----
 if (onChain.settled) {
   if (!game.settled) {
