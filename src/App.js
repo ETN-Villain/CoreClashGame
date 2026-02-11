@@ -1587,6 +1587,24 @@ border: "1px solid #333" }} />
       ))}
     </div>
   )}
+{/* Archived Settled Games */}
+{showArchive && archivedSettled.length > 0 && (
+  <div style={{ marginTop: 20 }}>
+    <h3 style={{ opacity: 0.7 }}>
+      📦 Archive ({archivedSettled.length})
+    </h3>
+
+    {archivedSettled.map((g) => (
+      <GameCard
+        key={g.id}
+        g={g}
+        {...gameCardProps}
+        roundResults={g.roundResults || []}
+      />
+    ))}
+  </div>
+)}
+
 </div>
   </div>
     </div>
