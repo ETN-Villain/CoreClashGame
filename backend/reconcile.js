@@ -94,18 +94,33 @@ if (isCatchingUp) {
           try {
             const onChain = await contract.games(game.id);
 
-            if (onChain.settled) {
-              game.settled = true;
-              game.backendWinner = onChain.winner.toLowerCase();
-              game.settlementState = "settled";
-            }
+// ---- Settlement sync (trust chain only) ----
+if (onChain.settled) {
+  if (!game.settled) {
+    game.settled = true;
+    game.settledAt = new Date().toISOString();
+    dirty = true;
+  }
 
-            // ---- Chain is settled → backend must reflect it ----
-            if (!game.settled) {
-              game.settled = true;
-              game.settledAt = new Date().toISOString();
-              dirty = true;
-            }
+  const chainWinner = onChain.winner?.toLowerCase();
+
+  if (chainWinner && chainWinner !== ZERO) {
+    if (game.backendWinner !== chainWinner) {
+      game.backendWinner = chainWinner;
+      game.winner = chainWinner;
+      game.cancelled = false;
+      dirty = true;
+    }
+  } else {
+    // tie or cancelled
+    if (!game.cancelled) {
+      game.cancelled = true;
+      game.winner = null;
+      game.backendWinner = null;
+      dirty = true;
+    }
+  }
+}
 
             // ---- Winner reconciliation (trust chain) ----
 let backendWinner;
