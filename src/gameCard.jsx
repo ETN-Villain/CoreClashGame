@@ -218,9 +218,7 @@ const revealDeadlinePassed =
 
 <div style={{ fontSize: 14, marginTop: 6, opacity: isCancelled ? 0.6 : 1 }}>
   Stake:{" "}
-  {stakeAmount
-    ? Number(ethers.formatUnits(stakeAmount, 18))
-    : 0}
+{stakeAmount ? Number(stakeAmount) : 0}
 </div>
   </>
 )}
@@ -368,7 +366,7 @@ const revealDeadlinePassed =
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontWeight: "bold", color: "#ff5555", marginBottom: 8, textAlign: "left" }}>🟥 Player 1 Team: {g.player1 ? `0x...${g.player1.slice(-5)}` : "—"}</div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {stakeAmount ? Number(ethers.formatUnits(stakeAmount, 18)) : 0}
+        Stake: {Number(stakeAmount).toFixed(2)}
       </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>{renderTokenImages(g.player1Reveal)}</div>
           </div>
@@ -404,7 +402,7 @@ const revealDeadlinePassed =
           <div>
             <div style={{ fontWeight: "bold", color: "#4da3ff", marginBottom: 8, textAlign: "left" }}>🟦 Player 2 Team: {g.player2 ? `0x...${g.player2.slice(-5)}` : "—"}</div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {stakeAmount ? Number(ethers.formatUnits(stakeAmount, 18)) : 0}
+        Stake: {Number(stakeAmount).toFixed(2)}
       </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>{renderTokenImages(g.player2Reveal)}</div>
           </div>
