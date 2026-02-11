@@ -150,23 +150,25 @@ try {
   }
 }
 
-            if (backendWinner === ZERO) {
-              // cancelled or tie
-              if (!game.cancelled) {
-                game.cancelled = true;
-                game.winner = null;
-                game.backendWinner = null;
-                dirty = true;
-              }
-            } else {
-              const winner = backendWinner.toLowerCase();
-              if (game.backendWinner !== winner) {
-                game.cancelled = false;
-                game.backendWinner = winner;
-                game.winner = winner;
-                dirty = true;
-              }
-            }
+// Only reconcile winner if game is settled on chain
+if (onChain.settled) {
+  if (backendWinner === ZERO) {
+    if (!game.cancelled) {
+      game.cancelled = true;
+      game.winner = null;
+      game.backendWinner = null;
+      dirty = true;
+    }
+  } else {
+    const winner = backendWinner.toLowerCase();
+    if (game.backendWinner !== winner) {
+      game.cancelled = false;
+      game.backendWinner = winner;
+      game.winner = winner;
+      dirty = true;
+    }
+  }
+}
 
             // ---- Reveal flags ----
             if (onChain.player1Revealed && !game.player1Revealed) {
