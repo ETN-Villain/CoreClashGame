@@ -1494,8 +1494,6 @@ border: "1px solid #333" }} />
 </button>
 </div>
 
-{loadingGames ? "Refreshing…" : "🔄 Refresh Games"}
-
 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
   {/* Open Games */}
   <div>
