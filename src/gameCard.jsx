@@ -81,20 +81,27 @@ export default function GameCard({
   const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
   const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
 
-    // Compute totals
-const stakeAmount = g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0;
-const totalPot = stakeAmount * 2;
+// Compute totals (WEI-SAFE)
+const stakeWei = BigInt(g.stakeAmount || 0);
+const totalPotWei = stakeWei * 2n;
 
 const winnerAddress = g.winner;
-const tie = !winnerAddress;
+const tie = !winnerAddress || winnerAddress === ethers.ZeroAddress;
 
-const playerWinnings = tie
-  ? totalPot / 2
-  : winnerAddress.toLowerCase() === g.player1.toLowerCase()
-  ? totalPot * 0.95
-  : totalPot * 0.95; // if you want loser to get 0, use 0 instead of 0.95
-const burnPercent = 1; 
-const burnAmount = totalPot * (burnPercent / 100);
+// 1% burn
+const burnPercent = 1;
+const burnWei = (totalPotWei * BigInt(burnPercent)) / 100n;
+
+// Player winnings (95% if not tie)
+const playerWinningsWei = tie
+  ? totalPotWei / 2n
+  : (totalPotWei * 95n) / 100n;
+
+// 🔽 Keep original const names (formatted for UI)\
+const stakeAmount = ethers.formatUnits(stakeWei, 18);
+const totalPot = ethers.formatUnits(totalPotWei, 18);
+const burnAmount = ethers.formatUnits(burnWei, 18);
+const playerWinnings = ethers.formatUnits(playerWinningsWei, 18);
 
 /* ----- Deadline Calculation ----- */
 const revealDeadlinePassed =
@@ -211,8 +218,8 @@ const revealDeadlinePassed =
 
 <div style={{ fontSize: 14, marginTop: 6, opacity: isCancelled ? 0.6 : 1 }}>
   Stake:{" "}
-  {g.stakeAmount
-    ? Number(ethers.formatUnits(g.stakeAmount, 18))
+  {stakeAmount
+    ? Number(ethers.formatUnits(stakeAmount, 18))
     : 0}
 </div>
   </>
@@ -250,7 +257,7 @@ const revealDeadlinePassed =
       {!isCancelled && !isSettled && canJoin && (
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
           <button
-            onClick={() => approveTokens(g.stakeToken, g.stakeAmount)}
+            onClick={() => approveTokens(g.stakeToken, stakeAmount)}
             disabled={!signer}
             style={{
               background: "#333",
@@ -361,7 +368,7 @@ const revealDeadlinePassed =
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontWeight: "bold", color: "#ff5555", marginBottom: 8, textAlign: "left" }}>🟥 Player 1 Team: {g.player1 ? `0x...${g.player1.slice(-5)}` : "—"}</div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0}
+        Stake: {stakeAmount ? Number(ethers.formatUnits(stakeAmount, 18)) : 0}
       </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>{renderTokenImages(g.player1Reveal)}</div>
           </div>
@@ -397,7 +404,7 @@ const revealDeadlinePassed =
           <div>
             <div style={{ fontWeight: "bold", color: "#4da3ff", marginBottom: 8, textAlign: "left" }}>🟦 Player 2 Team: {g.player2 ? `0x...${g.player2.slice(-5)}` : "—"}</div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {g.stakeAmount ? Number(ethers.formatUnits(g.stakeAmount, 18)) : 0}
+        Stake: {stakeAmount ? Number(ethers.formatUnits(stakeAmount, 18)) : 0}
       </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>{renderTokenImages(g.player2Reveal)}</div>
           </div>

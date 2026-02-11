@@ -1061,6 +1061,15 @@ const cancelledGames = games
   .filter((g) => g.cancelled && showCancelled) // only show if showCancelled checked
   .sort((a, b) => b.id - a.id);
 
+const sortedSettledGames = [...settledGames]
+  .filter(g => g.settledAt) // ensure timestamp exists
+  .sort((a, b) => Number(b.settledAt) - Number(a.settledAt));
+
+const latestSettled = sortedSettledGames.slice(0, 10);
+const archivedSettled = sortedSettledGames.slice(10);
+
+const [showArchive, setShowArchive] = useState(false);
+
 /* ---------------- UI ---------------- */
 if (loading) {
   return (
@@ -1095,7 +1104,7 @@ return (
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center",
         backgroundSize: "cover",
-        opacity: 0.35,
+        opacity: 0.25,
         pointerEvents: "none",
         zIndex: 0,
       }}
@@ -1398,7 +1407,7 @@ return (
 
     {account?.toLowerCase() === ADMIN_ADDRESS ? (
       <>
-        <button onClick={loadGames}>🔄 Refresh Games</button>
+        <button type="button" onClick={loadGames}>🔄 Refresh Games</button>
         <button onClick={async () => {
           await fetch(`${BACKEND_URL}/admin/resync-games`, { method: "POST" });
           await loadGames();
@@ -1467,8 +1476,9 @@ border: "1px solid #333" }} />
     Core Clashes
   </h2>
 
-<button
-  onClick={() => window.location.reload()}
+<button 
+  type="button"
+  onClick={loadGames}
   disabled={loadingGames}
   style={{
     background: "#222",
@@ -1535,29 +1545,33 @@ border: "1px solid #333" }} />
       />{" "}
       Cancelled
     </label>
+  <label>
+    <input
+      type="checkbox"
+      checked={showArchive}
+      onChange={() => setShowArchive(v => !v)}
+    />{" "}
+    Archive
+  </label>
   </div>
 
 {/* Settled Games */}
-{showResolved && settledGames.length > 0 && (
+{showResolved && latestSettled.length > 0 && (
   <div>
     <h3>
-      🔵 Settled (
-      {settledGames.filter((g) => Number(g.id) >= 16).length}
-      )
+      🔵 Settled ({latestSettled.length})
     </h3>
 
-    {settledGames
-      .filter((g) => Number(g.id) >= 16)
-      .map((g) => (
-        <GameCard
-          key={g.id}
-          g={g}
-          {...gameCardProps}
-          roundResults={g.roundResults || []}
-        />
-      ))}
-    </div>
-  )}
+    {latestSettled.map((g) => (
+      <GameCard
+        key={g.id}
+        g={g}
+        {...gameCardProps}
+        roundResults={g.roundResults || []}
+      />
+    ))}
+  </div>
+)}
 
   {/* Cancelled Games (directly below Settled) */}
   {showCancelled && cancelledGames.length > 0 && (
