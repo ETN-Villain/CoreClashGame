@@ -81,6 +81,7 @@ useEffect(() => {
   const [loadingGames, setLoadingGames] = useState(false);
   const [showResolved, setShowResolved] = React.useState(true);
   const [showCancelled, setShowCancelled] = React.useState(false);
+  const [showArchive, setShowArchive] = useState(false);
 
   /* ---------------- LOADING SCREEN ---------------- */
   const [loading, setLoading] = useState(true);
@@ -1054,7 +1055,7 @@ const activeGames = games
   .sort((a, b) => b.id - a.id);
 
 const settledGames = games
-  .filter((g) => g.settled && !g.cancelled && showResolved) // only show if showResolved checked
+  .filter((g) => g.settled && !g.cancelled)
   .sort((a, b) => b.id - a.id);
 
 const cancelledGames = games
@@ -1067,8 +1068,6 @@ const sortedSettledGames = [...settledGames]
 
 const latestSettled = sortedSettledGames.slice(0, 10);
 const archivedSettled = sortedSettledGames.slice(10);
-
-const [showArchive, setShowArchive] = useState(false);
 
 /* ---------------- UI ---------------- */
 if (loading) {
