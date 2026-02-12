@@ -186,49 +186,55 @@ router.post("/:id/join", (req, res) => {
 router.post("/:id/reveal", authWallet, async (req, res) => {
   try {
     const gameId = Number(req.params.id);
-const { player, salt, nftContracts, tokenIds } = req.body;
+    const { player, salt, nftContracts, tokenIds } = req.body;
 
-if (!salt || !Array.isArray(nftContracts) || !Array.isArray(tokenIds)) {
-  return res.status(400).json({ error: "Missing reveal data" });
-}
+    if (!salt || !Array.isArray(nftContracts) || !Array.isArray(tokenIds)) {
+      return res.status(400).json({ error: "Missing reveal data" });
+    }
 
     if (nftContracts.length !== tokenIds.length) {
-      return res.status(400).json({ error: "nftContracts and tokenIds length mismatch" });
+      return res
+        .status(400)
+        .json({ error: "nftContracts and tokenIds length mismatch" });
     }
 
     const games = readGames();
-    const game = games.find(g => g.id === gameId);
+    const game = games.find((g) => g.id === gameId);
     if (!game) return res.status(404).json({ error: "Game not found" });
 
-if (!req.wallet) {
-  return res.status(401).json({ error: "Wallet not authenticated" });
-}
+    if (!req.wallet) {
+      return res.status(401).json({ error: "Wallet not authenticated" });
+    }
 
-const walletLc = req.wallet.toLowerCase();
-const p1 = game.player1.toLowerCase();
-const p2 = game.player2.toLowerCase();
+    const walletLc = req.wallet.toLowerCase();
+    const p1 = game.player1.toLowerCase();
+    const p2 = game.player2?.toLowerCase();
+    let slot;
 
-let slot;
-if (walletLc === p1) slot = "player1";
-else if (walletLc === p2) slot = "player2";
-else return res.status(403).json({ error: "Not a game participant" });
+    if (walletLc === p1) slot = "player1";
+    else if (walletLc === p2) slot = "player2";
+    else return res.status(403).json({ error: "Not a game participant" });
 
-// Optional sanity check
-if (player && player.toLowerCase() !== walletLc) {
-  return res.status(400).json({ error: "Reveal file player mismatch" });
-}
+    // Optional sanity check
+    if (player && player.toLowerCase() !== walletLc) {
+      return res.status(400).json({ error: "Reveal file player mismatch" });
+    }
 
-// Check if reveal already submitted
-if (game[slot + "Reveal"]) {
-  return res.status(400).json({ error: "Reveal already submitted" });
-}
+    // ---- Check on-chain first ----
+    const onChainGame = await contract.games(gameId);
+    const alreadyRevealedOnChain =
+      (slot === "player1" && onChainGame.player1Revealed) ||
+      (slot === "player2" && onChainGame.player2Revealed);
+
+    if (alreadyRevealedOnChain) {
+      return res.status(400).json({ error: "Reveal already submitted on-chain" });
+    }
 
     // ---- Map addresses to collection folders ----
     const addressToCollection = {
       [VKIN_CONTRACT_ADDRESS.toLowerCase()]: "VKIN",
       [VQLE_CONTRACT_ADDRESS.toLowerCase()]: "VQLE",
     };
-
     const mapping = loadMapping();
 
     const tokenURIs = [];
@@ -257,30 +263,38 @@ if (game[slot + "Reveal"]) {
       }
 
       const jsonData = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
-      const bgTrait = jsonData.attributes?.find(a => a.trait_type === "Background");
+      const bgTrait = jsonData.attributes?.find((a) => a.trait_type === "Background");
       const background = bgTrait?.value || "Unknown";
 
       tokenURIs.push(jsonFile);
       backgrounds.push(background);
     }
 
-    // Save reveal data directly
-const revealData = {
-  salt,
-  nftContracts: [...nftContracts],
-  tokenIds: [...tokenIds],
-  tokenURIs,
-  backgrounds,
-};
+    // ---- Save reveal data regardless of prior backend flag ----
+    const revealData = {
+      salt,
+      nftContracts: [...nftContracts],
+      tokenIds: [...tokenIds],
+      tokenURIs,
+      backgrounds,
+    };
 
-// Update backend flags
-game[slot + "Reveal"] = revealData;
-game.backendPlayer1Revealed = !!game.player1Reveal;
-game.backendPlayer2Revealed = !!game.player2Reveal;
+    game[slot + "Reveal"] = revealData;
 
-    writeGames(games);  // early save so state is persisted even if auto fails
+    // ---- Update backend flags based on saved reveal ----
+    game.backendPlayer1Revealed = !!game.player1Reveal;
+    game.backendPlayer2Revealed = !!game.player2Reveal;
+
+    writeGames(games); // persist early
 
     broadcast("GameRevealed", games);
+
+    return res.json({ savedReveal: revealData, message: "Reveal saved successfully" });
+  } catch (err) {
+    console.error("Reveal route failed:", err);
+    return res.status(500).json({ error: err.message || "Internal server error" });
+  }
+});
 
 
     // ────────────────────────────────────────────────────────────────
@@ -395,12 +409,6 @@ if (!game.settled && !game.cancelled) {
         ? "Both reveals received — waiting for on-chain confirmation and automatic settlement..."
         : "Reveal saved. Waiting for the other player to reveal.",
     });
-
-  } catch (err) {
-    console.error("Reveal error:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
-  }
-});
 
 // Temporary backfill helper - POST /games/:id/backfill
 router.post("/:id/backfill", async (req, res) => {
