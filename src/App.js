@@ -82,6 +82,7 @@ useEffect(() => {
   const [showResolved, setShowResolved] = React.useState(true);
   const [showCancelled, setShowCancelled] = React.useState(false);
   const [showArchive, setShowArchive] = useState(false);
+  const [pendingAutoRevealGameId, setPendingAutoRevealGameId] = useState(null);
 
   /* ---------------- LOADING SCREEN ---------------- */
   const [loading, setLoading] = useState(true);
@@ -703,15 +704,14 @@ const joinGame = async (gameId) => {
 
 // At the end of joinGame
 await loadGames();
-
-// Immediately trigger auto-reveal for this game
-autoRevealIfPossible({ ...gameData, player2: account.toLowerCase() });
+setPendingAutoRevealGameId(numericGameId);
 
   } catch (err) {
     console.error("Join game failed:", err);
     alert(err.reason || err.message || "Join failed");
   }
 };
+
 
 /* ---------------- AUTO REVEAL ---------------- */
 const autoRevealIfPossible = useCallback(
@@ -727,7 +727,7 @@ const autoRevealIfPossible = useCallback(
       return;
     }
 
-    if (isP1 && g.player2 === ethers.ZeroAddress) {
+    if (isP1 && g.player2?.toLowerCase() === ethers.ZeroAddress.toLowerCase()) {
       console.log("Auto-reveal skipped: waiting for Player 2", g.id);
       return;
     }
@@ -790,6 +790,16 @@ await loadGames();
   },
   [signer, account, gameContract, loadGames, triggerBackendComputeIfNeeded]  // dependencies
 );
+
+useEffect(() => {
+  if (!pendingAutoRevealGameId) return;
+
+  const game = games.find(g => g.id === pendingAutoRevealGameId);
+  if (game) {
+    autoRevealIfPossible(game);
+    setPendingAutoRevealGameId(null);
+  }
+}, [games, pendingAutoRevealGameId, autoRevealIfPossible]);
 
 /* ---------------- REVEAL FILE UPLOAD ---------------- */
 const handleRevealFile = useCallback(async (e) => {
