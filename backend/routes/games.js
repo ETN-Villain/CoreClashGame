@@ -475,9 +475,39 @@ if (!game.settled && !game.cancelled) {
         : "Reveal saved. Waiting for the other player to reveal.",
     });
 
-// ---------------- COMPUTE RESULTS ----------------
+// ────────────── BACKFILL ──────────────
+router.post("/:id/backfill", async (req, res) => {
+  try {
+    const gameId = Number(req.params.id);
+    const { field, value } = req.body;
+
+    if (!Number.isInteger(gameId)) {
+      return res.status(400).json({ error: "Invalid game ID" });
+    }
+
+    if (!["settleTxHash", "backendWinner", "settledAt"].includes(field)) {
+      return res.status(400).json({ error: "Invalid field for backfill" });
+    }
+
+    const games = readGames();
+    const game = games.find(g => g.id === gameId);
+    if (!game) return res.status(404).json({ error: "Game not found" });
+
+    game[field] = value;
+    writeGames(games);
+
+    console.log(`Backfilled ${field} for game ${gameId}: ${value}`);
+    return res.json({ success: true, updated: { [field]: value } });
+
+  } catch (err) {
+    console.error(`Backfill error for game ${req.params.id}:`, err);
+    return res.status(500).json({ error: err.message || "Internal server error" });
+  }
+});
+
+
+// ────────────── COMPUTE RESULTS ──────────────
 router.post("/:id/compute-results", async (req, res) => {
-  await withLock(async () => {
   try {
     const gameId = Number(req.params.id);
     if (!Number.isInteger(gameId)) {
@@ -486,59 +516,53 @@ router.post("/:id/compute-results", async (req, res) => {
 
     const games = readGames();
     const game = games.find(g => g.id === gameId);
-    if (!game) {
-      return res.status(404).json({ error: "Game not found" });
-    }
+    if (!game) return res.status(404).json({ error: "Game not found" });
 
-    // Require both reveals
     if (!game.player1Reveal || !game.player2Reveal) {
       return res.status(400).json({ error: "Both players must reveal first" });
     }
 
-    // Idempotency — already computed
     if (Array.isArray(game.roundResults) && game.roundResults.length > 0) {
       return res.json({
         success: true,
         alreadyComputed: true,
         roundResults: game.roundResults,
-        winner: game.winner.toLowerCase(),
-        tie: game.tie,
+        winner: game.winner?.toLowerCase() || null,
+        tie: game.tie || false,
       });
     }
 
-    // Compute
     const resolved = await resolveGame(game);
-    if (!resolved || !resolved.roundResults) {
+    if (!resolved || !resolved.rounds) {
       return res.status(500).json({ error: "Failed to compute game results" });
     }
 
-    // Persist computation ONLY
-game.roundResults = resolved.roundResults;
-game.tie = resolved.tie;
-game.winner = resolved.tie ? null : resolved.winner;
-game.settlementState = "computed";
+    // Persist computation
+    game.roundResults = resolved.rounds;
+    game.tie = resolved.tie;
+    game.winner = resolved.tie ? null : resolved.winner;
+    game.settlementState = "computed";
 
     writeGames(games);
 
-    console.log(`compute-results completed for game ${gameId}`, {
+    console.log(`Computed results for game ${gameId}:`, {
       winner: resolved.winner,
       tie: resolved.tie,
-      rounds: resolved.roundResults.length,
+      rounds: resolved.rounds.length,
     });
 
-    res.json({
+    return res.json({
       success: true,
       gameId,
-      roundResults: resolved.roundResults,
+      roundResults: resolved.rounds,
       winner: resolved.winner,
       tie: resolved.tie,
     });
 
   } catch (err) {
-    console.error("compute-results error:", err);
-    res.status(500).json({ error: err.message || "Internal error" });
+    console.error(`Compute-results error for game ${req.params.id}:`, err);
+    return res.status(500).json({ error: err.message || "Internal server error" });
   }
-});
 });
 
 /* ---------------- POST WINNER ---------------- */
