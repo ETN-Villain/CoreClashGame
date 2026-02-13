@@ -340,9 +340,12 @@ const isSettled = g.settled === true || g.settled === "true";
     </div>
   </div>
 )}
-  
-  {/* Manual Settle */}
-  {canSettle && !isCancelled && (
+  </div>
+  )}
+
+{/* Manual settle for fully revealed games */}
+{canSettle && !isCancelled && (
+  <div style={{ marginTop: 8 }}>
     <button
       onClick={() => manualSettleGame(g.id)}
       style={{
@@ -351,14 +354,12 @@ const isSettled = g.settled === true || g.settled === "true";
         padding: "6px 12px",
         borderRadius: 4,
         cursor: "pointer",
-        marginLeft: 8,
       }}
     >
       Settle Game
     </button>
-  )}
-</div>
-  )}
+  </div>
+)}
 
   {/* Teams + Round Results */}
       {bothRevealed && (
