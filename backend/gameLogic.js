@@ -209,12 +209,12 @@ export async function resolveGame(game) {
     const contractAddr = p1Contracts[i]?.toLowerCase() || "";
     const collection = addressToCollection[contractAddr] || "VKIN";
 
-    console.log(`P1 token ${i}: ${collection} ${tokenId} → ${uri}`);
+    console.log(`P1 token ${i}: ${collection} ${tokenId}`);
 
     const nftData = await fetchNFT(collection, tokenId);
 
     if (!nftData) {
-      console.error("Missing metadata for P1 token", uri);
+      console.error("Missing metadata for P1 token", tokenId);
       return null;
     }
 
@@ -228,12 +228,12 @@ export async function resolveGame(game) {
     const collection = addressToCollection[contractAddr] || "VKIN";
     const uri = p2Uris[i];
 
-    console.log(`P2 token ${i}: ${collection} ${tokenId} → ${uri}`);
+    console.log(`P2 token ${i}: ${collection} ${tokenId}`);
 
     const nftData = await fetchNFT(collection, tokenId);
 
     if (!nftData) {
-      console.error("Missing metadata for P2 token", uri);
+      console.error("Missing metadata for P2 token", tokenId);
       return null;
     }
 
