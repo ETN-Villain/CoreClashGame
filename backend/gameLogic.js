@@ -30,14 +30,17 @@ const addressToCollection = {
 
 export const fetchNFT = async (collection, tokenId) => {
   try {
-    const mapping = loadMapping();
-
-    const mapped = mapping[collection]?.[String(tokenId)];
-    if (!mapped) {
-      throw new Error(`Token ${tokenId} not found in mapping`);
+    const collectionMap = tokenMapping[collection];
+    if (!collectionMap) {
+      throw new Error(`No mapping for collection ${collection}`);
     }
 
-    const jsonFile = mapped.token_uri || `${tokenId}.json`;
+    const mapped = collectionMap[String(tokenId)];
+    if (!mapped || !mapped.token_uri) {
+      throw new Error(`No token_uri mapping for ${collection} tokenId ${tokenId}`);
+    }
+
+    const jsonFile = mapped.token_uri;
     const filePath = path.join(METADATA_JSON_DIR, collection, jsonFile);
 
     console.log(`Loading metadata: ${filePath}`);
