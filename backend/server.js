@@ -9,7 +9,7 @@ import { initAdminWallet } from "./admin.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-import { generateMapping } from "./utils/generateMapping.js";
+//import { generateMapping } from "./utils/generateMapping.js";
 import { loadMapping, METADATA_JSON_DIR } from "./paths.js";
 
 import gamesRouter from "./routes/games.js";
@@ -64,7 +64,7 @@ app.get("/metadata/:collection/:tokenId", (req, res) => {
 });
 
 // ---------------- START SERVER ----------------
-await generateMapping();
+//await generateMapping();
 
 const PORT = 3001;
 
