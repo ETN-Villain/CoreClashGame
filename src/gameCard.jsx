@@ -112,8 +112,6 @@ const revealDeadlinePassed =
 const isCancelled = g.cancelled === true || g.cancelled === "true";
 const isSettled = g.settled === true || g.settled === "true";
 
-const canSettle = bothRevealed && !isSettled && !isCancelled;
-
   const canJoin =
     g.player2 === ethers.ZeroAddress &&
     !isPlayer1 &&
@@ -124,6 +122,8 @@ const canSettle = bothRevealed && !isSettled && !isCancelled;
     !!signer;
 
   const bothRevealed = g.player1Revealed && g.player2Revealed;
+
+  const canSettle = bothRevealed && !isSettled && !isCancelled;
 
   /* ---------------- Render Token Images ---------------- */
   const renderTokenImages = (input = []) => {
