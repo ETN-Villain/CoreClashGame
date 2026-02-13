@@ -411,28 +411,28 @@ router.post("/:id/compute-results", async (req, res) => {
     }
 
     const resolved = await resolveGame(game);
-    if (!resolved || !resolved.rounds) {
-      return res.status(500).json({ error: "Failed to compute game results" });
+
+    if (!resolved || !resolved.roundResults) {
+    return res.status(500).json({ error: "Failed to compute game results" });
     }
 
     // Persist computation
-    game.roundResults = resolved.rounds;
+    game.roundResults = resolved.roundResults;
     game.tie = resolved.tie;
-    game.winner = resolved.tie ? null : resolved.winner;
-    game.settlementState = "computed";
+    game.winner = resolved.winner;
 
     writeGames(games);
 
     console.log(`Computed results for game ${gameId}:`, {
       winner: resolved.winner,
       tie: resolved.tie,
-      rounds: resolved.rounds.length,
+      rounds: resolved.roundResults.length,
     });
 
     return res.json({
       success: true,
       gameId,
-      roundResults: resolved.rounds,
+      roundResults: resolved.roundResults,
       winner: resolved.winner,
       tie: resolved.tie,
     });
