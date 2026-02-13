@@ -28,22 +28,29 @@ const addressToCollection = {
   "0x8cfbb04c54d35e2e8471ad9040d40d73c08136f0": "VQLE",
 };
 
-// Fetch NFT metadata from local cache
-export const fetchNFT = async (collection, tokenURI) => {
+export const fetchNFT = async (collection, tokenId) => {
   try {
-    // collection = "VKIN" or "VQLE"
-    const filePath = path.join(METADATA_JSON_DIR, collection, tokenURI);
+    const mapping = loadMapping();
 
-    console.log(`Trying to load metadata: ${filePath}`);
+    const mapped = mapping[collection]?.[String(tokenId)];
+    if (!mapped) {
+      throw new Error(`Token ${tokenId} not found in mapping`);
+    }
+
+    const jsonFile = mapped.token_uri || `${tokenId}.json`;
+    const filePath = path.join(METADATA_JSON_DIR, collection, jsonFile);
+
+    console.log(`Loading metadata: ${filePath}`);
 
     if (!fs.existsSync(filePath)) {
-      throw new Error(`File not found: ${filePath}`);
+      throw new Error(`Metadata file missing: ${filePath}`);
     }
 
     const raw = fs.readFileSync(filePath, "utf8");
     return JSON.parse(raw);
+
   } catch (err) {
-    console.error("Failed to fetch NFT metadata:", collection, tokenURI, err.message);
+    console.error("Failed to fetch NFT metadata:", collection, tokenId, err.message);
     return null;
   }
 };
@@ -201,11 +208,11 @@ export async function resolveGame(game) {
     const tokenId = p1TokenIds[i];
     const contractAddr = p1Contracts[i]?.toLowerCase() || "";
     const collection = addressToCollection[contractAddr] || "VKIN";
-    const uri = p1Uris[i];
 
     console.log(`P1 token ${i}: ${collection} ${tokenId} → ${uri}`);
 
-    const nftData = await fetchNFT(collection, uri);
+    const nftData = await fetchNFT(collection, tokenId);
+
     if (!nftData) {
       console.error("Missing metadata for P1 token", uri);
       return null;
@@ -223,7 +230,8 @@ export async function resolveGame(game) {
 
     console.log(`P2 token ${i}: ${collection} ${tokenId} → ${uri}`);
 
-    const nftData = await fetchNFT(collection, uri);
+    const nftData = await fetchNFT(collection, tokenId);
+
     if (!nftData) {
       console.error("Missing metadata for P2 token", uri);
       return null;
