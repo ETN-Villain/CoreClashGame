@@ -10,7 +10,7 @@ import {
 } from "./config.js";
 import { loadLastBlock, saveLastBlock } from "./utils/blockState.js";
 import { readOwnerCache, writeOwnerCache, deleteCache } from "./utils/ownerCache.js";
-import { reconcileAllGamesScheduled } from "./reconcile.js";
+import { reconcileActiveGamesScheduled } from "./reconcile.js";
 import { fetchOwnedTokenIds } from "./utils/nftUtils.js";
 import { readGames, writeGames } from "./store/gamesStore.js";
 
@@ -102,7 +102,7 @@ setInterval(async () => {
 
       if (createdLogs.length > 0) {
         console.log(`🆕 ${createdLogs.length} GameCreated event(s)`);
-        await reconcileAllGamesScheduled(); // authoritative sync
+        await reconcileActiveGamesScheduled(); // authoritative sync
       }
 
       for (const log of createdLogs) {
@@ -120,7 +120,7 @@ setInterval(async () => {
 
       if (joinedLogs.length > 0) {
         console.log(`🆕 ${joinedLogs.length} GameJoined event(s)`);
-        await reconcileAllGamesScheduled();
+        await reconcileActiveGamesScheduled();
       }
       
 // ----- GameSettled events -----
