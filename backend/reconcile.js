@@ -74,103 +74,71 @@ export async function discoverMissingGamesScheduled() {
 setInterval(discoverMissingGamesScheduled, 60 * 1000);
 
 /* ================================================================
-   RECONCILE ALL GAMES (every 10 min)
+   RECONCILE ACTIVE GAMES ONLY (every 2 min)
    ================================================================ */
 
 const reconcileQueue = new PQueue({ concurrency: RPC_CONCURRENCY });
 
-export async function reconcileAllGamesScheduled() {
-if (isCatchingUp) {
-  console.log("[SKIP] Skipping reconcile while catching up");
-  return;
-}
+export async function reconcileActiveGamesScheduled() {
+  if (isCatchingUp) {
+    console.log("[SKIP] Skipping reconcile while catching up");
+    return;
+  }
+
   await withLock(async () => {
     const games = readGames();
+
+    // 🔥 Only reconcile unsettled + non-cancelled games
+    const activeGames = games.filter(
+      g => !g.settled && !g.cancelled
+    );
+
+    if (activeGames.length === 0) {
+      console.log("[RECONCILE] No active games to process");
+      return;
+    }
+
     let dirty = false;
 
     await Promise.all(
-      games.map(game =>
+      activeGames.map(game =>
         reconcileQueue.add(async () => {
           try {
             const onChain = await contract.games(game.id);
 
-// ---- Sync cancelled directly from chain ----
-if (game.cancelled !== onChain.cancelled) {
-  game.cancelled = onChain.cancelled;
-  dirty = true;
-}
+            /* -----------------------------
+               Sync cancelled state
+            ------------------------------*/
+            if (game.cancelled !== onChain.cancelled) {
+              game.cancelled = onChain.cancelled;
+              dirty = true;
+            }
 
-// If not settled on chain, it cannot be cancelled via settlement logic
-if (!onChain.settled && game.settled) {
-  game.settled = false;
-  game.settledAt = null;
-  dirty = true;
-}
+            /* -----------------------------
+               Settlement Sync (Chain = Truth)
+            ------------------------------*/
+            if (onChain.settled) {
+              game.settled = true;
+              game.settledAt = new Date().toISOString();
 
-// ---- Settlement sync (trust chain only) ----
-if (onChain.settled) {
-  if (!game.settled) {
-    game.settled = true;
-    game.settledAt = new Date().toISOString();
-    dirty = true;
-  }
+              const chainWinner = onChain.winner?.toLowerCase();
 
-  const chainWinner = onChain.winner?.toLowerCase();
+              if (chainWinner && chainWinner !== ZERO) {
+                game.backendWinner = chainWinner;
+                game.winner = chainWinner;
+                game.cancelled = false;
+              } else {
+                game.cancelled = true;
+                game.winner = null;
+                game.backendWinner = null;
+              }
 
-  if (chainWinner && chainWinner !== ZERO) {
-    if (game.backendWinner !== chainWinner) {
-      game.backendWinner = chainWinner;
-      game.winner = chainWinner;
-      game.cancelled = false;
-      dirty = true;
-    }
-  } else {
-    // tie or cancelled
-    if (!game.cancelled) {
-      game.cancelled = true;
-      game.winner = null;
-      game.backendWinner = null;
-      dirty = true;
-    }
-  }
-}
+              dirty = true;
+            }
 
-            // ---- Winner reconciliation (trust chain) ----
-let backendWinner;
-try {
-  backendWinner = await contract.backendWinner(game.id);
-} catch (err) {
-  if (err.message?.includes("Too many requests")) {
-    console.warn(`[RECONCILE] Rate-limited for game ${game.id}, retrying 5s...`);
-    await new Promise(r => setTimeout(r, 5000));
-    backendWinner = await contract.backendWinner(game.id).catch(() => null);
-  } else {
-    console.warn(`[RECONCILE] backendWinner fetch failed for game ${game.id}`);
-    return;
-  }
-}
-
-// Only reconcile winner if game is settled on chain
-if (onChain.settled) {
-  if (backendWinner === ZERO) {
-    if (!game.cancelled) {
-      game.cancelled = true;
-      game.winner = null;
-      game.backendWinner = null;
-      dirty = true;
-    }
-  } else {
-    const winner = backendWinner.toLowerCase();
-    if (game.backendWinner !== winner) {
-      game.cancelled = false;
-      game.backendWinner = winner;
-      game.winner = winner;
-      dirty = true;
-    }
-  }
-}
-
-            // ---- Reveal flags ----
+            /* -----------------------------
+               Reveal flags
+            ------------------------------*/
             if (onChain.player1Revealed && !game.player1Revealed) {
               game.player1Revealed = true;
               dirty = true;
@@ -181,11 +149,6 @@ if (onChain.settled) {
               dirty = true;
             }
 
-            // ---- Cleanup legacy temp fields ----
-            if (game._reveal) {
-              delete game._reveal;
-              dirty = true;
-            }
           } catch (err) {
             console.warn(
               `[RECONCILE] Failed for game ${game.id}:`,
@@ -198,10 +161,107 @@ if (onChain.settled) {
 
     if (dirty) {
       writeGames(games);
-      console.log("[RECONCILE] games.json updated");
+      console.log("[RECONCILE] Active games updated");
     }
   });
 }
 
-// every 10 minutes
-setInterval(reconcileAllGamesScheduled, 10 * 60 * 1000);
+// ⏱ Run every 2 minutes
+setInterval(reconcileActiveGamesScheduled, 2 * 60 * 1000);
+
+/* ================================================================
+   FULL RECONCILE SWEEP (Batched + Safe)
+   ================================================================ */
+
+const FULL_SWEEP_BATCH_SIZE = 50;
+
+export async function reconcileFullSweep() {
+  if (isCatchingUp) {
+    console.log("[FULL SWEEP] Skipping while catching up");
+    return;
+  }
+
+  console.log("[FULL SWEEP] Starting hourly reconciliation...");
+
+  await withLock(async () => {
+    const games = readGames();
+    let dirty = false;
+
+    for (let i = 0; i < games.length; i += FULL_SWEEP_BATCH_SIZE) {
+      const batch = games.slice(i, i + FULL_SWEEP_BATCH_SIZE);
+
+      await Promise.all(
+        batch.map(async (game) => {
+          try {
+            const onChain = await contract.games(game.id);
+
+            // ---- Sync cancelled ----
+            if (game.cancelled !== onChain.cancelled) {
+              game.cancelled = onChain.cancelled;
+              dirty = true;
+            }
+
+            // ---- Sync settlement ----
+            if (game.settled !== onChain.settled) {
+              game.settled = onChain.settled;
+              game.settledAt = onChain.settled
+                ? new Date().toISOString()
+                : null;
+              dirty = true;
+            }
+
+            // ---- Sync winner ----
+            if (onChain.settled) {
+              const chainWinner = onChain.winner?.toLowerCase();
+
+              if (chainWinner && chainWinner !== ZERO) {
+                if (game.backendWinner !== chainWinner) {
+                  game.backendWinner = chainWinner;
+                  game.winner = chainWinner;
+                  game.cancelled = false;
+                  dirty = true;
+                }
+              } else {
+                if (!game.cancelled || game.backendWinner) {
+                  game.cancelled = true;
+                  game.backendWinner = null;
+                  game.winner = null;
+                  dirty = true;
+                }
+              }
+            }
+
+            // ---- Sync reveals ----
+            if (onChain.player1Revealed && !game.player1Revealed) {
+              game.player1Revealed = true;
+              dirty = true;
+            }
+
+            if (onChain.player2Revealed && !game.player2Revealed) {
+              game.player2Revealed = true;
+              dirty = true;
+            }
+
+          } catch (err) {
+            console.warn(
+              `[FULL SWEEP] Failed for game ${game.id}:`,
+              err.message
+            );
+          }
+        })
+      );
+
+      // Small delay between batches to avoid burst throttling
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+
+    if (dirty) {
+      writeGames(games);
+      console.log("[FULL SWEEP] games.json updated from chain truth");
+    } else {
+      console.log("[FULL SWEEP] No drift detected");
+    }
+  });
+}
+
+setInterval(reconcileFullSweep, 60 * 60 * 1000);
