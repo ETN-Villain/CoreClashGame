@@ -66,6 +66,31 @@ export const StableImage = ({ src, alt }) => {
   );
 };
 
+// ---------- Game Status Logic ----------
+function getGameStatus(g) {
+  if (g.cancelled) {
+    return { label: "Cancelled", color: "#ff4444" };
+  }
+
+  if (g.settled) {
+    return { label: "Settled On-Chain", color: "#18bb1a" };
+  }
+
+  if (!g.player1Reveal || !g.player2Reveal) {
+    return { label: "Awaiting Reveals", color: "#888" };
+  }
+
+  if (g.roundResults && g.roundResults.length > 0 && !g.backendWinner) {
+    return { label: "Winner Ready to Post", color: "#4da3ff" };
+  }
+
+  if (g.backendWinner && !g.settled) {
+    return { label: "Winner Posted — Settling...", color: "#ff9800" };
+  }
+
+  return { label: "In Progress", color: "#888" };
+}
+
 /* ---------------- GameCard Component ---------------- */
 export default function GameCard({
   g,
@@ -124,6 +149,8 @@ const isSettled = g.settled === true || g.settled === "true";
   const bothRevealed = g.player1Revealed && g.player2Revealed;
 
   const canSettle = bothRevealed && !isSettled && !isCancelled;
+
+  const status = getGameStatus(g);
 
   /* ---------------- Render Token Images ---------------- */
   const renderTokenImages = (input = []) => {
@@ -201,6 +228,20 @@ const isSettled = g.settled === true || g.settled === "true";
       )}
 
       <h3 style={{ marginTop: 0, marginBottom: 6 }}>Game #{g.id}</h3>
+<div
+  style={{
+    display: "inline-block",
+    padding: "4px 10px",
+    borderRadius: 20,
+    fontSize: 12,
+    fontWeight: "bold",
+    backgroundColor: status.color,
+    color: "#000",
+    marginBottom: 10,
+  }}
+>
+  {status.label}
+</div>
 
 {!isSettled && (
   <>
