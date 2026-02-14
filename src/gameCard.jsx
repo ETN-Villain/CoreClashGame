@@ -76,9 +76,13 @@ function getGameStatus(g) {
     return { label: "Settled On-Chain", color: "#18bb1a" };
   }
 
-  if (!g.player1Reveal || !g.player2Reveal) {
-    return { label: "Awaiting Reveals", color: "#888" };
-  }
+if (
+  g.player1 &&
+  g.player2 &&
+  ( !g.player1Reveal || !g.player2Reveal )
+) {
+  return { label: "Awaiting Reveals", color: "#888" };
+}
 
   if (g.roundResults && g.roundResults.length > 0 && !g.backendWinner) {
     return { label: "Winner Ready to Post", color: "#4da3ff" };
