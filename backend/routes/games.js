@@ -583,10 +583,6 @@ router.post("/:id/finalize-settle", async (req, res) => {
         return res.json({ success: true, alreadySettled: true });
       }
 
-      if (!game.backendWinner && !game.tie) {
-        return res.status(400).json({ error: "Winner not posted yet" });
-      }
-
       // ✅ Canonical settlement
       game.settled = true;
       game.settleTxHash = txHash;
