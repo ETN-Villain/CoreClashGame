@@ -362,7 +362,6 @@ const downloadRevealBackup = useCallback(
 );
 
 /* ---------------- LOAD GAMES ---------------- */
-
 const loadGames = useCallback(async () => {
   setLoadingGames(true);
 
@@ -438,11 +437,12 @@ const merged = backendGames.map((backendGame) => {
       ethers.ZeroAddress,
     tie: !!backendGame.tie,
 
-    // settlement
-    settled:
-      backendGame.settled === true ||
-      onChainGame.settled === true,
-    settledAt: backendGame.settledAt || null,
+// settlement
+settled:
+  backendGame.settled === true ||
+  onChainGame.settled === true,
+settledAt: backendGame.settledAt || null,
+settleTxHash: backendGame.settleTxHash || null,
 
     // cancellation
     cancelled: backendGame.cancelled === true,
@@ -950,7 +950,6 @@ const gameCardProps = {
   handleRevealFile,
   cancelUnjoinedGame,
   renderTokenImages,
-  settleTxHash: g.settleTxHash,
 };
 
 /* ---------------- BACKGROUND PRIORITY ---------------- */
