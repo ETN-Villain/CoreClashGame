@@ -926,7 +926,7 @@ if (!postWinnerRes.success || postWinnerRes.alreadyPosted) {
       }
 
 if (!postWinnerRes.txHash) {
-  throw new Error("Winner not confirmed on-chain");
+  throw new Error("Awaiting on-chain postWinner and settleGame transaction. Reconcile also needs to run... please wait (~2mins). Hit refresh games");
 }
 
       // Refresh local state
