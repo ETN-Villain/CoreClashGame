@@ -88,6 +88,10 @@ useEffect(() => {
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState(5);
 
+  /* ---------------- HANDLE GAMECREATED EVENT ---------------- */
+  const [showDeviceWarning, setShowDeviceWarning] = useState(false);
+  const [deviceConfirmed, setDeviceConfirmed] = useState(false);
+
   /* ---------------- COUNTDOWN ---------------- */
 // Countdown effect
 useEffect(() => {
@@ -940,6 +944,29 @@ if (!postWinnerRes.txHash) {
   [signer, account, loadGames]
 );
 
+/// ---------------- MODAL STYLES ----------------
+const modalOverlayStyle = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: "rgba(0,0,0,0.6)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 1000,
+};
+
+const modalBoxStyle = {
+  background: "#111",
+  padding: 24,
+  borderRadius: 12,
+  width: 400,
+  maxWidth: "90%",
+  color: "#fff",
+};
+
   /* ---------------- GAME CARD PROPS ---------------- */
 const gameCardProps = {
   account,
@@ -1376,13 +1403,54 @@ border: "1px solid #333" }} />
           {validating ? "Validating..." : "Validate Team"}
         </button>
         <button
-          onClick={createGame}
+          onClick={() => setShowDeviceWarning(true)}
           disabled={!validated || !stakeToken || !stakeAmount || !signer}
           style={{ marginLeft: 12 }}
         >
           Create Game
         </button>
       </div>
+
+{showDeviceWarning && (
+  <div style={modalOverlayStyle}>
+    <div style={modalBoxStyle}>
+      <h3>⚠ Important: Reveal File Backup</h3>
+
+      <p>
+        If you are using <b>MetaMask Mobile</b>, the reveal file will NOT
+        automatically download.
+      </p>
+
+      <p>
+        If the reveal file is not saved, you will be unable to reveal and
+        will forfeit the game and your stake.
+      </p>
+
+      <p style={{ fontSize: 12, opacity: 0.8 }}>
+        By continuing, you confirm that you understand this risk and have
+        ensured your reveal file can be securely saved.
+      </p>
+
+      <div style={{ marginTop: 20 }}>
+        <button
+          onClick={() => {
+            setDeviceConfirmed(true);
+            setShowDeviceWarning(false);
+            createGame();
+          }}
+          style={{ marginRight: 10 }}
+        >
+          I Understand – Continue
+        </button>
+
+        <button onClick={() => setShowDeviceWarning(false)}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
 {/* ---------------- GAMES GRID ---------------- */}
 <div style={{ marginTop: 40, marginBottom: 10 }}>
