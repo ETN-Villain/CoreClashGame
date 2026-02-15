@@ -73,13 +73,14 @@ function getGameStatus(g) {
   }
 
   if (g.settled) {
-    return { label: "Settled On-Chain", color: "#18bb1a" };
+    return { label: "Settled On-Chain", color: "#18bb1a", link: `https://blockexplorer.electroneum.com/tx/${g.settleTxHash}`};
   }
 
 if (
   g.player1 &&
   g.player2 &&
-  ( !g.player1Reveal || !g.player2Reveal )
+  g.player2 !== ethers.ZeroAddress &&
+  (!g.player1Reveal || !g.player2Reveal)
 ) {
   return { label: "Awaiting Reveals", color: "#888" };
 }
