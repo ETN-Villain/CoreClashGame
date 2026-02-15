@@ -77,7 +77,6 @@ export default function GameCard({
   handleRevealFile,
   cancelUnjoinedGame,
   roundResults = [],
-  settleTxHash = g.settleTxHash,
 }) {
   const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
   const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
