@@ -78,6 +78,13 @@ function getGameStatus(g) {
 
 if (
   g.player1 &&
+  (!g.player2 || g.player2 === ethers.ZeroAddress)
+) {
+  return { label: "Waiting for Opponent", color: "#f0b90b" };
+}
+
+if (
+  g.player1 &&
   g.player2 &&
   g.player2 !== ethers.ZeroAddress &&
   (!g.player1Reveal || !g.player2Reveal)
@@ -152,10 +159,9 @@ const isSettled = g.settled === true || g.settled === "true";
     !!signer;
 
   const bothRevealed = g.player1Revealed && g.player2Revealed;
-
   const canSettle = bothRevealed && !isSettled && !isCancelled;
-
   const status = getGameStatus(g);
+  const BadgeWrapper = status.link ? "a" : "div";
 
   /* ---------------- Render Token Images ---------------- */
   const renderTokenImages = (input = []) => {
@@ -233,7 +239,11 @@ const isSettled = g.settled === true || g.settled === "true";
       )}
 
       <h3 style={{ marginTop: 0, marginBottom: 6 }}>Game #{g.id}</h3>
-<div
+
+<BadgeWrapper
+  href={status.link}
+  target={status.link ? "_blank" : undefined}
+  rel={status.link ? "noopener noreferrer" : undefined}
   style={{
     display: "inline-block",
     padding: "4px 10px",
@@ -243,10 +253,12 @@ const isSettled = g.settled === true || g.settled === "true";
     backgroundColor: status.color,
     color: "#000",
     marginBottom: 10,
+    textDecoration: "none",
+    cursor: status.link ? "pointer" : "default",
   }}
 >
   {status.label}
-</div>
+</BadgeWrapper>
 
 {!isSettled && (
   <>
