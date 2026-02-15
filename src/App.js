@@ -950,6 +950,7 @@ const gameCardProps = {
   handleRevealFile,
   cancelUnjoinedGame,
   renderTokenImages,
+  settleTxHash: g.settleTxHash,
 };
 
 /* ---------------- BACKGROUND PRIORITY ---------------- */

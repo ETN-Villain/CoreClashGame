@@ -66,7 +66,23 @@ export const StableImage = ({ src, alt }) => {
   );
 };
 
-// ---------- Game Status Logic ----------
+/* ---------------- GameCard Component ---------------- */
+export default function GameCard({
+  g,
+  account,
+  signer,
+  approveTokens,
+  joinGame,
+  manualSettleGame,
+  handleRevealFile,
+  cancelUnjoinedGame,
+  roundResults = [],
+  settleTxHash = g.settleTxHash,
+}) {
+  const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
+  const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
+
+  // ---------- Game Status Logic ----------
 function getGameStatus(g) {
   if (g.cancelled) {
     return { label: "Cancelled", color: "#ff4444" };
@@ -102,21 +118,6 @@ if (
 
   return { label: "In Progress", color: "#888" };
 }
-
-/* ---------------- GameCard Component ---------------- */
-export default function GameCard({
-  g,
-  account,
-  signer,
-  approveTokens,
-  joinGame,
-  manualSettleGame,
-  handleRevealFile,
-  cancelUnjoinedGame,
-  roundResults = [],
-}) {
-  const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
-  const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
 
 // Compute totals (WEI-SAFE)
 const stakeWei = BigInt(g.stakeAmount || 0);
