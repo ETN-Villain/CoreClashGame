@@ -170,41 +170,36 @@ useEffect(() => {
       const accounts = await window.ethereum.request({ method: "eth_accounts" });
 
       if (accounts.length === 0) {
-        // No wallet connected — do nothing
         setAccount(null);
         return;
       }
 
-      // Wallet previously connected, restore state silently
       const signer = await prov.getSigner();
       setProvider(prov);
       setSigner(signer);
       setAccount(accounts[0]);
       setWalletError(null);
     } catch {
-      // Silent fail, do not block app
       setAccount(null);
     }
   };
 
   restoreWallet();
 
-  // Listen for account changes
-  const handleAccountsChanged = (accounts) => {
-    if (accounts.length === 0) {
-      setAccount(null);
-      setOwnedNFTs([]);
-    } else {
-      setAccount(accounts[0]);
-    }
+  const handleAccountsChanged = () => {
+    window.location.reload();
+  };
+
+  const handleChainChanged = () => {
+    window.location.reload();
   };
 
   window.ethereum.on("accountsChanged", handleAccountsChanged);
-  window.ethereum.on("chainChanged", () => window.location.reload());
+  window.ethereum.on("chainChanged", handleChainChanged);
 
   return () => {
     window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
-    window.ethereum.removeAllListeners("chainChanged");
+    window.ethereum.removeListener("chainChanged", handleChainChanged);
   };
 }, []);
 
