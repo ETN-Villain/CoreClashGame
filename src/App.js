@@ -180,9 +180,9 @@ useEffect(() => {
 
     const signer = await prov.getSigner();
     const addr = await signer.getAddress();
+      setProvider(prov);
       setSigner(signer);
       setAccount(addr);
-      setAccount(accounts[0]);
       setWalletError(null);
     } catch {
       setAccount(null);
