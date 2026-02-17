@@ -119,9 +119,9 @@ const publicProvider = useMemo(() => {
 }, []);
 
 const gameContract = useMemo(() => {
-    if (!provider || !signer) return null;
-    return new ethers.Contract(GAME_ADDRESS, GameABI, signer);
-  }, [provider, signer]);
+  if (!signer) return null;
+  return new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+}, [signer]);
 
   /* ---------------- CONNECT WALLET ---------------- */
 const connectWallet = useCallback(async () => {
@@ -634,10 +634,12 @@ const cancelUnjoinedGame = async (gameId) => {
 
 /* ---------------- JOIN GAME ---------------- */
 const joinGame = async (gameId) => {
-if (!provider || !gameContract) {
+if (!signer) {
   alert("Wallet not connected");
   return;
 }
+
+const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
   try {
     const numericGameId = Number(gameId);
