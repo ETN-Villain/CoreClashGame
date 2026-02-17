@@ -106,6 +106,20 @@ export async function reconcileActiveGamesScheduled() {
           try {
             const onChain = await contract.games(game.id);
 
+// ---- Sync players (Chain is Truth) ----
+const chainP1 = onChain.player1?.toLowerCase();
+const chainP2 = onChain.player2?.toLowerCase();
+
+if (game.player1 !== chainP1) {
+  game.player1 = chainP1;
+  dirty = true;
+}
+
+if (game.player2 !== chainP2) {
+  game.player2 = chainP2;
+  dirty = true;
+}
+
             /* -----------------------------
                Sync cancelled state
             ------------------------------*/
@@ -194,6 +208,20 @@ export async function reconcileFullSweep() {
         batch.map(async (game) => {
           try {
             const onChain = await contract.games(game.id);
+
+// ---- Sync players (Chain is Truth) ----
+const chainP1 = onChain.player1?.toLowerCase();
+const chainP2 = onChain.player2?.toLowerCase();
+
+if (game.player1 !== chainP1) {
+  game.player1 = chainP1;
+  dirty = true;
+}
+
+if (game.player2 !== chainP2) {
+  game.player2 = chainP2;
+  dirty = true;
+}
 
             // ---- Sync cancelled ----
             if (game.cancelled !== onChain.cancelled) {
