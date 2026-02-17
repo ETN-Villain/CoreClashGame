@@ -690,10 +690,10 @@ const erc20 = new ethers.Contract(stakeToken, ERC20ABI, liveSigner);
 
     // 4. Join on-chain
     console.log("Joining on-chain...");
-    const tx = await gameContract.joinGame(numericGameId, commit);
+    const tx = await contract.joinGame(numericGameId, commit);
     await tx.wait();
 
-const gameOnChain = await gameContract.games(numericGameId);
+const gameOnChain = await contract.games(numericGameId);
 
 if (gameOnChain.player2.toLowerCase() !== liveAccount.toLowerCase()) {
   throw new Error("On-chain player mismatch");
@@ -735,7 +735,6 @@ setPendingAutoRevealGameId(numericGameId);
     alert(err.reason || err.message || "Join failed");
   }
 };
-
 
 /* ---------------- AUTO REVEAL (CHAIN AUTHORITATIVE) ---------------- */
 const autoRevealIfPossible = useCallback(
