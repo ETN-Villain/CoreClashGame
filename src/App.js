@@ -513,10 +513,17 @@ useEffect(() => {
 
 /* ---------------- CREATE GAME ---------------- */
 const createGame = useCallback(async () => {
-  if (!validated || !signer || !gameContract) {
-    alert("Wallet not connected or team not validated");
-    return;
-  }
+if (!validated) {
+  alert("Team not validated");
+  return;
+}
+
+if (!signer) {
+  alert("Wallet not connected");
+  return;
+}
+
+const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
   if (!stakeToken || !stakeAmount || nfts.some(n => !n.address || !n.tokenId)) {
     alert("All fields must be completed before creating a game");
@@ -545,7 +552,7 @@ const createGame = useCallback(async () => {
     );
 
     /* ---------- Create game on-chain ---------- */
-    const tx = await gameContract.createGame(stakeToken, stakeWei, commit);
+    const tx = await contract.createGame(stakeToken, stakeWei, commit);
     const receipt = await tx.wait();
 
     /* ---------- Extract gameId from event ---------- */
