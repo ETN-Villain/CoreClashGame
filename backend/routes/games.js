@@ -163,7 +163,14 @@ router.post("/:id/join", (req, res) => {
   const games = readGames();
   const game = games.find(g => g.id === gameId);
 
-  if (!game) {
+if (
+  player2.toLowerCase() ===
+  "0x0000000000000000000000000000000000000000"
+) {
+  return res.status(400).json({ error: "Zero address not allowed" });
+}
+
+if (!game) {
     return res.status(404).json({ error: "Game not found" });
   }
 

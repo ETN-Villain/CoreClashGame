@@ -178,9 +178,10 @@ useEffect(() => {
         return;
       }
 
-      const signer = await prov.getSigner();
-      setProvider(prov);
+    const signer = await prov.getSigner();
+    const addr = await signer.getAddress();
       setSigner(signer);
+      setAccount(addr);
       setAccount(accounts[0]);
       setWalletError(null);
     } catch {
@@ -626,14 +627,22 @@ const cancelUnjoinedGame = async (gameId) => {
 
 /* ---------------- JOIN GAME ---------------- */
 const joinGame = async (gameId) => {
-  if (!signer || !account || !gameContract) {
-    alert("Wallet not connected");
-    return;
-  }
+if (!provider || !gameContract) {
+  alert("Wallet not connected");
+  return;
+}
 
   try {
     const numericGameId = Number(gameId);
 
+ // 🔒 Derive wallet live from provider
+  const liveSigner = await provider.getSigner();
+  const liveAccount = await liveSigner.getAddress();
+
+  if (!liveAccount || liveAccount === ethers.ZeroAddress) {
+    throw new Error("Invalid wallet address");
+  }
+    
     // 1. Fetch game details from backend to get stakeToken & stakeAmount
     const gameRes = await fetch(`${BACKEND_URL}/games/${numericGameId}`);
     if (!gameRes.ok) throw new Error("Failed to fetch game details");
@@ -659,10 +668,10 @@ const joinGame = async (gameId) => {
     );
 
     // 3. Approve tokens using fetched stakeAmount
-    const erc20 = new ethers.Contract(stakeToken, ERC20ABI, signer);
+const erc20 = new ethers.Contract(stakeToken, ERC20ABI, liveSigner);
     const stakeWei = ethers.parseUnits(stakeAmount, 18); // assuming 18 decimals
 
-    const allowance = await erc20.allowance(account, GAME_ADDRESS);
+    const allowance = await erc20.allowance(liveAccount, GAME_ADDRESS);
     if (allowance < stakeWei) {
       console.log("Approving tokens...");
       const approveTx = await erc20.approve(GAME_ADDRESS, stakeWei);
@@ -675,15 +684,22 @@ const joinGame = async (gameId) => {
     const tx = await gameContract.joinGame(numericGameId, commit);
     await tx.wait();
 
-    // 5. Notify backend
-    await fetch(`${BACKEND_URL}/games/${numericGameId}/join`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ player2: account.toLowerCase() }),
-    });
+const gameOnChain = await gameContract.games(numericGameId);
+
+if (gameOnChain.player2.toLowerCase() !== liveAccount.toLowerCase()) {
+  throw new Error("On-chain player mismatch");
+}
+
+await fetch(`${BACKEND_URL}/games/${numericGameId}/join`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    player2: gameOnChain.player2
+  }),
+});
 
     // 6. Save reveal backup (unchanged)
-    const prefix = `${account.toLowerCase()}_${numericGameId}`;
+    const prefix = `${liveAccount.toLowerCase()}_${numericGameId}`;
     localStorage.setItem(`${prefix}_salt`, salt.toString());
     localStorage.setItem(`${prefix}_nftContracts`, JSON.stringify(nftContracts));
     localStorage.setItem(
@@ -693,7 +709,7 @@ const joinGame = async (gameId) => {
 
     downloadRevealBackup({
       gameId: numericGameId,
-      player: account.toLowerCase(),
+      player: liveAccount.toLowerCase(),
       salt: salt.toString(),
       nftContracts,
       tokenIds: tokenIds.map(t => t.toString()),
@@ -712,37 +728,56 @@ setPendingAutoRevealGameId(numericGameId);
 };
 
 
-/* ---------------- AUTO REVEAL ---------------- */
+/* ---------------- AUTO REVEAL (CHAIN AUTHORITATIVE) ---------------- */
 const autoRevealIfPossible = useCallback(
-  async (g) => {   // ← Ensure 'async' is here
+  async (g) => {
     if (!signer || !account || !gameContract) return;
 
-    const isP1 = g.player1?.toLowerCase() === account.toLowerCase();
-    const isP2 = g.player2?.toLowerCase() === account.toLowerCase();
-    if (!isP1 && !isP2) return;
-
-    if ((isP1 && g.player1Revealed) || (isP2 && g.player2Revealed)) {
-      console.log("Auto-reveal skipped: already revealed", g.id);
-      return;
-    }
-
-    if (isP1 && g.player2?.toLowerCase() === ethers.ZeroAddress.toLowerCase()) {
-      console.log("Auto-reveal skipped: waiting for Player 2", g.id);
-      return;
-    }
-
-    const prefix = `${account.toLowerCase()}_${g.id}`;
-
-    const saltStr = localStorage.getItem(`${prefix}_salt`);
-    const nftContractsStr = localStorage.getItem(`${prefix}_nftContracts`);
-    const tokenIdsStr = localStorage.getItem(`${prefix}_tokenIds`);
-
-    if (!saltStr || !nftContractsStr || !tokenIdsStr) {
-      console.log("Auto-reveal skipped: missing localStorage data");
-      return;
-    }
-
     try {
+      // 1️⃣ Always fetch fresh on-chain state
+      const chainGame = await gameContract.games(BigInt(g.id));
+
+      const accountLower = account.toLowerCase();
+      const zeroLower = ethers.ZeroAddress.toLowerCase();
+
+      const player1 = chainGame.player1.toLowerCase();
+      const player2 = chainGame.player2.toLowerCase();
+
+      const isP1 = player1 === accountLower;
+      const isP2 = player2 === accountLower;
+
+      if (!isP1 && !isP2) {
+        console.log("Auto-reveal skipped: not a participant", g.id);
+        return;
+      }
+
+      // 2️⃣ Prevent reveal if already revealed (use chain state if available)
+      const player1Revealed = chainGame.player1Revealed;
+      const player2Revealed = chainGame.player2Revealed;
+
+      if ((isP1 && player1Revealed) || (isP2 && player2Revealed)) {
+        console.log("Auto-reveal skipped: already revealed", g.id);
+        return;
+      }
+
+      // 3️⃣ Ensure both players exist on-chain
+      if (player2 === zeroLower) {
+        console.log("Auto-reveal skipped: waiting for Player 2 (chain)", g.id);
+        return;
+      }
+
+      // 4️⃣ Load local commit data
+      const prefix = `${accountLower}_${g.id}`;
+
+      const saltStr = localStorage.getItem(`${prefix}_salt`);
+      const nftContractsStr = localStorage.getItem(`${prefix}_nftContracts`);
+      const tokenIdsStr = localStorage.getItem(`${prefix}_tokenIds`);
+
+      if (!saltStr || !nftContractsStr || !tokenIdsStr) {
+        console.log("Auto-reveal skipped: missing localStorage data", g.id);
+        return;
+      }
+
       const salt = BigInt(saltStr);
       const nftContracts = JSON.parse(nftContractsStr);
       const tokenIds = JSON.parse(tokenIdsStr).map(BigInt);
@@ -752,7 +787,7 @@ const autoRevealIfPossible = useCallback(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          player: account.toLowerCase(),
+          player: accountLower,
           salt: salt.toString(),
           nftContracts,
           tokenIds: tokenIds.map(t => t.toString()),
@@ -762,32 +797,35 @@ const autoRevealIfPossible = useCallback(
       const preData = await preRes.json();
       console.log("Backend reveal response:", preData);
 
-      if (!preRes.ok) throw new Error(preData.error || "Backend failed");
+      if (!preRes.ok) {
+        throw new Error(preData.error || "Backend pre-reveal failed");
+      }
 
+      // 5️⃣ On-chain reveal
       const tx = await gameContract.reveal(
         BigInt(g.id),
         BigInt(preData.savedReveal.salt),
         preData.savedReveal.nftContracts,
         preData.savedReveal.tokenIds.map(BigInt),
-        preData.savedReveal.backgrounds  // mandatory
+        preData.savedReveal.backgrounds
       );
 
-// Inside autoRevealIfPossible, after successful reveal
-await tx.wait();
-alert(`✅ Reveal successful for game #${g.id}`);
-console.log("Auto-reveal completed for game", g.id);
+      await tx.wait();
 
-// NEW: Trigger backend computation
-await triggerBackendComputeIfNeeded(g.id);
+      console.log("Auto-reveal completed for game", g.id);
+      alert(`✅ Reveal successful for game #${g.id}`);
 
-// Reload games to update UI
-await loadGames();
+      // 6️⃣ Trigger backend compute
+      await triggerBackendComputeIfNeeded(g.id);
+
+      // 7️⃣ Reload UI
+      await loadGames();
 
     } catch (err) {
       console.error("Auto-reveal failed:", err);
     }
   },
-  [signer, account, gameContract, loadGames, triggerBackendComputeIfNeeded]  // dependencies
+  [signer, account, gameContract, loadGames, triggerBackendComputeIfNeeded]
 );
 
 useEffect(() => {
@@ -799,6 +837,7 @@ useEffect(() => {
     setPendingAutoRevealGameId(null);
   }
 }, [games, pendingAutoRevealGameId, autoRevealIfPossible]);
+
 
 /* ---------------- REVEAL FILE UPLOAD ---------------- */
 const handleRevealFile = useCallback(async (e) => {
