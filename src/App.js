@@ -30,6 +30,8 @@ import {
   PlanetZephyrosAE,
   HowToPlay,
   GameInfo,
+  ElectroSwap,
+  VerdantKinBanner,
 } from "./appMedia/media.js";
 
 import GameCard from "./gameCard.jsx";
@@ -40,6 +42,12 @@ export default function App() {
   const [signer, setSigner] = useState(null);
   const [account, setAccount] = useState(null);
   const [walletError, setWalletError] = useState(null);
+  const disconnectWallet = () => {
+  setAccount(null);
+  setSigner(null);
+  setProvider(null);
+};
+
 
   /* ---------------- NFT STATE ---------------- */
   const [ownedNFTs, setOwnedNFTs] = useState([]);
@@ -1156,28 +1164,144 @@ return (
               Connect Wallet
             </button>
           ) : (
-            <div style={{ fontSize: 16, fontWeight: "bold", padding: "12px 24px" }}>
-              Connected:
-              <div style={{ fontSize: 10, opacity: 0.85 }}>{account}</div>
-            </div>
+<div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "12px 24px",
+    gap: 8,
+  }}
+>
+  <div style={{ fontSize: 16, fontWeight: "bold" }}>
+    Connected:
+  </div>
+
+  <div style={{ fontSize: 10, opacity: 0.85 }}>
+    {account}
+  </div>
+
+  <button
+    onClick={disconnectWallet}
+    style={{
+      backgroundColor: "#c62828",
+      color: "#fff",
+      border: "none",
+      padding: "6px 14px",
+      fontSize: 12,
+      fontWeight: "bold",
+      borderRadius: 8,
+      cursor: "pointer",
+      boxShadow: "0 0 8px rgba(198,40,40,0.6)",
+      transition: "all 0.2s ease",
+    }}
+    onMouseEnter={(e) =>
+      (e.currentTarget.style.boxShadow = "0 0 16px rgba(198,40,40,0.9)")
+    }
+    onMouseLeave={(e) =>
+      (e.currentTarget.style.boxShadow = "0 0 8px rgba(198,40,40,0.6)")
+    }
+  >
+    Disconnect
+  </button>
+</div>
           )}
 
-          {/* RIGHT: Video */}
-          <video
-            src={PlanetZephyrosAE}
-            autoPlay
-            loop
-            muted
-            playsInline
-            style={{
-              width: 50,
-              height: 50,
-              objectFit: "cover",
-              borderRadius: 10,
-              pointerEvents: "none",
-            }}
-          />
-        </div>
+{/* RIGHT: Video + External Links */}
+<div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+  <video
+    src={PlanetZephyrosAE}
+    autoPlay
+    loop
+    muted
+    playsInline
+    style={{
+      width: 80,
+      height: 80,
+      objectFit: "cover",
+      borderRadius: 10,
+      pointerEvents: "none",
+    }}
+  />
+
+  {/* CORE Token Link */}
+{/* CORE Token Link */}
+<a
+  href="https://app.electroswap.io/explore/tokens/electroneum/0x309b916b3a90cb3e071697ea9680e9217a30066f?inputCurrency=ETN"
+  target="_blank"
+  rel="noopener noreferrer"
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    textDecoration: "none",
+  }}
+>
+  <img
+    src={ElectroSwap}
+    alt="Buy CORE on ElectroSwap"
+    style={{
+      width: 60,
+      height: 60,
+      borderRadius: 8,
+      cursor: "pointer",
+      transition: "transform 0.2s ease",
+    }}
+    onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
+    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+  />
+  <span
+    style={{
+      marginTop: 6,
+      fontSize: 12,
+      fontWeight: "bold",
+      color: "#fff",
+      opacity: 0.9,
+    }}
+  >
+    Buy CORE
+  </span>
+</a>
+
+{/* Verdant Kin NFT Link */}
+<a
+  href="https://app.electroswap.io/nfts/collection/0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+  target="_blank"
+  rel="noopener noreferrer"
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    textDecoration: "none",
+  }}
+>
+  <img
+    src={VerdantKinBanner}
+    alt="Verdant Kin NFT Collection"
+    style={{
+      height: 60,
+      width: "auto",
+      borderRadius: 8,
+      cursor: "pointer",
+      transition: "transform 0.2s ease",
+    }}
+    onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+  />
+  <span
+    style={{
+      marginTop: 6,
+      fontSize: 12,
+      fontWeight: "bold",
+      color: "#fff",
+      opacity: 0.9,
+    }}
+  >
+    Build Your Team
+  </span>
+</a>
+</div>
+</div>
 
         {walletError && (
           <div style={{ fontSize: 14, opacity: 0.7 }}>{walletError}</div>

@@ -48,7 +48,7 @@ export async function discoverMissingGamesScheduled() {
             stakeAmount: onChain.stakeAmount?.toString() || "0",
             stakeToken: onChain.stakeToken || null,
             settled: !!onChain.settled,
-            cancelled: onChain.cancelled === true,
+            cancelled: false, // default to false until we see explicit settlement without winner
             winner: onChain.settled ? onChain.winner?.toLowerCase() : null,
             player1Revealed: !!onChain.player1Revealed,
             player2Revealed: !!onChain.player2Revealed,
@@ -120,35 +120,41 @@ if (game.player2 !== chainP2) {
   dirty = true;
 }
 
-            /* -----------------------------
-               Sync cancelled state
-            ------------------------------*/
-            if (game.cancelled !== onChain.cancelled) {
-              game.cancelled = onChain.cancelled;
-              dirty = true;
-            }
+/* -----------------------------
+   Settlement Sync (Chain = Truth)
+------------------------------*/
+if (onChain.settled) {
+  if (!game.settled) {
+    game.settled = true;
+    game.settledAt = new Date().toISOString();
+    dirty = true;
+  }
 
-            /* -----------------------------
-               Settlement Sync (Chain = Truth)
-            ------------------------------*/
-            if (onChain.settled) {
-              game.settled = true;
-              game.settledAt = new Date().toISOString();
+  const chainWinner = onChain.winner?.toLowerCase();
 
-              const chainWinner = onChain.winner?.toLowerCase();
+  // Winner exists and is valid
+  if (chainWinner && chainWinner !== ZERO) {
+    if (game.backendWinner !== chainWinner) {
+      game.backendWinner = chainWinner;
+      game.winner = chainWinner;
+      dirty = true;
+    }
 
-              if (chainWinner && chainWinner !== ZERO) {
-                game.backendWinner = chainWinner;
-                game.winner = chainWinner;
-                game.cancelled = false;
-              } else {
-                game.cancelled = true;
-                game.winner = null;
-                game.backendWinner = null;
-              }
+    if (game.cancelled) {
+      game.cancelled = false;
+      dirty = true;
+    }
 
-              dirty = true;
-            }
+  } else {
+    // Only mark cancelled if contract explicitly settled
+    if (!game.cancelled) {
+      game.cancelled = true;
+      game.backendWinner = null;
+      game.winner = null;
+      dirty = true;
+    }
+  }
+}
 
             /* -----------------------------
                Reveal flags
@@ -223,41 +229,36 @@ if (game.player2 !== chainP2) {
   dirty = true;
 }
 
-            // ---- Sync cancelled ----
-            if (game.cancelled !== onChain.cancelled) {
-              game.cancelled = onChain.cancelled;
-              dirty = true;
-            }
+// ---- Sync settlement ----
+if (game.settled !== onChain.settled) {
+  game.settled = onChain.settled;
+  game.settledAt = onChain.settled
+    ? new Date().toISOString()
+    : null;
+  dirty = true;
+}
 
-            // ---- Sync settlement ----
-            if (game.settled !== onChain.settled) {
-              game.settled = onChain.settled;
-              game.settledAt = onChain.settled
-                ? new Date().toISOString()
-                : null;
-              dirty = true;
-            }
+// ---- Sync winner ONLY if settled ----
+if (onChain.settled) {
+  const chainWinner = onChain.winner?.toLowerCase();
 
-            // ---- Sync winner ----
-            if (onChain.settled) {
-              const chainWinner = onChain.winner?.toLowerCase();
-
-              if (chainWinner && chainWinner !== ZERO) {
-                if (game.backendWinner !== chainWinner) {
-                  game.backendWinner = chainWinner;
-                  game.winner = chainWinner;
-                  game.cancelled = false;
-                  dirty = true;
-                }
-              } else {
-                if (!game.cancelled || game.backendWinner) {
-                  game.cancelled = true;
-                  game.backendWinner = null;
-                  game.winner = null;
-                  dirty = true;
-                }
-              }
-            }
+  if (chainWinner && chainWinner !== ZERO) {
+    if (game.backendWinner !== chainWinner) {
+      game.backendWinner = chainWinner;
+      game.winner = chainWinner;
+      game.cancelled = false;
+      dirty = true;
+    }
+  } else {
+    // Only cancelled if explicitly settled without winner
+    if (!game.cancelled || game.backendWinner) {
+      game.cancelled = true;
+      game.backendWinner = null;
+      game.winner = null;
+      dirty = true;
+    }
+  }
+}
 
             // ---- Sync reveals ----
             if (onChain.player1Revealed && !game.player1Revealed) {
