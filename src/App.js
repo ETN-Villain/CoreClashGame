@@ -1209,22 +1209,6 @@ return (
 
 {/* RIGHT: Video + External Links */}
 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-  <video
-    src={PlanetZephyrosAE}
-    autoPlay
-    loop
-    muted
-    playsInline
-    style={{
-      width: 80,
-      height: 80,
-      objectFit: "cover",
-      borderRadius: 10,
-      pointerEvents: "none",
-    }}
-  />
-
-  {/* CORE Token Link */}
 {/* CORE Token Link */}
 <a
   href="https://app.electroswap.io/explore/tokens/electroneum/0x309b916b3a90cb3e071697ea9680e9217a30066f?inputCurrency=ETN"
@@ -1243,7 +1227,7 @@ return (
     style={{
       width: 60,
       height: 60,
-      borderRadius: 8,
+      borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)", border: "1px solid #333",
       cursor: "pointer",
       transition: "transform 0.2s ease",
     }}
@@ -1281,7 +1265,7 @@ return (
     style={{
       height: 60,
       width: "auto",
-      borderRadius: 8,
+      borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)", border: "1px solid #333",
       cursor: "pointer",
       transition: "transform 0.2s ease",
     }}
@@ -1300,6 +1284,45 @@ return (
     Build Your Team
   </span>
 </a>
+
+{/* Planet ETN Link */}
+<a
+  href="https://planetetn.org/zephyros"
+  target="_blank"
+  rel="noopener noreferrer"
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    textDecoration: "none",
+  }}
+>
+  <video
+    src={PlanetZephyrosAE}
+    autoPlay
+    loop
+    muted
+    playsInline
+    style={{
+      width: 70,
+      height: 60,
+      objectFit: "cover",
+      borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)", border: "1px solid #333",
+      pointerEvents: "none",
+    }}    
+  />
+  <span
+    style={{
+      marginTop: 6,
+      fontSize: 12,
+      fontWeight: "bold",
+      color: "#fff",
+      opacity: 0.9,
+    }}
+  >
+    Planet ETN
+  </span>
+  </a>
 </div>
 </div>
 
