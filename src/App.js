@@ -559,7 +559,7 @@ const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
     const parsedLogs = receipt.logs
       .map(log => {
         try {
-          return gameContract.interface.parseLog(log);
+          return contract.interface.parseLog(log);
         } catch {
           return null;
         }
@@ -603,7 +603,6 @@ const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 }, [
   validated,
   signer,
-  gameContract,
   stakeToken,
   stakeAmount,
   nfts,
