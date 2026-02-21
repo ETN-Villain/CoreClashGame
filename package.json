@@ -8,6 +8,8 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
+    "@walletconnect/ethereum-provider": "^2.23.6",
+    "@walletconnect/utils": "^2.23.6",
     "axios": "^1.13.2",
     "cors": "^2.8.5",
     "csv-parse": "^6.1.0",

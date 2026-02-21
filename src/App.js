@@ -7,7 +7,8 @@ import React, {
   useMemo,
 } from "react";
 import { ethers } from "ethers";
-
+import { EthereumProvider } from "@walletconnect/ethereum-provider";
+import { getSdkError } from '@walletconnect/utils';
 import GameABI from "./abis/GameABI.json";
 import ERC20ABI from "./abis/ERC20ABI.json";
 
@@ -42,12 +43,12 @@ export default function App() {
   const [signer, setSigner] = useState(null);
   const [account, setAccount] = useState(null);
   const [walletError, setWalletError] = useState(null);
-  const disconnectWallet = () => {
+  const disconnectMetamask = () => {
   setAccount(null);
   setSigner(null);
   setProvider(null);
 };
-
+  const [wcProvider, setWcProvider] = useState(null); // only to clean up WC on disconnect
 
   /* ---------------- NFT STATE ---------------- */
   const [ownedNFTs, setOwnedNFTs] = useState([]);
@@ -132,7 +133,7 @@ const gameContract = useMemo(() => {
 }, [signer]);
 
   /* ---------------- CONNECT WALLET ---------------- */
-const connectWallet = useCallback(async () => {
+const connectMetamask = useCallback(async () => {
   if (!window.ethereum) {
     alert("MetaMask not installed");
     return;
@@ -172,49 +173,217 @@ const connectWallet = useCallback(async () => {
   }
 }, []);
 
+const disconnectWallet = useCallback(async () => {
+  setAccount(null);
+  setSigner(null);
+  setProvider(null);
+  setWalletError(null);
+
+  if (wcProvider) {
+    try {
+      await wcProvider.disconnect();  // ← Simple, no reason/topic needed
+    } catch (e) {
+      console.warn('WC disconnect error (harmless):', e);
+    }
+    setWcProvider(null);
+  }
+}, [wcProvider]);
+
+/* ------- WALLET CONNECT -----------*/
+const connectWalletConnect = useCallback(async () => {
+  // Clear error first for better UX
+  setWalletError(null);
+
+  if (wcProvider) {
+    // Already have WC active → clean up before new connection attempt
+    await disconnectWallet(); // Assuming disconnectWallet is your function (or rename to disconnect)
+  }
+
+  try {
+    const projectId = "146ee334d324044083b6427d4bbf9202"; // Looks good – your real ID
+
+    const ethereumProvider = await EthereumProvider.init({
+      projectId,
+      chains: [52014],              // Required: primary/required chains (your game's chain)
+      optionalChains: [52014],      // Optional: additional chains user can switch to
+      showQrModal: true,            // Good – shows built-in modal/QR
+      metadata: {
+        name: "Core Clash Trading Card Game",
+        description: "Core Clash — A strategic NFT battle game powered by $CORE.",
+        url: window.location.origin,
+        icons: []                     // ← FIX: icons must be array of FULL https URLs (strings)
+        // Example: icons: ["https://your-domain.com/logo.png"]
+        // PlanetZephyrosAE is likely a variable/reference – replace with actual URL
+      }
+    });
+
+// After init, before .enable() / .connect()
+try {
+  // Clean up any old sessions (safe even if none exist)
+  const sessions = await ethereumProvider.getActiveSessions(); // or just try to delete known ones
+  for (const topic in sessions) {
+    await ethereumProvider.disconnectSession({ topic, reason: getSdkError('USER_DISCONNECTED') });
+  }
+} catch (cleanupErr) {
+  console.warn('Cleanup old sessions failed (harmless):', cleanupErr);
+}
+
+// Then proceed with
+await ethereumProvider.enable();
+
+    // Optional: After connect, ensure correct chain if needed (your chain 52014)
+    // await ethereumProvider.request({
+    //   method: "wallet_switchEthereumChain",
+    //   params: [{ chainId: "0xCB36" }], // 52014 in hex is 0xCB36
+    // });
+
+    // Wrap as BrowserProvider (ethers v6 compatible)
+    const newProv = new ethers.BrowserProvider(ethereumProvider);
+
+    const newSigner = await newProv.getSigner();
+    const addr = await newSigner.getAddress();
+
+    // Swap your single provider/signer/account
+    setProvider(newProv);
+    setSigner(newSigner);
+    setAccount(addr);
+    setWalletError(null);
+
+    setWcProvider(ethereumProvider); // For cleanup
+
+  } catch (err) {
+    console.error("WalletConnect connection failed:", err);
+
+    // Better error handling
+    if (err?.code === 4001 || err?.message?.includes("reject") || err?.message?.includes("user rejected")) {
+      setWalletError("Connection rejected by user");
+    } else if (err?.message?.includes("projectId") || err?.message?.includes("Invalid projectId")) {
+      setWalletError("Invalid WalletConnect project ID – check configuration");
+    } else if (err?.message?.includes("Unsupported chains")) {
+      setWalletError("Wallet does not support required chain (52014)");
+    } else {
+      setWalletError("Failed to connect via WalletConnect – please try again");
+    }
+  }
+}, [wcProvider, disconnectWallet, setWalletError, setProvider, setSigner, setAccount]); // ← FIX: add missing deps to avoid ESLint warning & stale closures
+
 /* ---------------- RESTORE WALLET ---------------- */
 useEffect(() => {
-  if (!window.ethereum) return;
+  let isMounted = true; // Prevent state updates after unmount
 
   const restoreWallet = async () => {
-    try {
-      const prov = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await window.ethereum.request({ method: "eth_accounts" });
+    if (!isMounted) return;
 
-      if (accounts.length === 0) {
-        setAccount(null);
-        return;
+    // Step 1: Try injected (MetaMask, etc.)
+    if (window.ethereum) {
+      try {
+        const prov = new ethers.BrowserProvider(window.ethereum);
+        const accounts = await prov.send("eth_accounts", []); // silent check
+        if (accounts?.length > 0) {
+          const signer = await prov.getSigner();
+          setProvider(prov);
+          setSigner(signer);
+          setAccount(await signer.getAddress());
+          setWalletError(null);
+          return; // done – prefer injected
+        }
+      } catch (err) {
+        console.warn("Injected provider restore failed:", err);
+      }
+    }
+
+    // Step 2: Try restore existing WalletConnect session (no modal)
+    try {
+      const projectId = "146ee334d324044083b6427d4bbf9202";
+
+      // Aggressive cleanup of stale WC data (safe in dev; comment out or conditionalize in prod)
+      try {
+        // Remove common WC localStorage keys
+        localStorage.removeItem('wc@2:client:0.3:0');
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('wc@2:') || key.toLowerCase().includes('walletconnect')) {
+            localStorage.removeItem(key);
+          }
+        });
+
+        // Clear IndexedDB (often where pending requests/sessions persist)
+        if (indexedDB.databases) { // Check existence (some browsers)
+          const databases = await indexedDB.databases();
+          for (const db of databases) {
+            if (db.name && (db.name.includes('WALLET_CONNECT') || db.name.includes('wc'))) {
+              indexedDB.deleteDatabase(db.name);
+              console.log('Cleared WC IndexedDB:', db.name);
+            }
+          }
+        }
+      } catch (cleanupErr) {
+        console.warn('WC storage cleanup failed (harmless):', cleanupErr);
       }
 
-    const signer = await prov.getSigner();
-    const addr = await signer.getAddress();
-      setProvider(prov);
-      setSigner(signer);
-      setAccount(addr);
-      setWalletError(null);
-    } catch {
-      setAccount(null);
+      const ethereumProvider = await EthereumProvider.init({
+        projectId,
+        chains: [52014],
+        optionalChains: [52014],
+        // No showQrModal → silent restore attempt
+      });
+
+      // Now check if we have a usable session
+      let restored = false;
+      if (ethereumProvider.connected || ethereumProvider.session) {
+        try {
+          const prov = new ethers.BrowserProvider(ethereumProvider);
+          const accounts = await prov.send("eth_accounts", []);
+          if (accounts?.length > 0) {
+            const signer = await prov.getSigner();
+            if (isMounted) {
+              setProvider(prov);
+              setSigner(signer);
+              setAccount(await signer.getAddress());
+              setWalletError(null);
+              setWcProvider(ethereumProvider);
+            }
+            restored = true;
+          } else {
+            throw new Error("No accounts in restored WC session");
+          }
+        } catch (sessionErr) {
+          console.warn("WC session invalid, disconnecting:", sessionErr);
+          await ethereumProvider.disconnect().catch(() => {});
+        }
+      }
+
+      if (!restored) {
+        // Silent cleanup if no valid session
+        await ethereumProvider.disconnect().catch(() => {});
+      }
+
+    } catch (err) {
+      console.warn("WalletConnect restore failed entirely:", err);
+      // Keep silent for auto-restore (no UI error)
     }
   };
 
+  // Run the async restore
   restoreWallet();
 
-  const handleAccountsChanged = () => {
-    window.location.reload();
-  };
+  // Event listeners (only for injected; WC handles internally)
+  const handleAccountsChanged = () => window.location.reload();
+  const handleChainChanged = () => window.location.reload();
 
-  const handleChainChanged = () => {
-    window.location.reload();
-  };
+  if (window.ethereum) {
+    window.ethereum.on("accountsChanged", handleAccountsChanged);
+    window.ethereum.on("chainChanged", handleChainChanged);
+  }
 
-  window.ethereum.on("accountsChanged", handleAccountsChanged);
-  window.ethereum.on("chainChanged", handleChainChanged);
-
+  // Cleanup
   return () => {
-    window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
-    window.ethereum.removeListener("chainChanged", handleChainChanged);
+    isMounted = false;
+    if (window.ethereum) {
+      window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
+      window.ethereum.removeListener("chainChanged", handleChainChanged);
+    }
   };
-}, []);
+}, []); // Empty deps → runs once on mount
 
   /* ---------------- OWNED NFT FETCH ---------------- */
 useEffect(() => {
@@ -1134,78 +1303,98 @@ return (
             style={{ height: 120, width: "auto", pointerEvents: "none" }}
           />
 
-          {/* CENTER: Connect Wallet / Status */}
-          {!account ? (
-            <button
-              onClick={() => {
-                setWalletError(null);
-                connectWallet();
-              }}
-              style={{
-                backgroundColor: "#18bb1a",
-                color: "#fff",
-                border: "none",
-                padding: "12px 24px",
-                fontSize: 18,
-                fontWeight: "bold",
-                borderRadius: 12,
-                cursor: "pointer",
-                boxShadow: "0 0 10px rgba(24,187,26,0.6)",
-                transition: "all 0.2s ease",
-                whiteSpace: "nowrap",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.boxShadow = "0 0 20px rgba(24,187,26,0.9)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.boxShadow = "0 0 10px rgba(24,187,26,0.6)")
-              }
-            >
-              Connect Wallet
-            </button>
-          ) : (
-<div
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "12px 24px",
-    gap: 8,
-  }}
->
-  <div style={{ fontSize: 16, fontWeight: "bold" }}>
-    Connected:
-  </div>
+{/* CENTER: Connect Wallet / Status */}
+{!account ? (
+  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+    <button
+      onClick={() => {
+        setWalletError(null);
+        connectMetamask();  // Your original MetaMask connect
+      }}
+      style={{
+        backgroundColor: "#18bb1a",
+        color: "#fff",
+        border: "none",
+        padding: "12px 24px",
+        fontSize: 18,
+        fontWeight: "bold",
+        borderRadius: 12,
+        cursor: "pointer",
+        boxShadow: "0 0 10px rgba(24,187,26,0.6)",
+        transition: "all 0.2s ease",
+        whiteSpace: "nowrap",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 20px rgba(24,187,26,0.9)")}
+      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 10px rgba(24,187,26,0.6)")}
+    >
+      Connect with MetaMask
+    </button>
 
-  <div style={{ fontSize: 10, opacity: 0.85 }}>
-    {account}
-  </div>
+    <button
+      onClick={() => {
+        setWalletError(null);
+        connectWalletConnect();
+      }}
+      style={{
+        backgroundColor: "#1a75ff", // Blue to differentiate
+        color: "#fff",
+        border: "none",
+        padding: "10px 20px",
+        fontSize: 16,
+        fontWeight: "bold",
+        borderRadius: 12,
+        cursor: "pointer",
+        boxShadow: "0 0 10px rgba(26,117,255,0.6)",
+        transition: "all 0.2s ease",
+        whiteSpace: "nowrap",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 20px rgba(26,117,255,0.9)")}
+      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 10px rgba(26,117,255,0.6)")}
+    >
+      Connect Mobile / Other Wallets (WalletConnect)
+    </button>
 
-  <button
-    onClick={disconnectWallet}
+    {walletError && (
+      <p style={{ color: "#ff4d4d", fontSize: 14, marginTop: 8, textAlign: "center" }}>
+        {walletError}
+      </p>
+    )}
+  </div>
+) : (
+  <div
     style={{
-      backgroundColor: "#c62828",
-      color: "#fff",
-      border: "none",
-      padding: "6px 14px",
-      fontSize: 12,
-      fontWeight: "bold",
-      borderRadius: 8,
-      cursor: "pointer",
-      boxShadow: "0 0 8px rgba(198,40,40,0.6)",
-      transition: "all 0.2s ease",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      padding: "12px 24px",
+      gap: 8,
     }}
-    onMouseEnter={(e) =>
-      (e.currentTarget.style.boxShadow = "0 0 16px rgba(198,40,40,0.9)")
-    }
-    onMouseLeave={(e) =>
-      (e.currentTarget.style.boxShadow = "0 0 8px rgba(198,40,40,0.6)")
-    }
   >
-    Disconnect
-  </button>
-</div>
-          )}
+    <div style={{ fontSize: 16, fontWeight: "bold" }}>Connected:</div>
+    <div style={{ fontSize: 10, opacity: 0.85, wordBreak: "break-all", maxWidth: "200px" }}>
+      {account}
+    </div>
+    <button
+      onClick={disconnectMetamask}
+      style={{
+        backgroundColor: "#c62828",
+        color: "#fff",
+        border: "none",
+        padding: "6px 14px",
+        fontSize: 12,
+        fontWeight: "bold",
+        borderRadius: 8,
+        cursor: "pointer",
+        boxShadow: "0 0 8px rgba(198,40,40,0.6)",
+        transition: "all 0.2s ease",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 16px rgba(198,40,40,0.9)")}
+      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 8px rgba(198,40,40,0.6)")}
+    >
+      Disconnect
+    </button>
+  </div>
+)}
 
 {/* RIGHT: Video + External Links */}
 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
