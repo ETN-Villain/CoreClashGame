@@ -1070,7 +1070,7 @@ const cancelledGames = games
 
 const sortedSettledGames = [...settledGames]
   .filter(g => g.settledAt) // ensure timestamp exists
-  .sort((a, b) => Number(b.settledAt) - Number(a.settledAt));
+  .sort((a, b) => Number(a.settledAt) - Number(b.settledAt));
 
 const latestSettled = sortedSettledGames.slice(0, 10);
 const archivedSettled = sortedSettledGames.slice(10);
@@ -1453,7 +1453,12 @@ return (
     .filter(
       (nft) =>
         nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
-        !nfts.some((s, idx) => idx !== i && s.tokenId === nft.tokenId)
+      !nfts.some(
+        (s, idx) =>
+          idx !== i &&
+          s.tokenId === nft.tokenId &&
+          s.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
+      )
     )
     .sort((a, b) => {
       const bgA = (a.background || "").trim();
