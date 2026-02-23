@@ -280,17 +280,20 @@ const validateTeam = useCallback(async () => {
         throw new Error("Missing metadata for one or more NFTs");
       }
 
-      const { name, background } = n.metadata;
+let { name, background } = n.metadata;
+
+name = name?.trim().toLowerCase();
+background = background?.trim();
 
       if (!name || !background) {
         throw new Error(`Incomplete metadata for token #${n.tokenId || "?"}`);
       }
 
       // Duplicate character check
-      if (seenNames.has(name)) {
-        throw new Error(`Duplicate character: ${name}`);
-      }
-      seenNames.add(name);
+if (seenNames.has(name)) {
+  throw new Error(`Duplicate character: ${n.metadata.name}`);
+}
+seenNames.add(name);
 
 // Rare background rule (robust, no Set dependency)
 if (RARE_BACKGROUNDS.includes(background)) {
