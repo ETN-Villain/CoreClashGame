@@ -1842,19 +1842,76 @@ border: "1px solid #333" }} />
   </div>
 )}
 </div>
-{/* Leaderboard Column */}
+{/* ---------------- LEADERBOARD ---------------- */}
 <div>
-  <h3>🏆 Leaderboard</h3>
-  {leaderboard.length === 0 ? (
-    <p style={{ opacity: 0.7 }}>No players yet</p>
-  ) : (
-    leaderboard.map((p, i) => (
-      <div key={p.address || i} style={{ marginBottom: 8 }}>
-        <span>{i + 1}. </span>
-        <strong>{p.name || p.address}</strong> – {p.score} pts
+  <h2 style={{ color: "#18bb1a" }}>🏆 Top 10 Leaderboard</h2>
+
+  <div
+    style={{
+      background: "#111",
+      padding: 16,
+      borderRadius: 12,
+      border: "1px solid #333",
+    }}
+  >
+    {/* Header row */}
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        fontSize: 13,
+        opacity: 0.7,
+        borderBottom: "1px solid #333",
+        paddingBottom: 6,
+        marginBottom: 6,
+      }}
+    >
+      <span>Player</span>
+      <span>W</span>
+      <span>P</span>
+      <span>%</span>
+    </div>
+
+    {/* No leaderboard */}
+    {leaderboard.length === 0 && (
+      <div style={{ opacity: 0.6, padding: "8px 0" }}>
+        No settled games yet.
       </div>
-    ))
-  )}
+    )}
+
+    {/* Leaderboard entries */}
+    {leaderboard.map((entry, index) => {
+      let medalColor = "#fff";
+      if (index === 0) medalColor = "#FFD700";
+      if (index === 1) medalColor = "#C0C0C0";
+      if (index === 2) medalColor = "#CD7F32";
+
+      const isCurrentUser =
+        entry.address === account?.toLowerCase();
+
+      return (
+        <div
+          key={entry.address}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            padding: "6px 0",
+            borderBottom: "1px solid #222",
+            fontSize: 14,
+            color: isCurrentUser ? "#4da3ff" : medalColor,
+            fontWeight: isCurrentUser ? "bold" : "normal",
+          }}
+        >
+          <span>
+            #{index + 1} — 0x...{entry.address.slice(-5)}
+          </span>
+          <span>{entry.wins}</span>
+          <span>{entry.played}</span>
+          <span>{entry.winRate}%</span>
+        </div>
+      );
+    })}
+  </div>
 </div>
   </div>
     </div>
