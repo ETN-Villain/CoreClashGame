@@ -1088,23 +1088,20 @@ const leaderboard = useMemo(() => {
       const p1 = g.player1?.toLowerCase();
       const p2 = g.player2?.toLowerCase();
       const winner = g.winner?.toLowerCase();
+      const isTie = g.tie;
 
       [p1, p2].forEach(player => {
         if (!player || player === ethers.ZeroAddress.toLowerCase()) return;
 
-        if (!stats[player]) {
-          stats[player] = { wins: 0, played: 0 };
-        }
-
+        if (!stats[player]) stats[player] = { wins: 0, played: 0 };
         stats[player].played += 1;
       });
 
-      if (winner && winner !== ethers.ZeroAddress.toLowerCase()) {
-        if (!stats[winner]) {
-          stats[winner] = { wins: 0, played: 0 };
-        }
+      if (!isTie && winner && winner !== ethers.ZeroAddress.toLowerCase()) {
+        if (!stats[winner]) stats[winner] = { wins: 0, played: 0 };
         stats[winner].wins += 1;
       }
+      // No need to do anything for ties: they just count in `played`, not in `wins`
     });
 
   return Object.entries(stats)
@@ -1112,14 +1109,11 @@ const leaderboard = useMemo(() => {
       address,
       wins: data.wins,
       played: data.played,
-      winRate:
-        data.played > 0
-          ? ((data.wins / data.played) * 100).toFixed(1)
-          : "0.0",
+      winRate: data.played > 0 ? Math.round((data.wins / data.played) * 100) : 0,
     }))
     .sort((a, b) => {
       if (b.wins !== a.wins) return b.wins - a.wins;
-      return b.played - a.played;
+      return b.winRate - a.winRate;
     })
     .slice(0, 10);
 }, [games]);
@@ -1734,186 +1728,153 @@ border: "1px solid #333" }} />
 </button>
 </div>
 
-<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 0.9fr", gap: 20 }}>
-  {/* Open Games */}
+<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 3fr", gap: 20 }}>
+  {/* ---------------- GAMES COLUMNS ---------------- */}
   <div>
     <h3>🟢 Open ({openGames.length})</h3>
     {openGames.map((g) => (
-      <GameCard 
-        key={g.id} 
-        g={g} 
-        {...gameCardProps} 
-        roundResults={g.roundResults || []}
-      />
+      <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
     ))}
   </div>
 
-  {/* In Progress (Active) Games */}
   <div>
     <h3>🟡 In Progress ({activeGames.length})</h3>
     {activeGames.map((g) => (
-      <GameCard 
-        key={g.id} 
-        g={g} 
-        {...gameCardProps} 
-        roundResults={g.roundResults || []}
-      />
+      <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
     ))}
   </div>
 
-{/* Settled + Cancelled Games Column */}
-<div>
-  {/* Checkboxes */}
-  <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
-    <label>
-      <input
-        type="checkbox"
-        checked={showResolved}
-        onChange={() => setShowResolved(v => !v)}
-      />{" "}
-      Settled (Winner)
-    </label>
-
-    <label>
-      <input
-        type="checkbox"
-        checked={showCancelled}
-        onChange={() => setShowCancelled(v => !v)}
-      />{" "}
-      Cancelled
-    </label>
-  <label>
-    <input
-      type="checkbox"
-      checked={showArchive}
-      onChange={() => setShowArchive(v => !v)}
-    />{" "}
-    Archive
-  </label>
-  </div>
-
-{/* Settled Games */}
-{showResolved && latestSettled.length > 0 && (
   <div>
-    <h3>
-      🔵 Settled ({latestSettled.length})
-    </h3>
-
-    {latestSettled.map((g) => (
-      <GameCard
-        key={g.id}
-        g={g}
-        {...gameCardProps}
-        roundResults={g.roundResults || []}
-      />
-    ))}
-  </div>
-)}
-
-  {/* Cancelled Games (directly below Settled) */}
-  {showCancelled && cancelledGames.length > 0 && (
-    <div style={{ marginTop: 16 }}>
-      <h3>❌ Cancelled ({cancelledGames.length})</h3>
-      {cancelledGames.map((g) => (
-        <GameCard
-          key={g.id}
-          g={g}
-          {...gameCardProps}
-          roundResults={g.roundResults || []}
-        />
-      ))}
-    </div>
-  )}
-{/* Archived Settled Games */}
-{showArchive && archivedSettled.length > 0 && (
-  <div style={{ marginTop: 20 }}>
-    <h3 style={{ opacity: 0.7 }}>
-      📦 Archive ({archivedSettled.length})
-    </h3>
-
-    {archivedSettled.map((g) => (
-      <GameCard
-        key={g.id}
-        g={g}
-        {...gameCardProps}
-        roundResults={g.roundResults || []}
-      />
-    ))}
-  </div>
-)}
-</div>
-{/* ---------------- LEADERBOARD ---------------- */}
-<div>
-  <h2 style={{ color: "#18bb1a" }}>🏆 Top 10 Leaderboard</h2>
-
-  <div
-    style={{
-      background: "#111",
-      padding: 16,
-      borderRadius: 12,
-      border: "1px solid #333",
-    }}
-  >
-    {/* Header row */}
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        fontSize: 13,
-        opacity: 0.7,
-        borderBottom: "1px solid #333",
-        paddingBottom: 6,
-        marginBottom: 6,
-      }}
-    >
-      <span>Player</span>
-      <span>W</span>
-      <span>P</span>
-      <span>%</span>
+    {/* Settled / Cancelled / Archive Column */}
+    <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+      <label>
+        <input type="checkbox" checked={showResolved} onChange={() => setShowResolved(v => !v)} /> Settled (Winner)
+      </label>
+      <label>
+        <input type="checkbox" checked={showCancelled} onChange={() => setShowCancelled(v => !v)} /> Cancelled
+      </label>
+      <label>
+        <input type="checkbox" checked={showArchive} onChange={() => setShowArchive(v => !v)} /> Archive
+      </label>
     </div>
 
-    {/* No leaderboard */}
-    {leaderboard.length === 0 && (
-      <div style={{ opacity: 0.6, padding: "8px 0" }}>
-        No settled games yet.
+    {showResolved && latestSettled.length > 0 && (
+      <div>
+        <h3>🔵 Settled ({latestSettled.length})</h3>
+        {latestSettled.map((g) => (
+          <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+        ))}
       </div>
     )}
 
-    {/* Leaderboard entries */}
-    {leaderboard.map((entry, index) => {
-      let medalColor = "#fff";
-      if (index === 0) medalColor = "#FFD700";
-      if (index === 1) medalColor = "#C0C0C0";
-      if (index === 2) medalColor = "#CD7F32";
+    {showCancelled && cancelledGames.length > 0 && (
+      <div style={{ marginTop: 16 }}>
+        <h3>❌ Cancelled ({cancelledGames.length})</h3>
+        {cancelledGames.map((g) => (
+          <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+        ))}
+      </div>
+    )}
 
-      const isCurrentUser =
-        entry.address === account?.toLowerCase();
+    {showArchive && archivedSettled.length > 0 && (
+      <div style={{ marginTop: 20, opacity: 0.7 }}>
+        <h3>📦 Archive ({archivedSettled.length})</h3>
+        {archivedSettled.map((g) => (
+          <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+        ))}
+      </div>
+    )}
+  </div>
 
-      return (
-        <div
-          key={entry.address}
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "6px 0",
-            borderBottom: "1px solid #222",
-            fontSize: 14,
-            color: isCurrentUser ? "#4da3ff" : medalColor,
-            fontWeight: isCurrentUser ? "bold" : "normal",
-          }}
-        >
-          <span>
-            #{index + 1} — 0x...{entry.address.slice(-5)}
-          </span>
-          <span>{entry.wins}</span>
-          <span>{entry.played}</span>
-          <span>{entry.winRate}%</span>
+  {/* ---------------- LEADERBOARD ---------------- */}
+  <div style={{ gridColumn: 4, marginTop: 0 }}>
+    <h2
+      style={{
+        color: "#18bb1a",
+        fontWeight: "bold",
+        fontSize: 26,
+        textTransform: "uppercase",
+        textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
+        marginBottom: 12,
+      }}
+    >
+      🏆 Top 10 Leaderboard
+    </h2>
+
+    <div
+      style={{
+        background: "#111",
+        padding: 16,
+        borderRadius: 12,
+        border: "1px solid #333",
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+      }}
+    >
+      {/* Header row */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr 1fr 1fr",
+          fontSize: 13,
+          opacity: 0.7,
+          borderBottom: "1px solid #333",
+          paddingBottom: 6,
+          marginBottom: 6,
+        }}
+      >
+        <span>Player</span>
+        <span>P</span>
+        <span>W</span>
+        <span>%</span>
+      </div>
+
+      {/* No leaderboard */}
+      {leaderboard.length === 0 && (
+        <div style={{ opacity: 0.6, padding: "8px 0", textAlign: "center" }}>
+          No settled games yet.
         </div>
-      );
-    })}
+      )}
+
+      {/* Leaderboard entries */}
+      {leaderboard.map((entry, index) => {
+        let medalColor = "#fff";
+        if (index === 0) medalColor = "#FFD700";
+        if (index === 1) medalColor = "#C0C0C0";
+        if (index === 2) medalColor = "#CD7F32";
+
+        const isCurrentUser = entry.address === account?.toLowerCase();
+
+        return (
+          <div
+            key={entry.address}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "2fr 1fr 1fr 1fr",
+              padding: "6px 0",
+              borderBottom: "1px solid #222",
+              fontSize: 14,
+              color: isCurrentUser ? "#4da3ff" : medalColor,
+              fontWeight: isCurrentUser ? "bold" : "normal",
+              transition: "background 0.2s",
+              cursor: "default",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#222")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            <span>
+              #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
+            </span>
+            <span style={{ textAlign: "center" }}>{entry.played}</span>
+            <span style={{ textAlign: "center" }}>{entry.wins}</span>
+            <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+          </div>
+        );
+      })}
+    </div>
   </div>
 </div>
-  </div>
     </div>
   );
 }
