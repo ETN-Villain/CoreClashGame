@@ -1078,6 +1078,52 @@ const sortedSettledGames = [...settledGames]
 const latestSettled = sortedSettledGames.slice(0, 10);
 const archivedSettled = sortedSettledGames.slice(10);
 
+/* ---------------- LEADERBOARD ---------------- */
+const leaderboard = useMemo(() => {
+  const stats = {};
+
+  games
+    .filter(g => g.settled && !g.cancelled)
+    .forEach(g => {
+      const p1 = g.player1?.toLowerCase();
+      const p2 = g.player2?.toLowerCase();
+      const winner = g.winner?.toLowerCase();
+
+      [p1, p2].forEach(player => {
+        if (!player || player === ethers.ZeroAddress.toLowerCase()) return;
+
+        if (!stats[player]) {
+          stats[player] = { wins: 0, played: 0 };
+        }
+
+        stats[player].played += 1;
+      });
+
+      if (winner && winner !== ethers.ZeroAddress.toLowerCase()) {
+        if (!stats[winner]) {
+          stats[winner] = { wins: 0, played: 0 };
+        }
+        stats[winner].wins += 1;
+      }
+    });
+
+  return Object.entries(stats)
+    .map(([address, data]) => ({
+      address,
+      wins: data.wins,
+      played: data.played,
+      winRate:
+        data.played > 0
+          ? ((data.wins / data.played) * 100).toFixed(1)
+          : "0.0",
+    }))
+    .sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return b.played - a.played;
+    })
+    .slice(0, 10);
+}, [games]);
+
 /* ---------------- UI ---------------- */
 if (loading) {
   return (
@@ -1688,7 +1734,7 @@ border: "1px solid #333" }} />
 </button>
 </div>
 
-<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
+<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 0.9fr", gap: 20 }}>
   {/* Open Games */}
   <div>
     <h3>🟢 Open ({openGames.length})</h3>
@@ -1795,7 +1841,20 @@ border: "1px solid #333" }} />
     ))}
   </div>
 )}
-
+</div>
+{/* Leaderboard Column */}
+<div>
+  <h3>🏆 Leaderboard</h3>
+  {leaderboard.length === 0 ? (
+    <p style={{ opacity: 0.7 }}>No players yet</p>
+  ) : (
+    leaderboard.map((p, i) => (
+      <div key={p.address || i} style={{ marginBottom: 8 }}>
+        <span>{i + 1}. </span>
+        <strong>{p.name || p.address}</strong> – {p.score} pts
+      </div>
+    ))
+  )}
 </div>
   </div>
     </div>
