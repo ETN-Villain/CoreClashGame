@@ -1728,7 +1728,7 @@ border: "1px solid #333" }} />
 </button>
 </div>
 
-<div style={{ display: "grid", gridTemplateColumns: "250px 250px 250px 750px", gap: 20 }}>
+<div style={{ display: "grid", gridTemplateColumns: "250px 250px 1fr 500px", gap: 20 }}>
   {/* ---------------- GAMES COLUMNS ---------------- */}
   <div>
     <h3>🟢 Open ({openGames.length})</h3>
