@@ -14,6 +14,7 @@ import ERC20ABI from "./abis/ERC20ABI.json";
 import {
   GAME_ADDRESS,
   WHITELISTED_TOKENS,
+  CORE_TOKEN,
   WHITELISTED_NFTS,
   RARE_BACKGROUNDS,
   ADMIN_ADDRESS,
@@ -1136,6 +1137,31 @@ const totalCoreBurned = settledGames
 // Convert wei → CORE
 const totalCoreBurnedFormatted = totalCoreBurned / 1e18;
 
+// Get TotalSupply from chain
+const [totalSupply, setTotalSupply] = useState(null);
+useEffect(() => {
+  const fetchSupply = async () => {
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const contract = new ethers.Contract(CORE_TOKEN, ERC20ABI, provider);
+
+      const supplyWei = await contract.totalSupply();
+      const formattedSupply = ethers.formatEther(supplyWei);
+
+      setTotalSupply(Number(formattedSupply));
+    } catch (err) {
+      console.error("Failed to fetch total supply:", err);
+    }
+  };
+
+  fetchSupply();
+}, []);
+
+const percentBurned =
+  totalSupply && totalSupply > 0
+    ? (totalCoreBurnedFormatted / totalSupply) * 100
+    : 0;
+
 /* ---------------- UI ---------------- */
 if (loading) {
   return (
@@ -1931,6 +1957,11 @@ border: "1px solid #333" }} />
   >
     {totalCoreBurnedFormatted.toFixed(2)} CORE
   </div>
+{totalSupply && (
+  <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>
+    {percentBurned.toFixed(4)}% of total supply
+  </div>
+)}
   </div>
 </div>
 </div>
