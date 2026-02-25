@@ -1073,7 +1073,7 @@ const cancelledGames = games
 
 const sortedSettledGames = [...settledGames]
   .filter(g => g.settledAt) // ensure timestamp exists
-  .sort((a, b) => Number(a.settledAt) - Number(b.settledAt));
+  .sort((a, b) => Number(b.settledAt) - Number(a.settledAt));
 
 const latestSettled = sortedSettledGames.slice(0, 10);
 const archivedSettled = sortedSettledGames.slice(10);
@@ -1117,6 +1117,21 @@ const leaderboard = useMemo(() => {
     })
     .slice(0, 10);
 }, [games]);
+
+/* --------- TOTAL CORE BURN ---------*/
+const totalCoreBurned = settledGames
+  .filter(
+    (g) =>
+      g.winner &&
+      g.settleTxHash &&
+      g.stakeAmount
+  )
+  .reduce((total, g) => {
+    const stake = Number(g.stakeAmount);
+    const totalPot = stake * 2;
+    const burnAmount = totalPot * 0.01; // 1%
+    return total + burnAmount;
+  }, 0);
 
 /* ---------------- UI ---------------- */
 if (loading) {
@@ -1728,7 +1743,7 @@ border: "1px solid #333" }} />
 </button>
 </div>
 
-<div style={{ display: "grid", gridTemplateColumns: "250px 250px 1fr 500px", gap: 20 }}>
+<div style={{ display: "grid", gridTemplateColumns: "250px 300px 1fr 500px", gap: 20 }}>
   {/* ---------------- GAMES COLUMNS ---------------- */}
   <div>
     <h3>🟢 Open ({openGames.length})</h3>
@@ -1761,9 +1776,16 @@ border: "1px solid #333" }} />
     {showResolved && latestSettled.length > 0 && (
       <div>
         <h3>🔵 Settled ({latestSettled.length})</h3>
-        {latestSettled.map((g) => (
-          <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-        ))}
+        {[...latestSettled]
+      .sort((a, b) => Number(b.settledAt) - Number(a.settledAt))
+      .map((g) => (
+        <GameCard
+          key={g.id}
+          g={g}
+          {...gameCardProps}
+          roundResults={g.roundResults || []}
+        />
+      ))}
       </div>
     )}
 
@@ -1873,7 +1895,41 @@ border: "1px solid #333" }} />
         );
       })}
     </div>
+  {/* ---------------- TOTAL CORE BURNED ---------------- */}
+<div
+  style={{
+    marginTop: 20,
+    background: "#111",
+    padding: 18,
+    borderRadius: 12,
+    border: "1px solid #333",
+    textAlign: "center",
+    boxShadow: "0 0 12px rgba(24,187,26,0.15)",
+  }}
+>
+  <div
+    style={{
+      fontSize: 14,
+      opacity: 0.7,
+      marginBottom: 6,
+      letterSpacing: 1,
+    }}
+  >
+    TOTAL CORE BURNED FROM CORE CLASH
   </div>
+
+  <div
+    style={{
+      fontSize: 28,
+      fontWeight: "bold",
+      color: "#bb6918",
+      textShadow: "0 0 8px #cd3309, 0 0 16px #cd3309",
+    }}
+  >
+    {totalCoreBurned.toFixed(2)} CORE
+  </div>
+  </div>
+</div>
 </div>
     </div>
   );
