@@ -1127,11 +1127,14 @@ const totalCoreBurned = settledGames
       g.stakeAmount
   )
   .reduce((total, g) => {
-    const stake = Number(g.stakeAmount);
-    const totalPot = stake * 2;
-    const burnAmount = totalPot * 0.01; // 1%
-    return total + burnAmount;
+    const stakeWei = Number(g.stakeAmount); // still wei
+    const totalPotWei = stakeWei * 2;
+    const burnWei = totalPotWei * 0.01; // 1%
+    return total + burnWei;
   }, 0);
+
+// Convert wei → CORE
+const totalCoreBurnedFormatted = totalCoreBurned / 1e18;
 
 /* ---------------- UI ---------------- */
 if (loading) {
@@ -1926,7 +1929,7 @@ border: "1px solid #333" }} />
       textShadow: "0 0 8px #cd3309, 0 0 16px #cd3309",
     }}
   >
-    {totalCoreBurned.toFixed(2)} CORE
+    {totalCoreBurnedFormatted.toFixed(2)} CORE
   </div>
   </div>
 </div>
