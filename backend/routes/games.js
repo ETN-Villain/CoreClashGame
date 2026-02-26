@@ -19,7 +19,7 @@ import { withLock } from "../utils/mutex.js";
 import { authWallet } from "../middleware/authWallet.js";
 import VKIN_ABI from "../../src/abis/VKINABI.json" assert { type: "json" };
 import VQLE_ABI from "../../src/abis/VQLEABI.json" assert { type: "json" };
-
+import { readBurnTotal } from "../store/burnStore.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -674,9 +674,7 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
 });
 
 /* ------- TRACK BURNS -------- */
-import { readBurnTotal } from "./store/burnStore.js";
-
-app.get("/burn-total", (req, res) => {
+router.get("/burn-total", (req, res) => {
   const total = readBurnTotal();
   res.json({ totalBurnWei: total.toString() });
 });
