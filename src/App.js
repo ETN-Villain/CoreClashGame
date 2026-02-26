@@ -1126,29 +1126,18 @@ const [burnPercent, setBurnPercent] = useState(0);
 useEffect(() => {
   const fetchBurn = async () => {
     try {
-      // 1️⃣ Get burn total from backend
-      const res = await fetch("/games/burn-total");
+      const res = await fetch(`${BACKEND_URL}/games/burn-total`);
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! Status: ${res.status}`);
+      }
+
       const data = await res.json();
 
       const burnWei = BigInt(data.totalBurnWei);
-      const formattedBurn = Number(ethers.formatEther(burnWei));
+      const burnFormatted = Number(ethers.formatEther(burnWei));
 
-      setTotalGameBurned(formattedBurn);
-
-      // 2️⃣ Get total supply from CORE contract
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const totalSupplyWei = await CORE_TOKEN.totalSupply();
-
-      const formattedSupply = Number(
-        ethers.formatEther(totalSupplyWei)
-      );
-
-      const percent =
-        formattedSupply > 0
-          ? (formattedBurn / formattedSupply) * 100
-          : 0;
-
-      setBurnPercent(percent);
+      setTotalGameBurned(burnFormatted);
 
     } catch (err) {
       console.error("Burn fetch failed:", err);
@@ -1156,8 +1145,6 @@ useEffect(() => {
   };
 
   fetchBurn();
-  const interval = setInterval(fetchBurn, 15000);
-  return () => clearInterval(interval);
 }, []);
 
 /* ---------------- UI ---------------- */
