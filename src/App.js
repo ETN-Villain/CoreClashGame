@@ -1136,7 +1136,7 @@ useEffect(() => {
 
       const burnWei = BigInt(data.totalBurnWei);
       // 🔥 Get live total supply from chain
-      const supplyWei = await CORE_TOKEN.totalSupply();
+      const supplyWei = await ERC20ABI.totalSupply();
 
       const burnFormatted = Number(ethers.formatEther(burnWei));
       const supplyFormatted = Number(ethers.formatEther(supplyWei));
