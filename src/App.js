@@ -314,6 +314,12 @@ if (RARE_BACKGROUNDS.includes(background)) {
   }
 }, [nfts]);
 
+/* ---- REUSABLE ERC20 ------- */
+const erc20 = useMemo(() => {
+  if (!signer || !stakeToken) return null;
+  return new ethers.Contract(stakeToken, ERC20ABI, signer);
+}, [signer, stakeToken]);
+
   /* -------- APPROVE TOKENS ----------*/
   const approveTokens = async () => {
   if (!signer || !stakeToken || !stakeAmount) {
@@ -322,7 +328,6 @@ if (RARE_BACKGROUNDS.includes(background)) {
   }
 
   try {
-    const erc20 = new ethers.Contract(stakeToken, ERC20ABI, signer);
     const stakeWei = ethers.parseUnits(stakeAmount, 18);
 
     const tx = await erc20.approve(GAME_ADDRESS, stakeWei);
@@ -1136,7 +1141,7 @@ useEffect(() => {
 
       const burnWei = BigInt(data.totalBurnWei);
       // 🔥 Get live total supply from chain
-      const supplyWei = await ERC20ABI.totalSupply();
+      const supplyWei = await erc20.totalSupply();
 
       const burnFormatted = Number(ethers.formatEther(burnWei));
       const supplyFormatted = Number(ethers.formatEther(supplyWei));
@@ -1154,8 +1159,10 @@ useEffect(() => {
     }
   };
 
-  fetchBurn();
-}, []);
+  if (erc20) {
+    fetchBurn();
+  }
+}, [erc20]);
 
 /* ---------------- UI ---------------- */
 if (loading) {
