@@ -1127,7 +1127,7 @@ useEffect(() => {
   const fetchBurn = async () => {
     try {
       // 1️⃣ Get burn total from backend
-      const res = await fetch("/burn-total");
+      const res = await fetch("/games/burn-total");
       const data = await res.json();
 
       const burnWei = BigInt(data.totalBurnWei);

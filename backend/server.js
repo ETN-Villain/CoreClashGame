@@ -161,4 +161,15 @@ app.get("/games", (req, res) => {
   }
 });
 
+// Endpoint to return burn total
+app.get("/burn-total", (req, res) => {
+  try {
+    const total = readBurnTotal(); // should return BigInt
+    res.json({ totalBurnWei: total.toString() });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to read burn total" });
+  }
+});
+
 console.log("Owner cache file path will be:", path.join(__dirname, "cache/owners.json"));
