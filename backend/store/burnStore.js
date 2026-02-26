@@ -1,4 +1,7 @@
 import fs from "fs";
+import path from "path";
+
+const __dirname = path.dirname(__filename);
 
 const FILE = path.join(__dirname, "burnTotal.json");
 
