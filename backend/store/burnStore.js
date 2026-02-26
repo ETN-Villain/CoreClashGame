@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const FILE = "./store/burnTotal.json";
+const FILE = path.join(__dirname, "burnTotal.json");
 
 export function readBurnTotal() {
   try {

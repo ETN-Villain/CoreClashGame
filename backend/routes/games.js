@@ -57,6 +57,17 @@ router.get("/", (req, res) => {
   }
 });
 
+/* ------- TRACK BURNS -------- */
+router.get("/burn-total", (req, res) => {
+  try {
+    const total = readBurnTotal();
+    res.json({ totalBurnWei: total.toString() });
+  } catch (err) {
+    console.error("Burn route error:", err);
+    res.status(500).json({ error: "Failed to read burn total" });
+  }
+});
+
 // ---------------- GET SINGLE GAME ----------------
 router.get("/:id", (req, res) => {
   try {
@@ -671,12 +682,6 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
       error: err.reason || err.message || "Internal server error"
     });
   }
-});
-
-/* ------- TRACK BURNS -------- */
-router.get("/burn-total", (req, res) => {
-  const total = readBurnTotal();
-  res.json({ totalBurnWei: total.toString() });
 });
 
 export default router;
