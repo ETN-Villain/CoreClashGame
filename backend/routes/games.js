@@ -673,4 +673,12 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
   }
 });
 
+/* ------- TRACK BURNS -------- */
+import { readBurnTotal } from "./store/burnStore.js";
+
+app.get("/burn-total", (req, res) => {
+  const total = readBurnTotal();
+  res.json({ totalBurnWei: total.toString() });
+});
+
 export default router;

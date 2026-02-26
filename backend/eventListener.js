@@ -13,6 +13,7 @@ import { readOwnerCache, writeOwnerCache, deleteCache } from "./utils/ownerCache
 import { reconcileActiveGamesScheduled } from "./reconcile.js";
 import { fetchOwnedTokenIds } from "./utils/nftUtils.js";
 import { readGames, writeGames } from "./store/gamesStore.js";
+import { readBurnTotal, writeBurnTotal } from "./store/burnStore.js";
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
@@ -135,11 +136,39 @@ for (const log of settledLogs) {
   const parsed = gameInterface.parseLog(log);
   const gameId = Number(parsed.args.gameId);
 
+  console.log(`🔥 GameSettled #${gameId}`);
+
+  const onChain = await gameContract.games(gameId);
+
+  if (!onChain.settled || onChain.stakeAmount == 0n) continue;
+
   const games = readGames();
   const game = games.find(g => g.id === gameId);
   if (!game) continue;
-    }
-      
+
+  // 🛑 Prevent double counting
+  if (game.burnRecorded) continue;
+
+  const stake = onChain.stakeAmount;
+  const pot = stake * 2n;
+  const burn = pot / 100n; // 1%
+
+  // 🔥 Update running total
+  let totalBurn = readBurnTotal();
+  totalBurn += burn;
+  writeBurnTotal(totalBurn);
+
+  // Mark game as processed
+  game.settled = true;
+  game.burnRecorded = true;
+  game.burnWei = burn.toString();
+  writeGames(games);
+
+  console.log(
+    `🔥 Burn added: ${ethers.formatEther(burn)} CORE | Total: ${ethers.formatEther(totalBurn)}`
+  );
+}
+
       // ----- NFT transfer logs (VKIN & VQLE) -----
       const getTransferLogs = async (address) =>
         provider.getLogs({ address, topics: [TRANSFER_TOPIC], fromBlock, toBlock });

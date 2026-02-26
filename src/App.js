@@ -1120,47 +1120,45 @@ const leaderboard = useMemo(() => {
 }, [games]);
 
 /* --------- TOTAL CORE BURN ---------*/
-const totalCoreBurned = settledGames
-  .filter(
-    (g) =>
-      g.winner &&
-      g.settleTxHash &&
-      g.stakeAmount
-  )
-  .reduce((total, g) => {
-    const stakeWei = Number(g.stakeAmount); // still wei
-    const totalPotWei = stakeWei * 2;
-    const burnWei = totalPotWei * 0.01; // 1%
-    return total + burnWei;
-  }, 0);
+const [totalGameBurned, setTotalGameBurned] = useState(0);
+const [burnPercent, setBurnPercent] = useState(0);
 
-// Convert wei → CORE
-const totalCoreBurnedFormatted = totalCoreBurned / 1e18;
-
-// Get TotalSupply from chain
-const [totalSupply, setTotalSupply] = useState(null);
 useEffect(() => {
-  const fetchSupply = async () => {
+  const fetchBurn = async () => {
     try {
+      // 1️⃣ Get burn total from backend
+      const res = await fetch("/burn-total");
+      const data = await res.json();
+
+      const burnWei = BigInt(data.totalBurnWei);
+      const formattedBurn = Number(ethers.formatEther(burnWei));
+
+      setTotalGameBurned(formattedBurn);
+
+      // 2️⃣ Get total supply from CORE contract
       const provider = new ethers.BrowserProvider(window.ethereum);
-      const contract = new ethers.Contract(CORE_TOKEN, ERC20ABI, provider);
+      const totalSupplyWei = await CORE_TOKEN.totalSupply();
 
-      const supplyWei = await contract.totalSupply();
-      const formattedSupply = ethers.formatEther(supplyWei);
+      const formattedSupply = Number(
+        ethers.formatEther(totalSupplyWei)
+      );
 
-      setTotalSupply(Number(formattedSupply));
+      const percent =
+        formattedSupply > 0
+          ? (formattedBurn / formattedSupply) * 100
+          : 0;
+
+      setBurnPercent(percent);
+
     } catch (err) {
-      console.error("Failed to fetch total supply:", err);
+      console.error("Burn fetch failed:", err);
     }
   };
 
-  fetchSupply();
+  fetchBurn();
+  const interval = setInterval(fetchBurn, 15000);
+  return () => clearInterval(interval);
 }, []);
-
-const percentBurned =
-  totalSupply && totalSupply > 0
-    ? (totalCoreBurnedFormatted / totalSupply) * 100
-    : 0;
 
 /* ---------------- UI ---------------- */
 if (loading) {
@@ -1924,7 +1922,7 @@ border: "1px solid #333" }} />
         );
       })}
     </div>
-  {/* ---------------- TOTAL CORE BURNED ---------------- */}
+{/* ---------------- TOTAL CORE BURNED ---------------- */}
 <div
   style={{
     marginTop: 20,
@@ -1955,14 +1953,13 @@ border: "1px solid #333" }} />
       textShadow: "0 0 8px #cd3309, 0 0 16px #cd3309",
     }}
   >
-    {totalCoreBurnedFormatted.toFixed(2)} CORE
+    {totalGameBurned.toFixed(2)} CORE
   </div>
-{totalSupply && (
+
   <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>
-    {percentBurned.toFixed(4)}% of total supply
+    {burnPercent.toFixed(4)}% of total supply
   </div>
-)}
-  </div>
+</div>
 </div>
 </div>
     </div>
