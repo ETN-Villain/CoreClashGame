@@ -1084,7 +1084,7 @@ const cancelledGames = games
 const sortedSettledGames = [...settledGames]
   .filter(g => g.settledAt)
   .sort((a, b) => new Date(b.settledAt) - new Date(a.settledAt));
-  
+
 const latestSettled = sortedSettledGames.slice(0, 10);
 const archivedSettled = sortedSettledGames.slice(10);
 
@@ -1256,8 +1256,8 @@ return (
         inset: 0,
         backgroundImage: `url(${AppBackground})`,
         backgroundRepeat: "no-repeat",
-        backgroundSize: "auto 100%",
-        backgroundPosition: "center top",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
         opacity: 0.18,
         pointerEvents: "none",
         zIndex: 0,
