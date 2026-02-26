@@ -1135,9 +1135,19 @@ useEffect(() => {
       const data = await res.json();
 
       const burnWei = BigInt(data.totalBurnWei);
+      // 🔥 Get live total supply from chain
+      const supplyWei = await CORE_TOKEN.totalSupply();
+
       const burnFormatted = Number(ethers.formatEther(burnWei));
+      const supplyFormatted = Number(ethers.formatEther(supplyWei));
+
+      const percent =
+        supplyFormatted > 0
+          ? (burnFormatted / supplyFormatted) * 100
+          : 0;
 
       setTotalGameBurned(burnFormatted);
+      setBurnPercent(percent);
 
     } catch (err) {
       console.error("Burn fetch failed:", err);
