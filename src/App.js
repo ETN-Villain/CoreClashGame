@@ -26,13 +26,8 @@ import mapping from "./mapping.json";
 import { renderTokenImages } from "./renderTokenImages.jsx";
 
 import {
-  CoreClashLogo,
-  AppBackground,
-  PlanetZephyrosAE,
-  HowToPlay,
-  GameInfo,
-  ElectroSwap,
-  VerdantKinBanner,
+  CoreClashLogo, AppBackground, PlanetZephyrosAE, HowToPlay, GameInfo, ElectroSwap,
+  VerdantKinBanner, ElectroneumLogo,
 } from "./appMedia/media.js";
 
 import GameCard from "./gameCard.jsx";
@@ -96,26 +91,30 @@ useEffect(() => {
   /* ---------------- LOADING SCREEN ---------------- */
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState(5);
-
+  const [progress, setProgress] = useState(0);
+  
   /* ---------------- HANDLE GAMECREATED EVENT ---------------- */
   const [showDeviceWarning, setShowDeviceWarning] = useState(false);
   const [deviceConfirmed, setDeviceConfirmed] = useState(false);
 
-  /* ---------------- COUNTDOWN ---------------- */
-// Countdown effect
+/* ---------------- LOADING BAR ---------------- */
 useEffect(() => {
   if (!loading) return;
 
+  const duration = 5000; // 5 seconds
+  const intervalTime = 50; // smooth animation
+  const step = 100 / (duration / intervalTime);
+
   const timer = setInterval(() => {
-    setCountdown((prev) => {
-      if (prev === 1) {
+    setProgress((prev) => {
+      if (prev >= 100) {
         clearInterval(timer);
         setLoading(false);
-        return 0;
+        return 100;
       }
-      return prev - 1;
+      return prev + step;
     });
-  }, 1000);
+  }, intervalTime);
 
   return () => clearInterval(timer);
 }, [loading]);
@@ -319,6 +318,11 @@ const erc20 = useMemo(() => {
   if (!signer || !stakeToken) return null;
   return new ethers.Contract(stakeToken, ERC20ABI, signer);
 }, [signer, stakeToken]);
+
+const coreContract = useMemo(() => {
+  if (!provider) return null;
+  return new ethers.Contract(CORE_TOKEN, ERC20ABI, provider);
+}, [provider]);
 
   /* -------- APPROVE TOKENS ----------*/
   const approveTokens = async () => {
@@ -1078,9 +1082,9 @@ const cancelledGames = games
   .sort((a, b) => b.id - a.id);
 
 const sortedSettledGames = [...settledGames]
-  .filter(g => g.settledAt) // ensure timestamp exists
-  .sort((a, b) => Number(b.settledAt) - Number(a.settledAt));
-
+  .filter(g => g.settledAt)
+  .sort((a, b) => new Date(b.settledAt) - new Date(a.settledAt));
+  
 const latestSettled = sortedSettledGames.slice(0, 10);
 const archivedSettled = sortedSettledGames.slice(10);
 
@@ -1131,6 +1135,7 @@ const [burnPercent, setBurnPercent] = useState(0);
 useEffect(() => {
   const fetchBurn = async () => {
     try {
+      if (!coreContract) return;
       const res = await fetch(`${BACKEND_URL}/games/burn-total`);
 
       if (!res.ok) {
@@ -1141,7 +1146,7 @@ useEffect(() => {
 
       const burnWei = BigInt(data.totalBurnWei);
       // 🔥 Get live total supply from chain
-      const supplyWei = await erc20.totalSupply();
+      const supplyWei = await coreContract.totalSupply();
 
       const burnFormatted = Number(ethers.formatEther(burnWei));
       const supplyFormatted = Number(ethers.formatEther(supplyWei));
@@ -1155,14 +1160,20 @@ useEffect(() => {
       setBurnPercent(percent);
 
     } catch (err) {
-      console.error("Burn fetch failed:", err);
+      console.error("Burn refresh failed:", err);
     }
   };
 
-  if (erc20) {
-    fetchBurn();
-  }
-}, [erc20]);
+  // Run immediately on mount
+  fetchBurn();
+
+  // Then run every 30 seconds
+  const interval = setInterval(fetchBurn, 30000);
+
+  // Cleanup when component unmounts
+  return () => clearInterval(interval);
+
+}, [coreContract]);
 
 /* ---------------- UI ---------------- */
 if (loading) {
@@ -1176,11 +1187,60 @@ if (loading) {
           alignItems: "center",
           justifyContent: "center",
           color: "#18bb1a",
+          textAlign: "center",
         }}
       >
-        <img src={CoreClashLogo} alt="Core Clash" style={{ width: 800 }} />
-        <p style={{ fontSize: 28 }}>Loading...</p>
-        <p style={{ fontSize: 24, fontWeight: "bold" }}>{countdown}</p>
+        <img
+          src={CoreClashLogo}
+          alt="Core Clash"
+          style={{ width: 800, maxWidth: "90%" }}
+        />
+
+        {/* Powered By */}
+        <p
+          style={{
+            marginTop: 20,
+            fontSize: 14,
+            letterSpacing: 3,
+            textTransform: "uppercase",
+            opacity: 0.8,
+          }}
+        >
+          Powered by
+        </p>
+
+        {/* New Image */}
+        <img
+          src={ElectroneumLogo}   // 👈 replace with your image variable
+          alt="Electroneum"
+          style={{
+            width: 250,
+            maxWidth: "60%",
+            marginBottom: 30,
+          }}
+        />
+
+{/* Loading Bar */}
+<div
+  style={{
+    width: "60%",
+    maxWidth: 400,
+    height: 12,
+    backgroundColor: "#0f2e10",
+    borderRadius: 20,
+    overflow: "hidden",
+    boxShadow: "0 0 10px #18bb1a55",
+  }}
+>
+  <div
+    style={{
+      width: `${progress}%`,
+      height: "100%",
+      background: "linear-gradient(90deg, #18bb1a, #42ff5a)",
+      transition: "width 50ms linear",
+    }}
+  />
+</div>
       </div>
     </div>
   );
@@ -1196,9 +1256,9 @@ return (
         inset: 0,
         backgroundImage: `url(${AppBackground})`,
         backgroundRepeat: "no-repeat",
-        backgroundPosition: "center",
-        backgroundSize: "cover",
-        opacity: 0.25,
+        backgroundSize: "auto 100%",
+        backgroundPosition: "center top",
+        opacity: 0.18,
         pointerEvents: "none",
         zIndex: 0,
       }}
@@ -1926,6 +1986,7 @@ border: "1px solid #333" }} />
         );
       })}
     </div>
+
 {/* ---------------- TOTAL CORE BURNED ---------------- */}
 <div
   style={{
@@ -1957,10 +2018,10 @@ border: "1px solid #333" }} />
       textShadow: "0 0 8px #cd3309, 0 0 16px #cd3309",
     }}
   >
-    {totalGameBurned.toFixed(2)} CORE
+    🔥 {totalGameBurned.toFixed(2)} CORE 🔥
   </div>
 
-  <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>
+  <div style={{ fontSize: 14, opacity: 0.7, marginTop: 6 }}>
     {burnPercent.toFixed(4)}% of total supply
   </div>
 </div>
