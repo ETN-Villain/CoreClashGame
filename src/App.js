@@ -1254,15 +1254,18 @@ return (
   style={{
     position: "fixed",
     inset: 0,
+    backgroundColor: "#000",
     backgroundImage: `url(${AppBackground})`,
     backgroundRepeat: "no-repeat",
     backgroundSize: "cover",
     backgroundPosition: "center",
+    opacity: 0.18,
     pointerEvents: "none",
     zIndex: 0,
-    mixBlendMode: "multiply",
+     mixBlendMode: "multiply",
   }}
-/>
+ />
+
     {/* ---------------- APP CONTENT ---------------- */}
     <div style={{ position: "relative", zIndex: 1 }}>
       {/* ---------------- WALLET SECTION ---------------- */}
