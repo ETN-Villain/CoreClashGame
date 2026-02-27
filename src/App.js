@@ -1145,13 +1145,11 @@ useEffect(() => {
       const burnWei = BigInt(data.totalBurnWei);
       const burnFormatted = Number(ethers.formatEther(burnWei));
 
-      let supplyFormatted = 0;
-
-      // 2️⃣ Only fetch supply from chain if contract is available
-      if (coreContract) {
-        const supplyWei = await coreContract.totalSupply();
-        supplyFormatted = Number(ethers.formatEther(supplyWei));
-      }
+     // Use default provider if wallet is not connected
+      const provider = new ethers.JsonRpcProvider("https://mainnet.infura.io/v3/YOUR_PROJECT_ID");
+      const coreReadContract = new ethers.Contract(CORE_ADDRESS, CORE_ABI, provider);
+      const supplyWei = await coreReadContract.totalSupply();
+      const supplyFormatted = Number(ethers.formatEther(supplyWei));
 
       const percent =
         supplyFormatted > 0 ? (burnFormatted / supplyFormatted) * 100 : 0;
@@ -1171,7 +1169,7 @@ useEffect(() => {
 
   // Cleanup
   return () => clearInterval(interval);
-}, [coreContract]);
+}, []);
 
 /* ---------------- UI ---------------- */
 if (loading) {
