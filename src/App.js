@@ -1259,6 +1259,7 @@ return (
     backgroundRepeat: "no-repeat",
     backgroundSize: "cover",
     backgroundPosition: "center",
+    opacity: 0.1,
     pointerEvents: "none",
     zIndex: 0,
   }}
