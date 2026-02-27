@@ -1250,20 +1250,19 @@ if (loading) {
 return (
   <div style={{ position: "relative", minHeight: "100vh", padding: 20, maxWidth: 900 }}>
     {/* ---------------- WATERMARK ---------------- */}
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundImage: `url(${AppBackground})`,
-        backgroundRepeat: "no-repeat",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        opacity: 0.18,
-        pointerEvents: "none",
-        zIndex: 0,
-      }}
-    />
-
+<div
+  style={{
+    position: "fixed",
+    inset: 0,
+    backgroundImage: `url(${AppBackground})`,
+    backgroundRepeat: "no-repeat",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    pointerEvents: "none",
+    zIndex: 0,
+    mixBlendMode: "multiply",
+  }}
+/>
     {/* ---------------- APP CONTENT ---------------- */}
     <div style={{ position: "relative", zIndex: 1 }}>
       {/* ---------------- WALLET SECTION ---------------- */}
