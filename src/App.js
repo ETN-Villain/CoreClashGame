@@ -1133,46 +1133,44 @@ const [totalGameBurned, setTotalGameBurned] = useState(0);
 const [burnPercent, setBurnPercent] = useState(0);
 
 useEffect(() => {
+  let interval;
+
   const fetchBurn = async () => {
     try {
-      if (!coreContract) return;
+      // 1️⃣ Always fetch backend total burn
       const res = await fetch(`${BACKEND_URL}/games/burn-total`);
-
-      if (!res.ok) {
-        throw new Error(`HTTP error! Status: ${res.status}`);
-      }
-
+      if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
       const data = await res.json();
 
       const burnWei = BigInt(data.totalBurnWei);
-      // 🔥 Get live total supply from chain
-      const supplyWei = await coreContract.totalSupply();
-
       const burnFormatted = Number(ethers.formatEther(burnWei));
-      const supplyFormatted = Number(ethers.formatEther(supplyWei));
+
+      let supplyFormatted = 0;
+
+      // 2️⃣ Only fetch supply from chain if contract is available
+      if (coreContract) {
+        const supplyWei = await coreContract.totalSupply();
+        supplyFormatted = Number(ethers.formatEther(supplyWei));
+      }
 
       const percent =
-        supplyFormatted > 0
-          ? (burnFormatted / supplyFormatted) * 100
-          : 0;
+        supplyFormatted > 0 ? (burnFormatted / supplyFormatted) * 100 : 0;
 
       setTotalGameBurned(burnFormatted);
       setBurnPercent(percent);
-
     } catch (err) {
       console.error("Burn refresh failed:", err);
     }
   };
 
-  // Run immediately on mount
+  // Run immediately
   fetchBurn();
 
   // Then run every 30 seconds
-  const interval = setInterval(fetchBurn, 30000);
+  interval = setInterval(fetchBurn, 30000);
 
-  // Cleanup when component unmounts
+  // Cleanup
   return () => clearInterval(interval);
-
 }, [coreContract]);
 
 /* ---------------- UI ---------------- */
