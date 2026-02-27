@@ -1259,10 +1259,8 @@ return (
     backgroundRepeat: "no-repeat",
     backgroundSize: "cover",
     backgroundPosition: "center",
-    opacity: 0.18,
     pointerEvents: "none",
     zIndex: 0,
-     mixBlendMode: "multiply",
   }}
  />
 
