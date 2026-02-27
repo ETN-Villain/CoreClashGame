@@ -44,7 +44,6 @@ export default function App() {
   setProvider(null);
 };
 
-
   /* ---------------- NFT STATE ---------------- */
   const [ownedNFTs, setOwnedNFTs] = useState([]);
 
@@ -1146,8 +1145,8 @@ useEffect(() => {
       const burnFormatted = Number(ethers.formatEther(burnWei));
 
      // Use default provider if wallet is not connected
-      const provider = new ethers.JsonRpcProvider("https://mainnet.infura.io/v3/YOUR_PROJECT_ID");
-      const coreReadContract = new ethers.Contract(CORE_ADDRESS, CORE_ABI, provider);
+      const provider = new ethers.JsonRpcProvider(process.env.REACT_APP_RPC_URL);
+      const coreReadContract = new ethers.Contract(CORE_TOKEN, ERC20ABI, provider);
       const supplyWei = await coreReadContract.totalSupply();
       const supplyFormatted = Number(ethers.formatEther(supplyWei));
 
