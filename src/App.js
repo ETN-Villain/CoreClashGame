@@ -1259,7 +1259,7 @@ return (
     backgroundRepeat: "no-repeat",
     backgroundSize: "cover",
     backgroundPosition: "center",
-    opacity: 0.1,
+    opacity: 0.75,
     pointerEvents: "none",
     zIndex: 0,
   }}
