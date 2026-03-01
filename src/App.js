@@ -21,6 +21,7 @@ import {
   ADMIN_ADDRESS,
   ADDRESS_TO_COLLECTION_KEY,
   BACKEND_URL,
+  RPC_URL,
 } from "./config.js";
 
 import mapping from "./mapping.json";
@@ -34,17 +35,53 @@ import {
 import GameCard from "./gameCard.jsx";
 
 export default function App() {
-  /* ---------------- WALLET ---------------- */
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
-  const [account, setAccount] = useState(null);
-  const [walletError, setWalletError] = useState(null);
-  const disconnectMetamask = () => {
-  setAccount(null);
-  setSigner(null);
-  setProvider(null);
-};
-  const [wcProvider, setWcProvider] = useState(null); // only to clean up WC on disconnect
+/* ---------------- GAME SETUP ---------------- */
+  const [stakeToken, setStakeToken] = useState("");
+  const [stakeAmount, setStakeAmount] = useState("");
+
+  const [validated, setValidated] = useState(false);
+  const [validating, setValidating] = useState(false);
+
+  useEffect(() => {
+  if (!stakeToken && WHITELISTED_TOKENS.length > 0) {
+    setStakeToken(WHITELISTED_TOKENS[0].address);
+  }
+}, [stakeToken]);
+
+/* ---------------- WALLET STATE ---------------- */
+const [provider, setProvider] = useState(null);  // Unified provider
+const [signer, setSigner] = useState(null);
+const [account, setAccount] = useState(null);
+const [walletError, setWalletError] = useState(null);
+const [wcProvider, setWcProvider] = useState(null);
+
+/* ---------------- PROVIDER MEMO ---------------- */
+const unifiedProvider = useMemo(() => {
+  if (provider) return provider; // WalletConnect or MetaMask
+  return new ethers.JsonRpcProvider(RPC_URL); // fallback for read-only
+}, [provider]);
+
+/* ---------------- CONTRACTS ---------------- */
+const gameContract = useMemo(() => {
+  if (!unifiedProvider) return null;
+  return new ethers.Contract(GAME_ADDRESS, GameABI, signer ?? unifiedProvider);
+}, [unifiedProvider, signer]);
+
+const erc20 = useMemo(() => {
+  if (!provider || !stakeToken) return null;
+  return new ethers.Contract(stakeToken, ERC20ABI, signer ?? provider);
+}, [provider, signer, stakeToken]);
+
+const coreContract = useMemo(() => {
+  if (!provider) return null;
+  return new ethers.Contract(CORE_TOKEN, ERC20ABI, signer ?? provider);
+}, [provider, signer]);
+
+useEffect(() => {
+  if (!unifiedProvider) {
+    setProvider(new ethers.JsonRpcProvider(RPC_URL));
+  }
+}, [unifiedProvider]);
 
   /* ---------------- NFT STATE ---------------- */
   const [ownedNFTs, setOwnedNFTs] = useState([]);
@@ -67,19 +104,6 @@ useEffect(() => {
   });
   console.groupEnd();
 }, [nfts]);
-
-/* ---------------- GAME SETUP ---------------- */
-  const [stakeToken, setStakeToken] = useState("");
-  const [stakeAmount, setStakeAmount] = useState("");
-
-  const [validated, setValidated] = useState(false);
-  const [validating, setValidating] = useState(false);
-
-  useEffect(() => {
-  if (!stakeToken && WHITELISTED_TOKENS.length > 0) {
-    setStakeToken(WHITELISTED_TOKENS[0].address);
-  }
-}, [stakeToken]);
 
   /* ---------------- GAMES STATE ---------------- */
   const [games, setGames] = useState([]);
@@ -119,18 +143,6 @@ useEffect(() => {
 
   return () => clearInterval(timer);
 }, [loading]);
-
-/* ---------------- GAME CONTRACT ---------------- */
-const publicProvider = useMemo(() => {
-  return new ethers.JsonRpcProvider(
-    process.env.REACT_APP_RPC_URL
-  );
-}, []);
-
-const gameContract = useMemo(() => {
-  if (!signer) return null;
-  return new ethers.Contract(GAME_ADDRESS, GameABI, signer);
-}, [signer]);
 
   /* ---------------- CONNECT WALLET ---------------- */
 const connectMetamask = useCallback(async () => {
@@ -482,17 +494,6 @@ if (RARE_BACKGROUNDS.includes(background)) {
   }
 }, [nfts]);
 
-/* ---- REUSABLE ERC20 ------- */
-const erc20 = useMemo(() => {
-  if (!signer || !stakeToken) return null;
-  return new ethers.Contract(stakeToken, ERC20ABI, signer);
-}, [signer, stakeToken]);
-
-const coreContract = useMemo(() => {
-  if (!provider) return null;
-  return new ethers.Contract(CORE_TOKEN, ERC20ABI, provider);
-}, [provider]);
-
   /* -------- APPROVE TOKENS ----------*/
   const approveTokens = async () => {
   if (!signer || !stakeToken || !stakeAmount) {
@@ -561,7 +562,7 @@ const loadGames = useCallback(async () => {
   setLoadingGames(true);
 
   try {
-    const readProvider = publicProvider;
+    const readProvider = unifiedProvider;
     const contract = new ethers.Contract(
       GAME_ADDRESS,
       GameABI,
@@ -651,7 +652,7 @@ settleTxHash: backendGame.settleTxHash || null,
   } finally {
     setLoadingGames(false);
   }
-}, [publicProvider]);
+}, [unifiedProvider]);
 
 // 🔥 Auto-load games when provider becomes available
 useEffect(() => {
@@ -1521,7 +1522,7 @@ return (
       {account}
     </div>
     <button
-      onClick={disconnectMetamask}
+      onClick={disconnectWallet}
       style={{
         backgroundColor: "#c62828",
         color: "#fff",
