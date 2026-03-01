@@ -19,7 +19,7 @@ import { withLock } from "../utils/mutex.js";
 import { authWallet } from "../middleware/authWallet.js";
 import VKIN_ABI from "../../src/abis/VKINABI.json" assert { type: "json" };
 import VQLE_ABI from "../../src/abis/VQLEABI.json" assert { type: "json" };
-
+import { readBurnTotal } from "../store/burnStore.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -54,6 +54,17 @@ router.get("/", (req, res) => {
   } catch (err) {
     console.error("GET /games error:", err);
     res.status(500).json({ error: "Failed to load games" });
+  }
+});
+
+/* ------- TRACK BURNS -------- */
+router.get("/burn-total", (req, res) => {
+  try {
+    const total = readBurnTotal();
+    res.json({ totalBurnWei: total.toString() });
+  } catch (err) {
+    console.error("Burn route error:", err);
+    res.status(500).json({ error: "Failed to read burn total" });
   }
 });
 

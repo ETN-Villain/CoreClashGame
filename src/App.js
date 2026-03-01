@@ -15,6 +15,7 @@ import ERC20ABI from "./abis/ERC20ABI.json";
 import {
   GAME_ADDRESS,
   WHITELISTED_TOKENS,
+  CORE_TOKEN,
   WHITELISTED_NFTS,
   RARE_BACKGROUNDS,
   ADMIN_ADDRESS,
@@ -26,13 +27,8 @@ import mapping from "./mapping.json";
 import { renderTokenImages } from "./renderTokenImages.jsx";
 
 import {
-  CoreClashLogo,
-  AppBackground,
-  PlanetZephyrosAE,
-  HowToPlay,
-  GameInfo,
-  ElectroSwap,
-  VerdantKinBanner,
+  CoreClashLogo, AppBackground, PlanetZephyrosAE, HowToPlay, GameInfo, ElectroSwap,
+  VerdantKinBanner, ElectroneumLogo,
 } from "./appMedia/media.js";
 
 import GameCard from "./gameCard.jsx";
@@ -96,26 +92,30 @@ useEffect(() => {
   /* ---------------- LOADING SCREEN ---------------- */
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState(5);
-
+  const [progress, setProgress] = useState(0);
+  
   /* ---------------- HANDLE GAMECREATED EVENT ---------------- */
   const [showDeviceWarning, setShowDeviceWarning] = useState(false);
   const [deviceConfirmed, setDeviceConfirmed] = useState(false);
 
-  /* ---------------- COUNTDOWN ---------------- */
-// Countdown effect
+/* ---------------- LOADING BAR ---------------- */
 useEffect(() => {
   if (!loading) return;
 
+  const duration = 5000; // 5 seconds
+  const intervalTime = 50; // smooth animation
+  const step = 100 / (duration / intervalTime);
+
   const timer = setInterval(() => {
-    setCountdown((prev) => {
-      if (prev === 1) {
+    setProgress((prev) => {
+      if (prev >= 100) {
         clearInterval(timer);
         setLoading(false);
-        return 0;
+        return 100;
       }
-      return prev - 1;
+      return prev + step;
     });
-  }, 1000);
+  }, intervalTime);
 
   return () => clearInterval(timer);
 }, [loading]);
@@ -449,17 +449,20 @@ const validateTeam = useCallback(async () => {
         throw new Error("Missing metadata for one or more NFTs");
       }
 
-      const { name, background } = n.metadata;
+let { name, background } = n.metadata;
+
+name = name?.trim().toLowerCase();
+background = background?.trim();
 
       if (!name || !background) {
         throw new Error(`Incomplete metadata for token #${n.tokenId || "?"}`);
       }
 
       // Duplicate character check
-      if (seenNames.has(name)) {
-        throw new Error(`Duplicate character: ${name}`);
-      }
-      seenNames.add(name);
+if (seenNames.has(name)) {
+  throw new Error(`Duplicate character: ${n.metadata.name}`);
+}
+seenNames.add(name);
 
 // Rare background rule (robust, no Set dependency)
 if (RARE_BACKGROUNDS.includes(background)) {
@@ -479,6 +482,17 @@ if (RARE_BACKGROUNDS.includes(background)) {
   }
 }, [nfts]);
 
+/* ---- REUSABLE ERC20 ------- */
+const erc20 = useMemo(() => {
+  if (!signer || !stakeToken) return null;
+  return new ethers.Contract(stakeToken, ERC20ABI, signer);
+}, [signer, stakeToken]);
+
+const coreContract = useMemo(() => {
+  if (!provider) return null;
+  return new ethers.Contract(CORE_TOKEN, ERC20ABI, provider);
+}, [provider]);
+
   /* -------- APPROVE TOKENS ----------*/
   const approveTokens = async () => {
   if (!signer || !stakeToken || !stakeAmount) {
@@ -487,7 +501,6 @@ if (RARE_BACKGROUNDS.includes(background)) {
   }
 
   try {
-    const erc20 = new ethers.Contract(stakeToken, ERC20ABI, signer);
     const stakeWei = ethers.parseUnits(stakeAmount, 18);
 
     const tx = await erc20.approve(GAME_ADDRESS, stakeWei);
@@ -1238,11 +1251,94 @@ const cancelledGames = games
   .sort((a, b) => b.id - a.id);
 
 const sortedSettledGames = [...settledGames]
-  .filter(g => g.settledAt) // ensure timestamp exists
-  .sort((a, b) => Number(b.settledAt) - Number(a.settledAt));
+  .filter(g => g.settledAt)
+  .sort((a, b) => new Date(b.settledAt) - new Date(a.settledAt));
 
 const latestSettled = sortedSettledGames.slice(0, 10);
 const archivedSettled = sortedSettledGames.slice(10);
+
+/* ---------------- LEADERBOARD ---------------- */
+const leaderboard = useMemo(() => {
+  const stats = {};
+
+  games
+    .filter(g => g.settled && !g.cancelled)
+    .forEach(g => {
+      const p1 = g.player1?.toLowerCase();
+      const p2 = g.player2?.toLowerCase();
+      const winner = g.winner?.toLowerCase();
+      const isTie = g.tie;
+
+      [p1, p2].forEach(player => {
+        if (!player || player === ethers.ZeroAddress.toLowerCase()) return;
+
+        if (!stats[player]) stats[player] = { wins: 0, played: 0 };
+        stats[player].played += 1;
+      });
+
+      if (!isTie && winner && winner !== ethers.ZeroAddress.toLowerCase()) {
+        if (!stats[winner]) stats[winner] = { wins: 0, played: 0 };
+        stats[winner].wins += 1;
+      }
+      // No need to do anything for ties: they just count in `played`, not in `wins`
+    });
+
+  return Object.entries(stats)
+    .map(([address, data]) => ({
+      address,
+      wins: data.wins,
+      played: data.played,
+      winRate: data.played > 0 ? Math.round((data.wins / data.played) * 100) : 0,
+    }))
+    .sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return b.winRate - a.winRate;
+    })
+    .slice(0, 10);
+}, [games]);
+
+/* --------- TOTAL CORE BURN ---------*/
+const [totalGameBurned, setTotalGameBurned] = useState(0);
+const [burnPercent, setBurnPercent] = useState(0);
+
+useEffect(() => {
+  let interval;
+
+  const fetchBurn = async () => {
+    try {
+      // 1️⃣ Always fetch backend total burn
+      const res = await fetch(`${BACKEND_URL}/games/burn-total`);
+      if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+      const data = await res.json();
+
+      const burnWei = BigInt(data.totalBurnWei);
+      const burnFormatted = Number(ethers.formatEther(burnWei));
+
+     // Use default provider if wallet is not connected
+      const provider = new ethers.JsonRpcProvider(process.env.REACT_APP_RPC_URL);
+      const coreReadContract = new ethers.Contract(CORE_TOKEN, ERC20ABI, provider);
+      const supplyWei = await coreReadContract.totalSupply();
+      const supplyFormatted = Number(ethers.formatEther(supplyWei));
+
+      const percent =
+        supplyFormatted > 0 ? (burnFormatted / supplyFormatted) * 100 : 0;
+
+      setTotalGameBurned(burnFormatted);
+      setBurnPercent(percent);
+    } catch (err) {
+      console.error("Burn refresh failed:", err);
+    }
+  };
+
+  // Run immediately
+  fetchBurn();
+
+  // Then run every 30 seconds
+  interval = setInterval(fetchBurn, 30000);
+
+  // Cleanup
+  return () => clearInterval(interval);
+}, []);
 
 /* ---------------- UI ---------------- */
 if (loading) {
@@ -1256,11 +1352,60 @@ if (loading) {
           alignItems: "center",
           justifyContent: "center",
           color: "#18bb1a",
+          textAlign: "center",
         }}
       >
-        <img src={CoreClashLogo} alt="Core Clash" style={{ width: 800 }} />
-        <p style={{ fontSize: 28 }}>Loading...</p>
-        <p style={{ fontSize: 24, fontWeight: "bold" }}>{countdown}</p>
+        <img
+          src={CoreClashLogo}
+          alt="Core Clash"
+          style={{ width: 800, maxWidth: "90%" }}
+        />
+
+        {/* Powered By */}
+        <p
+          style={{
+            marginTop: 20,
+            fontSize: 14,
+            letterSpacing: 3,
+            textTransform: "uppercase",
+            opacity: 0.8,
+          }}
+        >
+          Powered by
+        </p>
+
+        {/* New Image */}
+        <img
+          src={ElectroneumLogo}   // 👈 replace with your image variable
+          alt="Electroneum"
+          style={{
+            width: 250,
+            maxWidth: "60%",
+            marginBottom: 30,
+          }}
+        />
+
+{/* Loading Bar */}
+<div
+  style={{
+    width: "60%",
+    maxWidth: 400,
+    height: 12,
+    backgroundColor: "#0f2e10",
+    borderRadius: 20,
+    overflow: "hidden",
+    boxShadow: "0 0 10px #18bb1a55",
+  }}
+>
+  <div
+    style={{
+      width: `${progress}%`,
+      height: "100%",
+      background: "linear-gradient(90deg, #18bb1a, #42ff5a)",
+      transition: "width 50ms linear",
+    }}
+  />
+</div>
       </div>
     </div>
   );
@@ -1270,19 +1415,20 @@ if (loading) {
 return (
   <div style={{ position: "relative", minHeight: "100vh", padding: 20, maxWidth: 900 }}>
     {/* ---------------- WATERMARK ---------------- */}
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundImage: `url(${AppBackground})`,
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "center",
-        backgroundSize: "cover",
-        opacity: 0.25,
-        pointerEvents: "none",
-        zIndex: 0,
-      }}
-    />
+<div
+  style={{
+    position: "fixed",
+    inset: 0,
+    backgroundColor: "#000",
+    backgroundImage: `url(${AppBackground})`,
+    backgroundRepeat: "no-repeat",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    opacity: 0.40,
+    pointerEvents: "none",
+    zIndex: 0,
+  }}
+ />
 
     {/* ---------------- APP CONTENT ---------------- */}
     <div style={{ position: "relative", zIndex: 1 }}>
@@ -1642,7 +1788,12 @@ return (
     .filter(
       (nft) =>
         nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
-        !nfts.some((s, idx) => idx !== i && s.tokenId === nft.tokenId)
+      !nfts.some(
+        (s, idx) =>
+          idx !== i &&
+          s.tokenId === nft.tokenId &&
+          s.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
+      )
     )
     .sort((a, b) => {
       const bgA = (a.background || "").trim();
@@ -1869,87 +2020,42 @@ border: "1px solid #333" }} />
 </button>
 </div>
 
-<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
-  {/* Open Games */}
+<div style={{ display: "grid", gridTemplateColumns: "250px 300px 1fr 500px", gap: 20 }}>
+  {/* ---------------- GAMES COLUMNS ---------------- */}
   <div>
     <h3>🟢 Open ({openGames.length})</h3>
     {openGames.map((g) => (
-      <GameCard 
-        key={g.id} 
-        g={g} 
-        {...gameCardProps} 
-        roundResults={g.roundResults || []}
-      />
+      <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
     ))}
   </div>
 
-  {/* In Progress (Active) Games */}
   <div>
     <h3>🟡 In Progress ({activeGames.length})</h3>
     {activeGames.map((g) => (
-      <GameCard 
-        key={g.id} 
-        g={g} 
-        {...gameCardProps} 
-        roundResults={g.roundResults || []}
-      />
+      <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
     ))}
   </div>
 
-{/* Settled + Cancelled Games Column */}
-<div>
-  {/* Checkboxes */}
-  <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
-    <label>
-      <input
-        type="checkbox"
-        checked={showResolved}
-        onChange={() => setShowResolved(v => !v)}
-      />{" "}
-      Settled (Winner)
-    </label>
-
-    <label>
-      <input
-        type="checkbox"
-        checked={showCancelled}
-        onChange={() => setShowCancelled(v => !v)}
-      />{" "}
-      Cancelled
-    </label>
-  <label>
-    <input
-      type="checkbox"
-      checked={showArchive}
-      onChange={() => setShowArchive(v => !v)}
-    />{" "}
-    Archive
-  </label>
-  </div>
-
-{/* Settled Games */}
-{showResolved && latestSettled.length > 0 && (
   <div>
-    <h3>
-      🔵 Settled ({latestSettled.length})
-    </h3>
+    {/* Settled / Cancelled / Archive Column */}
+    <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+      <label>
+        <input type="checkbox" checked={showResolved} onChange={() => setShowResolved(v => !v)} /> Settled (Winner)
+      </label>
+      <label>
+        <input type="checkbox" checked={showCancelled} onChange={() => setShowCancelled(v => !v)} /> Cancelled
+      </label>
+      <label>
+        <input type="checkbox" checked={showArchive} onChange={() => setShowArchive(v => !v)} /> Archive
+      </label>
+    </div>
 
-    {latestSettled.map((g) => (
-      <GameCard
-        key={g.id}
-        g={g}
-        {...gameCardProps}
-        roundResults={g.roundResults || []}
-      />
-    ))}
-  </div>
-)}
-
-  {/* Cancelled Games (directly below Settled) */}
-  {showCancelled && cancelledGames.length > 0 && (
-    <div style={{ marginTop: 16 }}>
-      <h3>❌ Cancelled ({cancelledGames.length})</h3>
-      {cancelledGames.map((g) => (
+    {showResolved && latestSettled.length > 0 && (
+      <div>
+        <h3>🔵 Settled ({latestSettled.length})</h3>
+        {[...latestSettled]
+      .sort((a, b) => Number(b.settledAt) - Number(a.settledAt))
+      .map((g) => (
         <GameCard
           key={g.id}
           g={g}
@@ -1957,28 +2063,156 @@ border: "1px solid #333" }} />
           roundResults={g.roundResults || []}
         />
       ))}
+      </div>
+    )}
+
+    {showCancelled && cancelledGames.length > 0 && (
+      <div style={{ marginTop: 16 }}>
+        <h3>❌ Cancelled ({cancelledGames.length})</h3>
+        {cancelledGames.map((g) => (
+          <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+        ))}
+      </div>
+    )}
+
+    {showArchive && archivedSettled.length > 0 && (
+      <div style={{ marginTop: 20, opacity: 0.7 }}>
+        <h3>📦 Archive ({archivedSettled.length})</h3>
+        {archivedSettled.map((g) => (
+          <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+        ))}
+      </div>
+    )}
+  </div>
+
+  {/* ---------------- LEADERBOARD ---------------- */}
+  <div style={{ gridColumn: 4, marginTop: 0 }}>
+    <h2
+      style={{
+        color: "#18bb1a",
+        fontWeight: "bold",
+        fontSize: 26,
+        textTransform: "uppercase",
+        textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
+        marginBottom: 12,
+      }}
+    >
+      🏆 Top 10 Leaderboard
+    </h2>
+
+    <div
+      style={{
+        background: "#111",
+        padding: 16,
+        borderRadius: 12,
+        border: "1px solid #333",
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+      }}
+    >
+      {/* Header row */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr 1fr 1fr",
+          fontSize: 13,
+          opacity: 0.7,
+          borderBottom: "1px solid #333",
+          paddingBottom: 6,
+          marginBottom: 6,
+        }}
+      >
+        <span>Player</span>
+        <span>P</span>
+        <span>W</span>
+        <span>%</span>
+      </div>
+
+      {/* No leaderboard */}
+      {leaderboard.length === 0 && (
+        <div style={{ opacity: 0.6, padding: "8px 0", textAlign: "center" }}>
+          No settled games yet.
+        </div>
+      )}
+
+      {/* Leaderboard entries */}
+      {leaderboard.map((entry, index) => {
+        let medalColor = "#fff";
+        if (index === 0) medalColor = "#FFD700";
+        if (index === 1) medalColor = "#C0C0C0";
+        if (index === 2) medalColor = "#CD7F32";
+
+        const isCurrentUser = entry.address === account?.toLowerCase();
+
+        return (
+          <div
+            key={entry.address}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "2fr 1fr 1fr 1fr",
+              padding: "6px 0",
+              borderBottom: "1px solid #222",
+              fontSize: 14,
+              color: isCurrentUser ? "#4da3ff" : medalColor,
+              fontWeight: isCurrentUser ? "bold" : "normal",
+              transition: "background 0.2s",
+              cursor: "default",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#222")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            <span>
+              #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
+            </span>
+            <span style={{ textAlign: "center" }}>{entry.played}</span>
+            <span style={{ textAlign: "center" }}>{entry.wins}</span>
+            <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+          </div>
+        );
+      })}
     </div>
-  )}
-{/* Archived Settled Games */}
-{showArchive && archivedSettled.length > 0 && (
-  <div style={{ marginTop: 20 }}>
-    <h3 style={{ opacity: 0.7 }}>
-      📦 Archive ({archivedSettled.length})
-    </h3>
 
-    {archivedSettled.map((g) => (
-      <GameCard
-        key={g.id}
-        g={g}
-        {...gameCardProps}
-        roundResults={g.roundResults || []}
-      />
-    ))}
+{/* ---------------- TOTAL CORE BURNED ---------------- */}
+<div
+  style={{
+    marginTop: 20,
+    background: "#111",
+    padding: 18,
+    borderRadius: 12,
+    border: "1px solid #333",
+    textAlign: "center",
+    boxShadow: "0 0 12px rgba(24,187,26,0.15)",
+  }}
+>
+  <div
+    style={{
+      fontSize: 14,
+      opacity: 0.7,
+      marginBottom: 6,
+      letterSpacing: 1,
+    }}
+  >
+    TOTAL CORE BURNED FROM CORE CLASH
   </div>
-)}
 
+  <div
+    style={{
+      fontSize: 28,
+      fontWeight: "bold",
+      color: "#bb6918",
+      textShadow: "0 0 8px #cd3309, 0 0 16px #cd3309",
+    }}
+  >
+    🔥 {totalGameBurned.toFixed(2)} CORE 🔥
+  </div>
+
+  <div style={{ fontSize: 14, opacity: 0.7, marginTop: 6 }}>
+    {burnPercent.toFixed(4)}% of total supply
+  </div>
 </div>
-  </div>
+</div>
+</div>
     </div>
   );
 }
