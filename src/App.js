@@ -225,8 +225,15 @@ const connectWalletConnect = useCallback(async () => {
         name: "Core Clash Trading Card Game",
         description: "Core Clash — A strategic NFT battle game powered by Electroneum 2.0",
         url: window.location.origin,
-        icons: [CoreClashLogo] // must be full URL
-      }
+        icons: [CoreClashLogo], // must be full URL
+      },
+  qrcodeModalOptions: {
+    top: "10px",           // move modal from bottom to top
+    left: "50%",           // center horizontally
+    transform: "translateX(-50%)",
+    width: "300px",
+    height: "300px",
+  }
     });
 
     // ✅ Enable WalletConnect session
@@ -1908,8 +1915,32 @@ border: "1px solid #333" }} />
       </div>
 
 {showDeviceWarning && (
-  <div style={modalOverlayStyle}>
-    <div style={modalBoxStyle}>
+  <div
+    style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100vw",
+      height: "100vh",
+      backgroundColor: "rgba(0,0,0,0.5)",
+      display: "flex",
+      alignItems: "flex-start", // stick modal to top
+      justifyContent: "center",
+      paddingTop: "40px",        // some spacing from top
+      zIndex: 99999,
+      overflowY: "auto",         // scroll if very small screens
+    }}
+  >
+    <div
+      style={{
+        backgroundColor: "#fff",
+        borderRadius: "12px",
+        padding: "20px 25px",
+        maxWidth: "450px",
+        width: "90%",
+        boxShadow: "0 0 20px rgba(0,0,0,0.3)",
+      }}
+    >
       <h3>⚠ Important: Reveal File Backup</h3>
 
       <p>
@@ -1927,26 +1958,42 @@ border: "1px solid #333" }} />
         ensured your reveal file can be securely saved.
       </p>
 
-      <div style={{ marginTop: 20 }}>
+      <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
         <button
           onClick={() => {
             setDeviceConfirmed(true);
             setShowDeviceWarning(false);
             createGame();
           }}
-          style={{ marginRight: 10 }}
+          style={{
+            marginRight: 10,
+            backgroundColor: "#1a75ff",
+            color: "#fff",
+            border: "none",
+            padding: "8px 15px",
+            borderRadius: 8,
+            cursor: "pointer",
+            fontWeight: "bold",
+          }}
         >
           I Understand – Continue
         </button>
 
-        <button onClick={() => setShowDeviceWarning(false)}>
+        <button
+          onClick={() => setShowDeviceWarning(false)}
+          style={{
+            padding: "8px 15px",
+            borderRadius: 8,
+            cursor: "pointer",
+            border: "1px solid #ccc",
+          }}
+        >
           Cancel
         </button>
       </div>
     </div>
   </div>
 )}
-
 
 {/* ---------------- GAMES GRID ---------------- */}
 <div style={{ marginTop: 40, marginBottom: 10 }}>
