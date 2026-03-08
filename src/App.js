@@ -667,17 +667,15 @@ useEffect(() => {
 
 /* ---------------- CREATE GAME ---------------- */
 const createGame = useCallback(async () => {
-if (!validated) {
-  alert("Team not validated");
-  return;
-}
+  if (!validated) {
+    alert("Team not validated");
+    return;
+  }
 
-if (!signer) {
-  alert("Wallet not connected");
-  return;
-}
-
-const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+  if (!signer) {
+    alert("Wallet not connected");
+    return;
+  }
 
   if (!stakeToken || !stakeAmount || nfts.some(n => !n.address || !n.tokenId)) {
     alert("All fields must be completed before creating a game");
@@ -685,20 +683,27 @@ const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
   }
 
   try {
-    /* ---------- Approve ERC20 ---------- */
-    const erc20 = new ethers.Contract(stakeToken, ERC20ABI, signer);
+    // ✅ Contract instance for writes
+    const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+
+    /* ---------- Prepare ERC20 read provider ---------- */
+    const readProvider = unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
+    const erc20 = new ethers.Contract(stakeToken, ERC20ABI, readProvider);
     const stakeWei = ethers.parseUnits(stakeAmount, 18);
 
-try {
-  const allowance = await erc20.allowance(account, GAME_ADDRESS);
-} catch (err) {
-  console.error("Allowance check failed:", err);
-  throw new Error("Could not read allowance. Check WalletConnect session or network.");
-}
+    // declare allowance in outer scope
+    let allowance;
+    try {
+      allowance = await erc20.allowance(account, GAME_ADDRESS);
+    } catch (err) {
+      console.error("Allowance check failed:", err);
+      throw new Error(
+        "Could not read allowance. Check WalletConnect session, network, or RPC URL."
+      );
+    }
 
     // If allowance insufficient → send approve via signer
     if (allowance < stakeWei) {
-      if (!signer) throw new Error("Wallet not connected");
       const approveTx = await erc20.connect(signer).approve(GAME_ADDRESS, stakeWei);
       await approveTx.wait();
     }
