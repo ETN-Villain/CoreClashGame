@@ -200,68 +200,62 @@ const disconnectWallet = useCallback(async () => {
   }
 }, [wcProvider]);
 
-/* ------- WALLET CONNECT -----------*/
+/* ------- WALLET CONNECT ----------- */
 const connectWalletConnect = useCallback(async () => {
-  setWalletError(null);
+  setWalletError(null); // Clear previous errors
 
   if (wcProvider) {
+    // Disconnect existing session before starting a new one
     await disconnectWallet();
   }
 
   try {
     const projectId = "146ee334d324044083b6427d4bbf9202";
 
-    // Initialize WalletConnect v2 provider
+    // Init WalletConnect provider with custom RPC
     const ethereumProvider = await EthereumProvider.init({
       projectId,
       chains: [52014],
       optionalChains: [52014],
       rpcMap: {
-        52014: "https://rpc.ankr.com/electroneum"
+        52014: "https://rpc.ankr.com/electroneum" // Your RPC URL
       },
       showQrModal: true,
       metadata: {
         name: "Core Clash Trading Card Game",
         description: "Core Clash — A strategic NFT battle game powered by Electroneum 2.0",
         url: window.location.origin,
-        icons: [CoreClashLogo]
-      }
+        icons: [CoreClashLogo], // must be full URL
+      },
+  qrcodeModalOptions: {
+    top: "10px",           // move modal from bottom to top
+    left: "50%",           // center horizontally
+    transform: "translateX(-50%)",
+    width: "300px",
+    height: "300px",
+  }
     });
 
-    // Cleanup old sessions (harmless if none exist)
-    try {
-      const sessions = await ethereumProvider.getActiveSessions();
-      for (const topic in sessions) {
-        await ethereumProvider.disconnectSession({ topic, reason: getSdkError('USER_DISCONNECTED') });
-      }
-    } catch (cleanupErr) {
-      console.warn('Old WC sessions cleanup failed:', cleanupErr);
-    }
-
-    // Enable WalletConnect (user approves QR/mobile)
+    // ✅ Enable WalletConnect session
     await ethereumProvider.enable();
 
-    // Wrap provider **after** enable to respect rpcMap
+    // Wrap as ethers v6 BrowserProvider
     const newProv = new ethers.BrowserProvider(ethereumProvider);
     const newSigner = await newProv.getSigner();
     const addr = await newSigner.getAddress();
 
-    // Update unified state
+    // Save to state
     setProvider(newProv);
     setSigner(newSigner);
     setAccount(addr);
-    setWcProvider(ethereumProvider);
     setWalletError(null);
+    setWcProvider(ethereumProvider); // For cleanup
 
   } catch (err) {
     console.error("WalletConnect connection failed:", err);
 
     if (err?.code === 4001 || err?.message?.includes("reject") || err?.message?.includes("user rejected")) {
       setWalletError("Connection rejected by user");
-    } else if (err?.message?.includes("projectId") || err?.message?.includes("Invalid projectId")) {
-      setWalletError("Invalid WalletConnect project ID – check configuration");
-    } else if (err?.message?.includes("Unsupported chains")) {
-      setWalletError("Wallet does not support required chain (52014)");
     } else {
       setWalletError("Failed to connect via WalletConnect – please try again");
     }
@@ -665,17 +659,15 @@ useEffect(() => {
 
 /* ---------------- CREATE GAME ---------------- */
 const createGame = useCallback(async () => {
-if (!validated) {
-  alert("Team not validated");
-  return;
-}
+  if (!validated) {
+    alert("Team not validated");
+    return;
+  }
 
-if (!signer) {
-  alert("Wallet not connected");
-  return;
-}
-
-const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+  if (!signer) {
+    alert("Wallet not connected");
+    return;
+  }
 
   if (!stakeToken || !stakeAmount || nfts.some(n => !n.address || !n.tokenId)) {
     alert("All fields must be completed before creating a game");
@@ -683,15 +675,27 @@ const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
   }
 
   try {
-    /* ---------- Approve ERC20 ---------- */
-    const erc20 = new ethers.Contract(stakeToken, ERC20ABI, unifiedProvider);
+    // ✅ Contract instance for writes
+    const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+
+    /* ---------- Prepare ERC20 read provider ---------- */
+    const readProvider = unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
+    const erc20 = new ethers.Contract(stakeToken, ERC20ABI, readProvider);
     const stakeWei = ethers.parseUnits(stakeAmount, 18);
 
-    const allowance = await erc20.allowance(account, GAME_ADDRESS);
+    // declare allowance in outer scope
+    let allowance;
+    try {
+      allowance = await erc20.allowance(account, GAME_ADDRESS);
+    } catch (err) {
+      console.error("Allowance check failed:", err);
+      throw new Error(
+        "Could not read allowance. Check WalletConnect session, network, or RPC URL."
+      );
+    }
 
     // If allowance insufficient → send approve via signer
     if (allowance < stakeWei) {
-      if (!signer) throw new Error("Wallet not connected");
       const approveTx = await erc20.connect(signer).approve(GAME_ADDRESS, stakeWei);
       await approveTx.wait();
     }
@@ -1911,45 +1915,73 @@ border: "1px solid #333" }} />
       </div>
 
 {showDeviceWarning && (
-  <div style={modalOverlayStyle}>
-    <div style={modalBoxStyle}>
-      <h3>⚠ Important: Reveal File Backup</h3>
+  <div
+    style={{
+      position: "fixed",
+      top: 20,        // small offset from top
+      left: 20,       // small offset from left
+      zIndex: 99999,
+      maxWidth: "400px",
+      width: "90%",
+      backgroundColor: "#fff",
+      borderRadius: "12px",
+      padding: "15px 20px",
+      boxShadow: "0 0 20px rgba(0,0,0,0.3)",
+      fontSize: "14px",
+    }}
+  >
+    <h3 style={{ marginTop: 0 }}>⚠ Important: Reveal File Backup</h3>
 
-      <p>
-        If you are using <b>MetaMask Mobile</b>, the reveal file will NOT
-        automatically download.
-      </p>
+    <p>
+      If you are using <b>MetaMask Mobile</b>, the reveal file will NOT
+      automatically download.
+    </p>
 
-      <p>
-        If the reveal file is not saved, you will be unable to reveal and
-        will forfeit the game and your stake.
-      </p>
+    <p>
+      If the reveal file is not saved, you will be unable to reveal and
+      will forfeit the game and your stake.
+    </p>
 
-      <p style={{ fontSize: 12, opacity: 0.8 }}>
-        By continuing, you confirm that you understand this risk and have
-        ensured your reveal file can be securely saved.
-      </p>
+    <p style={{ fontSize: 12, opacity: 0.8 }}>
+      By continuing, you confirm that you understand this risk and have
+      ensured your reveal file can be securely saved.
+    </p>
 
-      <div style={{ marginTop: 20 }}>
-        <button
-          onClick={() => {
-            setDeviceConfirmed(true);
-            setShowDeviceWarning(false);
-            createGame();
-          }}
-          style={{ marginRight: 10 }}
-        >
-          I Understand – Continue
-        </button>
+    <div style={{ marginTop: 15, display: "flex", gap: "10px" }}>
+      <button
+        onClick={() => {
+          setDeviceConfirmed(true);
+          setShowDeviceWarning(false);
+          createGame();
+        }}
+        style={{
+          backgroundColor: "#1a75ff",
+          color: "#fff",
+          border: "none",
+          padding: "8px 15px",
+          borderRadius: 8,
+          cursor: "pointer",
+          fontWeight: "bold",
+        }}
+      >
+        I Understand – Continue
+      </button>
 
-        <button onClick={() => setShowDeviceWarning(false)}>
-          Cancel
-        </button>
-      </div>
+      <button
+        onClick={() => setShowDeviceWarning(false)}
+        style={{
+          padding: "8px 15px",
+          borderRadius: 8,
+          cursor: "pointer",
+          border: "1px solid #ccc",
+          backgroundColor: "#f9f9f9",
+        }}
+      >
+        Cancel
+      </button>
     </div>
   </div>
 )}
-
 
 {/* ---------------- GAMES GRID ---------------- */}
 <div style={{ marginTop: 40, marginBottom: 10 }}>
