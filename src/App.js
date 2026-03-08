@@ -63,7 +63,7 @@ const unifiedProvider = useMemo(() => {
 /* ---------------- CONTRACTS ---------------- */
 const gameContract = useMemo(() => {
   if (!unifiedProvider) return null;
-  return new ethers.Contract(GAME_ADDRESS, GameABI, signer ?? unifiedProvider);
+  return new ethers.Contract(GAME_ADDRESS, GameABI, signer ?? provider);
 }, [unifiedProvider, signer]);
 
 const erc20 = useMemo(() => {
