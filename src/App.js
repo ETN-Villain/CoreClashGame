@@ -1924,13 +1924,14 @@ border: "1px solid #333" }} />
       height: "100vh",
       backgroundColor: "rgba(0,0,0,0.5)",
       display: "flex",
-      alignItems: "flex-start", // stick modal to top
-      justifyContent: "center",
-      paddingTop: "40px",        // some spacing from top
+      alignItems: "flex-start",   // stick to top
+      justifyContent: "flex-start", // stick to left
+      paddingTop: "20px",          // spacing from top
+      paddingLeft: "20px",         // spacing from left
       zIndex: 99999,
-      overflowY: "auto",         // scroll if very small screens
+      overflowY: "auto",           // scroll if screen too small
     }}
-  >
+    >
     <div
       style={{
         backgroundColor: "#fff",
