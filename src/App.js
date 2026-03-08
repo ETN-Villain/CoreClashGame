@@ -246,6 +246,10 @@ try {
 // Then proceed with
 await ethereumProvider.enable();
 
+await ethereumProvider.request({
+  method: "wallet_switchEthereumChain",
+  params: [{ chainId: "0xCB2E" }] // 52014
+});
     // Optional: After connect, ensure correct chain if needed (your chain 52014)
     // await ethereumProvider.request({
     //   method: "wallet_switchEthereumChain",
@@ -726,15 +730,16 @@ const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
   try {
     /* ---------- Approve ERC20 ---------- */
-    const erc20 = new ethers.Contract(stakeToken, ERC20ABI, signer);
+    const erc20 = new ethers.Contract(stakeToken, ERC20ABI, provider);
     const stakeWei = ethers.parseUnits(stakeAmount, 18);
 
     const allowance = await erc20.allowance(account, GAME_ADDRESS);
-    if (allowance < stakeWei) {
-      const approveTx = await erc20.approve(GAME_ADDRESS, stakeWei);
-      await approveTx.wait();
-    }
 
+if (allowance < stakeWei) {
+  const erc20Signer = erc20.connect(signer);
+  const approveTx = await erc20Signer.approve(GAME_ADDRESS, stakeWei);
+  await approveTx.wait();
+}
     /* ---------- Prepare commit ---------- */
     const salt = ethers.toBigInt(ethers.randomBytes(32));
     const nftContracts = nfts.map(n => n.address);
