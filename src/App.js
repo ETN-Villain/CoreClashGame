@@ -202,77 +202,60 @@ const disconnectWallet = useCallback(async () => {
 
 /* ------- WALLET CONNECT -----------*/
 const connectWalletConnect = useCallback(async () => {
-  // Clear error first for better UX
   setWalletError(null);
 
   if (wcProvider) {
-    // Already have WC active → clean up before new connection attempt
-    await disconnectWallet(); // Assuming disconnectWallet is your function (or rename to disconnect)
+    await disconnectWallet();
   }
 
   try {
-    const projectId = "146ee334d324044083b6427d4bbf9202"; // Looks good – your real ID
+    const projectId = "146ee334d324044083b6427d4bbf9202";
 
-const ethereumProvider = await EthereumProvider.init({
-  projectId,
-  chains: [52014],
-  optionalChains: [52014],
+    // Initialize WalletConnect v2 provider
+    const ethereumProvider = await EthereumProvider.init({
+      projectId,
+      chains: [52014],
+      optionalChains: [52014],
+      rpcMap: {
+        52014: "https://rpc.ankr.com/electroneum"
+      },
+      showQrModal: true,
+      metadata: {
+        name: "Core Clash Trading Card Game",
+        description: "Core Clash — A strategic NFT battle game powered by Electroneum 2.0",
+        url: window.location.origin,
+        icons: [CoreClashLogo]
+      }
+    });
 
-  rpcMap: {
-    52014: "https://rpc.ankr.com/electroneum"
-  },
+    // Cleanup old sessions (harmless if none exist)
+    try {
+      const sessions = await ethereumProvider.getActiveSessions();
+      for (const topic in sessions) {
+        await ethereumProvider.disconnectSession({ topic, reason: getSdkError('USER_DISCONNECTED') });
+      }
+    } catch (cleanupErr) {
+      console.warn('Old WC sessions cleanup failed:', cleanupErr);
+    }
 
-  showQrModal: true,
-  metadata: {
-    name: "Core Clash Trading Card Game",
-    description: "Core Clash — A strategic NFT battle game powered by Electroneum 2.0",
-    url: window.location.origin,
-    icons: [CoreClashLogo]
-  }
-});
+    // Enable WalletConnect (user approves QR/mobile)
+    await ethereumProvider.enable();
 
-// After init, before .enable() / .connect()
-try {
-  // Clean up any old sessions (safe even if none exist)
-  const sessions = await ethereumProvider.getActiveSessions(); // or just try to delete known ones
-  for (const topic in sessions) {
-    await ethereumProvider.disconnectSession({ topic, reason: getSdkError('USER_DISCONNECTED') });
-  }
-} catch (cleanupErr) {
-  console.warn('Cleanup old sessions failed (harmless):', cleanupErr);
-}
-
-// Then proceed with
-await ethereumProvider.enable();
-
-await ethereumProvider.request({
-  method: "wallet_switchEthereumChain",
-  params: [{ chainId: "0xCB2E" }] // 52014
-});
-    // Optional: After connect, ensure correct chain if needed (your chain 52014)
-    // await ethereumProvider.request({
-    //   method: "wallet_switchEthereumChain",
-    //   params: [{ chainId: "0xCB36" }], // 52014 in hex is 0xCB36
-    // });
-
-    // Wrap as BrowserProvider (ethers v6 compatible)
+    // Wrap provider **after** enable to respect rpcMap
     const newProv = new ethers.BrowserProvider(ethereumProvider);
-
     const newSigner = await newProv.getSigner();
     const addr = await newSigner.getAddress();
 
-    // Swap your single provider/signer/account
+    // Update unified state
     setProvider(newProv);
     setSigner(newSigner);
     setAccount(addr);
+    setWcProvider(ethereumProvider);
     setWalletError(null);
-
-    setWcProvider(ethereumProvider); // For cleanup
 
   } catch (err) {
     console.error("WalletConnect connection failed:", err);
 
-    // Better error handling
     if (err?.code === 4001 || err?.message?.includes("reject") || err?.message?.includes("user rejected")) {
       setWalletError("Connection rejected by user");
     } else if (err?.message?.includes("projectId") || err?.message?.includes("Invalid projectId")) {
@@ -283,7 +266,7 @@ await ethereumProvider.request({
       setWalletError("Failed to connect via WalletConnect – please try again");
     }
   }
-}, [wcProvider, disconnectWallet, setWalletError, setProvider, setSigner, setAccount]); // ← FIX: add missing deps to avoid ESLint warning & stale closures
+}, [wcProvider, disconnectWallet, setWalletError, setProvider, setSigner, setAccount]);
 
 /* ---------------- RESTORE WALLET ---------------- */
 useEffect(() => {
@@ -292,102 +275,78 @@ useEffect(() => {
   const restoreWallet = async () => {
     if (!isMounted) return;
 
-    // Step 1: Try injected (MetaMask, etc.)
+    // --- Step 1: Try injected wallet (MetaMask, etc.) ---
     if (window.ethereum) {
       try {
         const prov = new ethers.BrowserProvider(window.ethereum);
         const accounts = await prov.send("eth_accounts", []); // silent check
         if (accounts?.length > 0) {
           const signer = await prov.getSigner();
-          setProvider(prov);
-          setSigner(signer);
-          setAccount(await signer.getAddress());
-          setWalletError(null);
-          return; // done – prefer injected
+          if (isMounted) {
+            setProvider(prov);
+            setSigner(signer);
+            setAccount(await signer.getAddress());
+            setWalletError(null);
+          }
+          return; // prefer injected if available
         }
       } catch (err) {
         console.warn("Injected provider restore failed:", err);
       }
     }
 
-    // Step 2: Try restore existing WalletConnect session (no modal)
+    // --- Step 2: Try WalletConnect session restore ---
     try {
       const projectId = "146ee334d324044083b6427d4bbf9202";
 
-      // Aggressive cleanup of stale WC data (safe in dev; comment out or conditionalize in prod)
-      try {
-        // Remove common WC localStorage keys
-        localStorage.removeItem('wc@2:client:0.3:0');
-        Object.keys(localStorage).forEach(key => {
-          if (key.startsWith('wc@2:') || key.toLowerCase().includes('walletconnect')) {
-            localStorage.removeItem(key);
-          }
-        });
-
-        // Clear IndexedDB (often where pending requests/sessions persist)
-        if (indexedDB.databases) { // Check existence (some browsers)
-          const databases = await indexedDB.databases();
-          for (const db of databases) {
-            if (db.name && (db.name.includes('WALLET_CONNECT') || db.name.includes('wc'))) {
-              indexedDB.deleteDatabase(db.name);
-              console.log('Cleared WC IndexedDB:', db.name);
-            }
-          }
-        }
-      } catch (cleanupErr) {
-        console.warn('WC storage cleanup failed (harmless):', cleanupErr);
-      }
-
-      const ethereumProvider = await EthereumProvider.init({
+      // Init WalletConnect provider
+      const wcProvider = await EthereumProvider.init({
         projectId,
         chains: [52014],
         optionalChains: [52014],
-        // No showQrModal → silent restore attempt
+        // No showQrModal → silent restore
+        rpcMap: {
+          52014: "https://rpc.ankr.com/electroneum",
+        },
       });
 
-      // Now check if we have a usable session
-      let restored = false;
-      if (ethereumProvider.connected || ethereumProvider.session) {
-        try {
-          const prov = new ethers.BrowserProvider(ethereumProvider);
-          const accounts = await prov.send("eth_accounts", []);
-          if (accounts?.length > 0) {
-            const signer = await prov.getSigner();
-            if (isMounted) {
-              setProvider(prov);
-              setSigner(signer);
-              setAccount(await signer.getAddress());
-              setWalletError(null);
-              setWcProvider(ethereumProvider);
-            }
-            restored = true;
-          } else {
-            throw new Error("No accounts in restored WC session");
+      // Check if a session exists
+      if (wcProvider.connected || wcProvider.session) {
+        const prov = new ethers.BrowserProvider(wcProvider);
+        const accounts = await prov.send("eth_accounts", []);
+        if (accounts?.length > 0) {
+          const signer = await prov.getSigner();
+          if (isMounted) {
+            setProvider(prov);
+            setSigner(signer);
+            setAccount(await signer.getAddress());
+            setWalletError(null);
+            setWcProvider(wcProvider);
           }
-        } catch (sessionErr) {
-          console.warn("WC session invalid, disconnecting:", sessionErr);
-          await ethereumProvider.disconnect().catch(() => {});
+          return;
+        } else {
+          // No accounts → disconnect stale session
+          await wcProvider.disconnect().catch(() => {});
         }
       }
+    } catch (wcErr) {
+      console.warn("WalletConnect restore failed:", wcErr);
+    }
 
-      if (!restored) {
-        // Silent cleanup if no valid session
-        await ethereumProvider.disconnect().catch(() => {});
-      }
-
-    } catch (err) {
-      console.warn("WalletConnect restore failed entirely:", err);
-      // Keep silent for auto-restore (no UI error)
+    // --- Step 3: Fallback: read-only provider ---
+    if (isMounted) {
+      setProvider(new ethers.JsonRpcProvider("https://rpc.ankr.com/electroneum"));
+      setSigner(null);
+      setAccount(null);
+      setWalletError(null);
     }
   };
 
-  // Run the async restore
   restoreWallet();
 
-  // Event listeners (only for injected; WC handles internally)
+  // --- Optional: Listen to injected wallet changes ---
   const handleAccountsChanged = () => window.location.reload();
   const handleChainChanged = () => window.location.reload();
-
   if (window.ethereum) {
     window.ethereum.on("accountsChanged", handleAccountsChanged);
     window.ethereum.on("chainChanged", handleChainChanged);
@@ -401,7 +360,7 @@ useEffect(() => {
       window.ethereum.removeListener("chainChanged", handleChainChanged);
     }
   };
-}, []); // Empty deps → runs once on mount
+}, []);
 
   /* ---------------- OWNED NFT FETCH ---------------- */
 useEffect(() => {
@@ -568,12 +527,8 @@ const loadGames = useCallback(async () => {
   setLoadingGames(true);
 
   try {
-    const readProvider = unifiedProvider;
-    const contract = new ethers.Contract(
-      GAME_ADDRESS,
-      GameABI,
-      readProvider
-    );
+const readProvider = unifiedProvider || new ethers.JsonRpcProvider("https://rpc.ankr.com/electroneum");
+    const contract = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
 
     const loadedOnChain = [];
     let i = 0;
@@ -734,13 +689,12 @@ const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
     const allowance = await erc20.allowance(account, GAME_ADDRESS);
 
-if (allowance < stakeWei) {
-  const approveTx = await erc20
-    .connect(signer)
-    .approve(GAME_ADDRESS, stakeWei);
-
-  await approveTx.wait();
-}
+    // If allowance insufficient → send approve via signer
+    if (allowance < stakeWei) {
+      if (!signer) throw new Error("Wallet not connected");
+      const approveTx = await erc20.connect(signer).approve(GAME_ADDRESS, stakeWei);
+      await approveTx.wait();
+    }
 
     /* ---------- Prepare commit ---------- */
     const salt = ethers.toBigInt(ethers.randomBytes(32));
