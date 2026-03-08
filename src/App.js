@@ -1918,80 +1918,67 @@ border: "1px solid #333" }} />
   <div
     style={{
       position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100vw",
-      height: "100vh",
-      backgroundColor: "rgba(0,0,0,0.5)",
-      display: "flex",
-      alignItems: "flex-start",   // stick to top
-      justifyContent: "flex-start", // stick to left
-      paddingTop: "20px",          // spacing from top
-      paddingLeft: "20px",         // spacing from left
+      top: 20,        // small offset from top
+      left: 20,       // small offset from left
       zIndex: 99999,
-      overflowY: "auto",           // scroll if screen too small
+      maxWidth: "400px",
+      width: "90%",
+      backgroundColor: "#fff",
+      borderRadius: "12px",
+      padding: "15px 20px",
+      boxShadow: "0 0 20px rgba(0,0,0,0.3)",
+      fontSize: "14px",
     }}
-    >
-    <div
-      style={{
-        backgroundColor: "#fff",
-        borderRadius: "12px",
-        padding: "20px 25px",
-        maxWidth: "450px",
-        width: "90%",
-        boxShadow: "0 0 20px rgba(0,0,0,0.3)",
-      }}
-    >
-      <h3>⚠ Important: Reveal File Backup</h3>
+  >
+    <h3 style={{ marginTop: 0 }}>⚠ Important: Reveal File Backup</h3>
 
-      <p>
-        If you are using <b>MetaMask Mobile</b>, the reveal file will NOT
-        automatically download.
-      </p>
+    <p>
+      If you are using <b>MetaMask Mobile</b>, the reveal file will NOT
+      automatically download.
+    </p>
 
-      <p>
-        If the reveal file is not saved, you will be unable to reveal and
-        will forfeit the game and your stake.
-      </p>
+    <p>
+      If the reveal file is not saved, you will be unable to reveal and
+      will forfeit the game and your stake.
+    </p>
 
-      <p style={{ fontSize: 12, opacity: 0.8 }}>
-        By continuing, you confirm that you understand this risk and have
-        ensured your reveal file can be securely saved.
-      </p>
+    <p style={{ fontSize: 12, opacity: 0.8 }}>
+      By continuing, you confirm that you understand this risk and have
+      ensured your reveal file can be securely saved.
+    </p>
 
-      <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
-        <button
-          onClick={() => {
-            setDeviceConfirmed(true);
-            setShowDeviceWarning(false);
-            createGame();
-          }}
-          style={{
-            marginRight: 10,
-            backgroundColor: "#1a75ff",
-            color: "#fff",
-            border: "none",
-            padding: "8px 15px",
-            borderRadius: 8,
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
-        >
-          I Understand – Continue
-        </button>
+    <div style={{ marginTop: 15, display: "flex", gap: "10px" }}>
+      <button
+        onClick={() => {
+          setDeviceConfirmed(true);
+          setShowDeviceWarning(false);
+          createGame();
+        }}
+        style={{
+          backgroundColor: "#1a75ff",
+          color: "#fff",
+          border: "none",
+          padding: "8px 15px",
+          borderRadius: 8,
+          cursor: "pointer",
+          fontWeight: "bold",
+        }}
+      >
+        I Understand – Continue
+      </button>
 
-        <button
-          onClick={() => setShowDeviceWarning(false)}
-          style={{
-            padding: "8px 15px",
-            borderRadius: 8,
-            cursor: "pointer",
-            border: "1px solid #ccc",
-          }}
-        >
-          Cancel
-        </button>
-      </div>
+      <button
+        onClick={() => setShowDeviceWarning(false)}
+        style={{
+          padding: "8px 15px",
+          borderRadius: 8,
+          cursor: "pointer",
+          border: "1px solid #ccc",
+          backgroundColor: "#f9f9f9",
+        }}
+      >
+        Cancel
+      </button>
     </div>
   </div>
 )}
