@@ -229,17 +229,7 @@ const connectWalletConnect = useCallback(async () => {
       }
     });
 
-    // Cleanup any stale sessions
-    try {
-      const sessions = await ethereumProvider.getActiveSessions();
-      for (const topic in sessions) {
-        await ethereumProvider.disconnectSession({ topic, reason: getSdkError("USER_DISCONNECTED") });
-      }
-    } catch (cleanupErr) {
-      console.warn("WC session cleanup failed (harmless):", cleanupErr);
-    }
-
-    // Enable WalletConnect session (triggers QR modal)
+    // ✅ Enable WalletConnect session
     await ethereumProvider.enable();
 
     // Wrap as ethers v6 BrowserProvider
@@ -247,28 +237,23 @@ const connectWalletConnect = useCallback(async () => {
     const newSigner = await newProv.getSigner();
     const addr = await newSigner.getAddress();
 
-    // Set unified state
+    // Save to state
     setProvider(newProv);
     setSigner(newSigner);
     setAccount(addr);
     setWalletError(null);
-    setWcProvider(ethereumProvider);
+    setWcProvider(ethereumProvider); // For cleanup
 
-    console.log("WalletConnect connected:", addr);
   } catch (err) {
     console.error("WalletConnect connection failed:", err);
 
     if (err?.code === 4001 || err?.message?.includes("reject") || err?.message?.includes("user rejected")) {
       setWalletError("Connection rejected by user");
-    } else if (err?.message?.includes("projectId")) {
-      setWalletError("Invalid WalletConnect project ID");
-    } else if (err?.message?.includes("Unsupported chains")) {
-      setWalletError("Wallet does not support required chain (52014)");
     } else {
-      setWalletError("Failed to connect via WalletConnect – check RPC and network");
+      setWalletError("Failed to connect via WalletConnect – please try again");
     }
   }
-}, [wcProvider, disconnectWallet]);
+}, [wcProvider, disconnectWallet, setWalletError, setProvider, setSigner, setAccount]);
 
 /* ---------------- RESTORE WALLET ---------------- */
 useEffect(() => {
