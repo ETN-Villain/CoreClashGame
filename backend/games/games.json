@@ -2978,9 +2978,11 @@
     "player2": "0x0000000000000000000000000000000000000000",
     "stakeAmount": "20000000000000000000",
     "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
-    "settled": false,
+    "settled": true,
     "winner": "0x0000000000000000000000000000000000000000",
-    "cancelled": false
+    "cancelled": false,
+    "burnRecorded": true,
+    "burnWei": "400000000000000000"
   },
   {
     "id": 52,
@@ -3027,12 +3029,14 @@
     "player2": "0x0000000000000000000000000000000000000000",
     "stakeAmount": "10000000000000000000",
     "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
-    "settled": false,
+    "settled": true,
     "cancelled": false,
     "winner": null,
     "player1Revealed": false,
     "player2Revealed": false,
-    "createdAt": "2026-03-01T21:51:08.739Z"
+    "createdAt": "2026-03-01T21:51:08.739Z",
+    "burnRecorded": true,
+    "burnWei": "200000000000000000"
   },
   {
     "id": 56,
@@ -3040,12 +3044,14 @@
     "player2": "0x0000000000000000000000000000000000000000",
     "stakeAmount": "10000000000000000000",
     "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
-    "settled": false,
+    "settled": true,
     "cancelled": false,
     "winner": null,
     "player1Revealed": false,
     "player2Revealed": false,
-    "createdAt": "2026-03-01T21:51:08.739Z"
+    "createdAt": "2026-03-01T21:51:08.739Z",
+    "burnRecorded": true,
+    "burnWei": "200000000000000000"
   },
   {
     "id": 57,
@@ -3053,12 +3059,14 @@
     "player2": "0x0000000000000000000000000000000000000000",
     "stakeAmount": "10000000000000000000",
     "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
-    "settled": false,
+    "settled": true,
     "cancelled": false,
     "winner": null,
     "player1Revealed": false,
     "player2Revealed": false,
-    "createdAt": "2026-03-01T21:51:08.849Z"
+    "createdAt": "2026-03-01T21:51:08.849Z",
+    "burnRecorded": true,
+    "burnWei": "200000000000000000"
   },
   {
     "id": 58,
@@ -3066,12 +3074,14 @@
     "player2": "0x0000000000000000000000000000000000000000",
     "stakeAmount": "20000000000000000000",
     "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
-    "settled": false,
+    "settled": true,
     "cancelled": false,
     "winner": null,
     "player1Revealed": false,
     "player2Revealed": false,
-    "createdAt": "2026-03-01T21:51:08.849Z"
+    "createdAt": "2026-03-01T21:51:08.849Z",
+    "burnRecorded": true,
+    "burnWei": "400000000000000000"
   },
   {
     "id": 59,
@@ -3111,5 +3121,17 @@
     "player1Revealed": false,
     "player2Revealed": false,
     "createdAt": "2026-03-01T21:51:08.849Z"
+  },
+  {
+    "id": 62,
+    "player1": "0x2871835CA982F248F61c3A1995931E205c9d5243",
+    "player2": "0xe4CCA28f011C619e2D8B6bc39DD4389dfEfb7311",
+    "stakeAmount": "10000000000000000000",
+    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
+    "settled": true,
+    "winner": "0x0000000000000000000000000000000000000000",
+    "cancelled": false,
+    "burnRecorded": true,
+    "burnWei": "200000000000000000"
   }
 ]
