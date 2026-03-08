@@ -57,9 +57,8 @@ const [wcProvider, setWcProvider] = useState(null);
 
 /* ---------------- PROVIDER MEMO ---------------- */
 const unifiedProvider = useMemo(() => {
-  if (provider) return provider; // WalletConnect or MetaMask
-  return new ethers.JsonRpcProvider(RPC_URL); // fallback for read-only
-}, [provider]);
+  return new ethers.JsonRpcProvider(RPC_URL);
+}, []);
 
 /* ---------------- CONTRACTS ---------------- */
 const gameContract = useMemo(() => {
@@ -730,16 +729,19 @@ const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
   try {
     /* ---------- Approve ERC20 ---------- */
-    const erc20 = new ethers.Contract(stakeToken, ERC20ABI, provider);
+    const erc20 = new ethers.Contract(stakeToken, ERC20ABI, unifiedProvider);
     const stakeWei = ethers.parseUnits(stakeAmount, 18);
 
     const allowance = await erc20.allowance(account, GAME_ADDRESS);
 
 if (allowance < stakeWei) {
-  const erc20Signer = erc20.connect(signer);
-  const approveTx = await erc20Signer.approve(GAME_ADDRESS, stakeWei);
+  const approveTx = await erc20
+    .connect(signer)
+    .approve(GAME_ADDRESS, stakeWei);
+
   await approveTx.wait();
 }
+
     /* ---------- Prepare commit ---------- */
     const salt = ethers.toBigInt(ethers.randomBytes(32));
     const nftContracts = nfts.map(n => n.address);
