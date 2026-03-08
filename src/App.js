@@ -214,20 +214,23 @@ const connectWalletConnect = useCallback(async () => {
   try {
     const projectId = "146ee334d324044083b6427d4bbf9202"; // Looks good – your real ID
 
-    const ethereumProvider = await EthereumProvider.init({
-      projectId,
-      chains: [52014],              // Required: primary/required chains (your game's chain)
-      optionalChains: [52014],      // Optional: additional chains user can switch to
-      showQrModal: true,            // Good – shows built-in modal/QR
-      metadata: {
-        name: "Core Clash Trading Card Game",
-        description: "Core Clash — A strategic NFT battle game powered by $CORE.",
-        url: window.location.origin,
-        icons: []                     // ← FIX: icons must be array of FULL https URLs (strings)
-        // Example: icons: ["https://your-domain.com/logo.png"]
-        // PlanetZephyrosAE is likely a variable/reference – replace with actual URL
-      }
-    });
+const ethereumProvider = await EthereumProvider.init({
+  projectId,
+  chains: [52014],
+  optionalChains: [52014],
+
+  rpcMap: {
+    52014: "https://rpc.ankr.com/electroneum"
+  },
+
+  showQrModal: true,
+  metadata: {
+    name: "Core Clash Trading Card Game",
+    description: "Core Clash — A strategic NFT battle game powered by Electroneum 2.0",
+    url: window.location.origin,
+    icons: [CoreClashLogo]
+  }
+});
 
 // After init, before .enable() / .connect()
 try {
