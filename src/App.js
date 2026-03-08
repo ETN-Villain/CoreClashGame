@@ -63,7 +63,7 @@ const unifiedProvider = useMemo(() => {
 /* ---------------- CONTRACTS ---------------- */
 const gameContract = useMemo(() => {
   if (!unifiedProvider) return null;
-  return new ethers.Contract(GAME_ADDRESS, GameABI, signer ?? provider);
+  return new ethers.Contract(GAME_ADDRESS, GameABI, signer ?? unifiedProvider);
 }, [unifiedProvider, signer]);
 
 const erc20 = useMemo(() => {
@@ -804,6 +804,7 @@ if (allowance < stakeWei) {
 }, [
   validated,
   signer,
+  unifiedProvider,
   stakeToken,
   stakeAmount,
   nfts,
