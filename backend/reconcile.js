@@ -294,3 +294,8 @@ if (onChain.settled) {
 }
 
 setInterval(reconcileFullSweep, 60 * 60 * 1000);
+
+// Run once on boot
+reconcileFullSweep().catch(err =>
+  console.error("[FULL SWEEP BOOT ERROR]", err)
+);
