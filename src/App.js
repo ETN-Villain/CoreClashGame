@@ -1670,7 +1670,7 @@ return (
   style={{
     marginTop: 20,
     background: "#111",
-    padding: isMobile ? 18 : 24,
+    fontSize: isMobile ? 26 : 30,
     borderRadius: 12,
     border: "1px solid #333",
     textAlign: "center",
@@ -1681,7 +1681,7 @@ return (
     style={{
       fontSize: isMobile ? 14 : 16,
       opacity: 0.7,
-      marginBottom: 6,
+      marginBottom: 4,
       letterSpacing: 1,
     }}
   >
@@ -1919,46 +1919,6 @@ return (
     )}
   </div>
 
-  {/* RIGHT: IMAGES */}
-<div
-  style={{
-    display: "flex",
-    flexDirection: isMobile ? "row" : "column", // row on mobile, column on desktop
-    gap: 8, // spacing between images
-    flexWrap: "wrap", // ensures images wrap if needed
-  }}
->
-  <img
-    src={HowToPlay}
-    alt="How to Play"
-    style={{
-      borderRadius: 8,
-      width: isMobile ? "48%" : "100%", // side by side on mobile
-      height: "auto",
-      boxShadow: "0 0 8px rgba(0,0,0,0.6)",
-      border: "1px solid #333",
-    }}
-  />
-  <img
-    src={GameInfo}
-    alt="Game Info"
-    style={{
-      borderRadius: 8,
-      width: isMobile ? "48%" : "100%",
-      height: "auto",
-      boxShadow: "0 0 8px rgba(0,0,0,0.6)",
-      border: "1px solid #333",
-    }}
-  />
-</div>
-</div>
-
-      {/* ---------------- STATUS ---------------- */}
-      <div style={{ fontSize: isMobile ? 12 : 14, color: "#aaa", marginTop: 12 }}>
-        signer: {signer ? "✅" : "❌"} | validated: {validated ? "✅" : "❌"} | stakeToken:{" "}
-        {stakeToken || "❌"} | stakeAmount: {stakeAmount || "❌"}
-      </div>
-
       {/* ---------------- ACTION BUTTONS ---------------- */}
       <div style={{ marginTop: 12, marginBottom: 24, display: "flex", gap: 12, flexWrap: "wrap" }}>        
         <button disabled={validating} onClick={validateTeam}>
@@ -2041,6 +2001,46 @@ return (
     </div>
   </div>
 )}
+
+  {/* RIGHT: IMAGES */}
+<div
+  style={{
+    display: "flex",
+    flexDirection: isMobile ? "row" : "column", // row on mobile, column on desktop
+    gap: 8, // spacing between images
+    flexWrap: "wrap", // ensures images wrap if needed
+  }}
+>
+  <img
+    src={HowToPlay}
+    alt="How to Play"
+    style={{
+      borderRadius: 8,
+      width: isMobile ? "48%" : "100%", // side by side on mobile
+      height: "auto",
+      boxShadow: "0 0 8px rgba(0,0,0,0.6)",
+      border: "1px solid #333",
+    }}
+  />
+  <img
+    src={GameInfo}
+    alt="Game Info"
+    style={{
+      borderRadius: 8,
+      width: isMobile ? "48%" : "100%",
+      height: "auto",
+      boxShadow: "0 0 8px rgba(0,0,0,0.6)",
+      border: "1px solid #333",
+    }}
+  />
+</div>
+</div>
+
+      {/* ---------------- STATUS ---------------- */}
+      <div style={{ fontSize: isMobile ? 12 : 14, color: "#aaa", marginTop: 12 }}>
+        signer: {signer ? "✅" : "❌"} | validated: {validated ? "✅" : "❌"} | stakeToken:{" "}
+        {stakeToken || "❌"} | stakeAmount: {stakeAmount || "❌"}
+      </div>
 
 {isMobile && (
   <div
