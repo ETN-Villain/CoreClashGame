@@ -2018,6 +2018,7 @@ return (
     flexDirection: isMobile ? "row" : "column", // row on mobile, column on desktop
     gap: 8, // spacing between images
     flexWrap: "wrap", // ensures images wrap if needed
+    paddingBottom: 12, // <-- small gap at the bottom  
   }}
 >
   <img
@@ -2045,6 +2046,49 @@ return (
 </div>
 </div>
 
+<div style={{ marginTop: 40, marginBottom: 10 }}>
+  <h2
+    style={{
+      fontWeight: "bold",
+      fontSize: isMobile ? 26 : 30,
+      letterSpacing: 1.5,
+      textTransform: "uppercase",
+      color: "#18bb1a",
+      marginBottom: 6,
+      textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
+    }}
+  >
+    Core Clashes
+  </h2>
+
+<button 
+  type="button"
+  onClick={loadGames}
+  disabled={loadingGames}
+  style={{
+    background: "#222",
+    color: "#18bb1a",
+    border: "1px solid #18bb1a",
+    padding: isMobile ? "6px 12px" : "8px 16px",
+    borderRadius: 4,
+    cursor: loadingGames ? "not-allowed" : "pointer",
+    fontSize: isMobile ? 13 : 16,
+    opacity: loadingGames ? 0.6 : 1,
+  }}
+>
+  🔄 Refresh Games
+</button>
+</div>
+
+<div
+  style={{
+    display: isMobile ? "flex" : "grid",
+    flexDirection: isMobile ? "column" : undefined,
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: 20,
+  }}
+>
+
 {showDeviceWarning && (
   <div
     style={{
@@ -2054,10 +2098,10 @@ return (
       zIndex: 99999,
       maxWidth: "400px",
       width: "90%",
-      backgroundColor: "#fff",
+      backgroundColor: "#18bb1a",
       borderRadius: "12px",
       padding: isMobile ? "15px 20px" : "20px 30px",
-      boxShadow: "0 0 20px rgba(0,0,0,0.3)",
+      boxShadow: "0 0 20px rgba(255, 255, 255, 0.99)",
       fontSize: isMobile ? "14px" : "16px",
     }}
   >
@@ -2150,48 +2194,6 @@ return (
 )}
 
 {/* ---------------- GAMES GRID ---------------- */}
-<div style={{ marginTop: 40, marginBottom: 10 }}>
-  <h2
-    style={{
-      fontWeight: "bold",
-      fontSize: isMobile ? 26 : 30,
-      letterSpacing: 1.5,
-      textTransform: "uppercase",
-      color: "#18bb1a",
-      marginBottom: 6,
-      textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
-    }}
-  >
-    Core Clashes
-  </h2>
-
-<button 
-  type="button"
-  onClick={loadGames}
-  disabled={loadingGames}
-  style={{
-    background: "#222",
-    color: "#18bb1a",
-    border: "1px solid #18bb1a",
-    padding: isMobile ? "6px 12px" : "8px 16px",
-    borderRadius: 4,
-    cursor: loadingGames ? "not-allowed" : "pointer",
-    fontSize: isMobile ? 13 : 16,
-    opacity: loadingGames ? 0.6 : 1,
-  }}
->
-  🔄 Refresh Games
-</button>
-</div>
-
-<div
-  style={{
-    display: isMobile ? "flex" : "grid",
-    flexDirection: isMobile ? "column" : undefined,
-    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-    gap: 20,
-  }}
->
 {/* ---------------- GAMES COLUMNS ---------------- */}
 {(!isMobile || activeTab === "open") && (
   <div>
@@ -2204,7 +2206,7 @@ return (
 
 {(!isMobile || activeTab === "active") && (
   <div>
-        <h3>🟡 In Progress ({activeGames.length})</h3>
+        <h3>🟡 Active ({activeGames.length})</h3>
     {activeGames.map((g) => (
       <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
     ))}
