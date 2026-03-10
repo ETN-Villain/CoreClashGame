@@ -1811,39 +1811,42 @@ return (
             disabled={!n.address}
           >
             <option value="">Select Token</option>
-{ownedNFTs
-  .filter(
-    (nft) =>
-      nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
-      !nfts.some(
-        (s, idx) => idx !== i && s.tokenId === nft.tokenId && s.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
-      )
-  )
-  .sort((a, b) => {
-    const bgA = (a.background || "").trim();
-    const bgB = (b.background || "").trim();
-    const rankA = RARE_BACKGROUNDS.indexOf(bgA);
-    const rankB = RARE_BACKGROUNDS.indexOf(bgB);
-    if (rankA !== -1 || rankB !== -1) {
-      if (rankA === -1) return 1;
-      if (rankB === -1) return -1;
-      return rankA - rankB;
-    }
-    if (bgA !== bgB) return bgA.toLowerCase().localeCompare(bgB.toLowerCase());
-    return (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase());
-  })
-  .map((nftOption) => (
-    <option key={nftOption.tokenId} value={nftOption.tokenId}>
-      {RARE_BACKGROUNDS.includes(nftOption.background) ? "🟢 " : ""}
-      #{nftOption.tokenId} — {nftOption.name} ({nftOption.background})
-    </option>
-  ))}
-            </select>
+            {ownedNFTs
+              .filter(
+                (nft) =>
+                  nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
+                  !nfts.some(
+                    (s, idx) =>
+                      idx !== i &&
+                      s.tokenId === nft.tokenId &&
+                      s.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
+                  )
+              )
+              .sort((a, b) => {
+                const bgA = (a.background || "").trim();
+                const bgB = (b.background || "").trim();
+                const rankA = RARE_BACKGROUNDS.indexOf(bgA);
+                const rankB = RARE_BACKGROUNDS.indexOf(bgB);
+                if (rankA !== -1 || rankB !== -1) {
+                  if (rankA === -1) return 1;
+                  if (rankB === -1) return -1;
+                  return rankA - rankB;
+                }
+                if (bgA !== bgB) return bgA.toLowerCase().localeCompare(bgB.toLowerCase());
+                return (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase());
+              })
+              .map((nftOption) => (
+                <option key={nftOption.tokenId} value={nftOption.tokenId}>
+                  {RARE_BACKGROUNDS.includes(nftOption.background) ? "🟢 " : ""}
+                  #{nftOption.tokenId} — {nftOption.name} ({nftOption.background})
+                </option>
+              ))}
+          </select>
         </div>
       </div>
 
-      {/* Image Preview */}
-      {n.tokenId && collectionKey && imageFile && (
+      {/* Image Preview or Placeholder */}
+      {n.tokenId && collectionKey && imageFile ? (
         <div
           style={{
             marginTop: 8,
@@ -1876,10 +1879,29 @@ return (
             </div>
           )}
         </div>
-      )}
+      ) : n.address ? (
+        <div
+          style={{
+            marginTop: 12,
+            width: 80,
+            height: 80,
+            background: "#111",
+            border: "1px dashed #444",
+            borderRadius: 6,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#666",
+            fontSize: isMobile ? 12 : 14,
+          }}
+        >
+          Select Token ID
+        </div>
+      ) : null}
     </div>
   );
 })}
+
       {/* Optional: show placeholder while loading/selecting */}
       {n.address && !n.tokenId && (
         <div
