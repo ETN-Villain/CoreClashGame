@@ -1670,7 +1670,7 @@ return (
   style={{
     marginTop: 20,
     background: "#111",
-    padding: isMobile ? 18 : 24,
+    fontSize: isMobile ? 26 : 30,
     borderRadius: 12,
     border: "1px solid #333",
     textAlign: "center",
@@ -1681,7 +1681,7 @@ return (
     style={{
       fontSize: isMobile ? 14 : 16,
       opacity: 0.7,
-      marginBottom: 6,
+      marginBottom: 4,
       letterSpacing: 1,
     }}
   >
