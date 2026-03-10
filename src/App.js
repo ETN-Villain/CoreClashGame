@@ -111,6 +111,7 @@ useEffect(() => {
   const [showCancelled, setShowCancelled] = React.useState(false);
   const [showArchive, setShowArchive] = useState(false);
   const [pendingAutoRevealGameId, setPendingAutoRevealGameId] = useState(null);
+  const [activeTab, setActiveTab] = useState("open");
 
   /* ---------------- LOADING SCREEN ---------------- */
   const [loading, setLoading] = useState(true);
@@ -1311,6 +1312,8 @@ useEffect(() => {
 }, []);
 
 /* ---------------- UI ---------------- */
+const isMobile = window.innerWidth < 768;
+
 if (loading) {
   return (
     <div style={{ minHeight: "100vh", position: "relative" }}>
@@ -1328,14 +1331,13 @@ if (loading) {
         <img
           src={CoreClashLogo}
           alt="Core Clash"
-          style={{ width: 800, maxWidth: "90%" }}
-        />
+          style={{ width: "90%", maxWidth: 500,}}        />
 
         {/* Powered By */}
         <p
           style={{
             marginTop: 20,
-            fontSize: 14,
+            fontSize: isMobile ? 14: 18,
             letterSpacing: 3,
             textTransform: "uppercase",
             opacity: 0.8,
@@ -1383,8 +1385,17 @@ if (loading) {
 
 /* ---------------- MAIN APP ---------------- */
 return (
-  <div style={{ position: "relative", minHeight: "100vh", padding: 20, maxWidth: 900 }}>
-    {/* ---------------- WATERMARK ---------------- */}
+<div
+  style={{
+    position: "relative",
+    minHeight: "100vh",
+    padding: isMobile ? 20 : 40,
+    width: "100%",
+    maxWidth: 1100,
+    margin: "0 auto",
+  }}
+
+>    {/* ---------------- WATERMARK ---------------- */}
 <div
   style={{
     position: "fixed",
@@ -1411,12 +1422,20 @@ return (
           marginBottom: 12,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+<div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 16,
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  }}
+>
           {/* LEFT: Logo */}
           <img
             src={CoreClashLogo}
             alt="Core Clash"
-            style={{ height: 120, width: "auto", pointerEvents: "none" }}
+            style={{ height: 80, width: "auto", pointerEvents: "none" }}
           />
 
 {/* CENTER: Connect Wallet / Status */}
@@ -1431,8 +1450,8 @@ return (
         backgroundColor: "#18bb1a",
         color: "#fff",
         border: "none",
-        padding: "12px 24px",
-        fontSize: 18,
+        padding: isMobile ? "12px 24px" : "16px 32px",
+        fontSize: isMobile ? 18 : 20,
         fontWeight: "bold",
         borderRadius: 12,
         cursor: "pointer",
@@ -1455,8 +1474,8 @@ return (
         backgroundColor: "#1a75ff", // Blue to differentiate
         color: "#fff",
         border: "none",
-        padding: "10px 20px",
-        fontSize: 16,
+        padding: isMobile ? "10px 20px" : "16px 32px",
+        fontSize: isMobile ? 16 : 18,
         fontWeight: "bold",
         borderRadius: 12,
         cursor: "pointer",
@@ -1471,7 +1490,7 @@ return (
     </button>
 
     {walletError && (
-      <p style={{ color: "#ff4d4d", fontSize: 14, marginTop: 8, textAlign: "center" }}>
+      <p style={{ color: "#ff4d4d", fontSize: isMobile ? 14 : 16, marginTop: 8, textAlign: "center" }}>
         {walletError}
       </p>
     )}
@@ -1482,12 +1501,12 @@ return (
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      padding: "12px 24px",
+      padding: isMobile ? "12px 24px" : "16px 32px",
       gap: 8,
     }}
   >
-    <div style={{ fontSize: 16, fontWeight: "bold" }}>Connected:</div>
-    <div style={{ fontSize: 10, opacity: 0.85, wordBreak: "break-all", maxWidth: "200px" }}>
+    <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: "bold" }}>Connected:</div>
+    <div style={{ fontSize: isMobile ? 10 : 14, opacity: 0.85, wordBreak: "break-all", maxWidth: "200px" }}>
       {account}
     </div>
     <button
@@ -1496,8 +1515,8 @@ return (
         backgroundColor: "#c62828",
         color: "#fff",
         border: "none",
-        padding: "6px 14px",
-        fontSize: 12,
+        padding: isMobile ? "6px 14px" : "8px 16px",
+        fontSize: isMobile ? 12 : 14,
         fontWeight: "bold",
         borderRadius: 8,
         cursor: "pointer",
@@ -1542,7 +1561,7 @@ return (
   <span
     style={{
       marginTop: 6,
-      fontSize: 12,
+      fontSize: isMobile ? 12 : 14,
       fontWeight: "bold",
       color: "#fff",
       opacity: 0.9,
@@ -1580,7 +1599,7 @@ return (
   <span
     style={{
       marginTop: 6,
-      fontSize: 12,
+      fontSize: isMobile ? 12 : 14,
       fontWeight: "bold",
       color: "#fff",
       opacity: 0.9,
@@ -1619,7 +1638,7 @@ return (
   <span
     style={{
       marginTop: 6,
-      fontSize: 12,
+      fontSize: isMobile ? 12 : 14,
       fontWeight: "bold",
       color: "#fff",
       opacity: 0.9,
@@ -1632,12 +1651,19 @@ return (
 </div>
 
         {walletError && (
-          <div style={{ fontSize: 14, opacity: 0.7 }}>{walletError}</div>
+          <div style={{ fontSize: isMobile ? 14 : 16, opacity: 0.7 }}>{walletError}</div>
         )}
       </div>
       </div>
 
-<div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+<div
+  style={{
+    display: "flex",
+    gap: 24,
+    alignItems: "flex-start",
+    flexWrap: isMobile ? "wrap" : "nowrap",
+  }}
+>
   {/* ---------------- CREATE GAME SECTION ---------------- */}
   <div style={{ flex: 1 /* take available width */ }}>
     <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1647,7 +1673,7 @@ return (
     <select
       value={stakeToken}
       onChange={(e) => setStakeToken(e.target.value)}
-      style={{ width: "20%", marginBottom: 6 }}
+      style={{ width: "100%", maxWidth: 260, marginBottom: 6 }}
     >
       {WHITELISTED_TOKENS.map((t) => (
         <option key={t.address} value={t.address}>
@@ -1660,7 +1686,7 @@ return (
     <input
       value={stakeAmount}
       onChange={(e) => setStakeAmount(e.target.value)}
-      style={{ width: "30%", marginBottom: 12 }}
+      style={{ width: "100%", maxWidth: 260, marginBottom: 12 }}
     />
 
     <h3>Your Clash Team (3)</h3>
@@ -1710,7 +1736,7 @@ return (
             )
           );
         }}
-        style={{ width: "220px", marginRight: 12 }}
+        style={{ width: "100%", maxWidth: 260, marginRight: 12 }}
       >
         <option value="">Select Collection</option>
         {WHITELISTED_NFTS.map((nft) => (
@@ -1750,7 +1776,7 @@ return (
       )
     );
   }}
-  style={{ width: "220px", marginLeft: 8 }}
+  style={{ width: "100%", maxWidth: 260, marginLeft: 8 }}
   disabled={!n.address}
 >
   <option value="">Select Token</option>
@@ -1802,7 +1828,7 @@ return (
             display: "flex",
             alignItems: "center",
             gap: 12,
-            padding: 8,
+            padding: isMobile ? 8 : 16,
             background: "#0f0f0f",
             borderRadius: 8,
             border: "1px solid #333",
@@ -1825,7 +1851,7 @@ return (
             }}
           />
           {n.metadata && (
-            <div style={{ fontSize: 14 }}>
+            <div style={{ fontSize: isMobile ? 14 : 16 }}>
               <strong>{n.metadata.name}</strong>
               <div style={{ opacity: 0.85 }}>
                 Background: {n.metadata.background}
@@ -1849,7 +1875,7 @@ return (
             alignItems: "center",
             justifyContent: "center",
             color: "#666",
-            fontSize: 12,
+            fontSize: isMobile ? 12 : 14,
           }}
         >
           Select Token ID
@@ -1878,24 +1904,24 @@ return (
   {/* RIGHT: IMAGES */}
   <div
     style={{
-      width: 60,
-      height: 480,
+      width: "100%",
+      maxWidth: 300,
       display: "flex",
-      flexDirection: "row",
+      flexDirection: "column",
       gap: 12,
       position: "sticky",
       top: 24,
     }}
   >
-    <img src={HowToPlay} alt="How to Play" style={{ borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)",
+    <img src={HowToPlay} alt="How to Play" style={{ borderRadius: 8, width: "100%", height: "auto", boxShadow: "0 0 8px rgba(0,0,0,0.6)",
 border: "1px solid #333"}} />
-    <img src={GameInfo} alt="Game Info" style={{ borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)",
+    <img src={GameInfo} alt="Game Info" style={{ borderRadius: 8, width: "100%", height: "auto", boxShadow: "0 0 8px rgba(0,0,0,0.6)",
 border: "1px solid #333" }} />
   </div>
 </div>
 
       {/* ---------------- STATUS ---------------- */}
-      <div style={{ fontSize: 12, color: "#aaa", marginTop: 12 }}>
+      <div style={{ fontSize: isMobile ? 12 : 14, color: "#aaa", marginTop: 12 }}>
         signer: {signer ? "✅" : "❌"} | validated: {validated ? "✅" : "❌"} | stakeToken:{" "}
         {stakeToken || "❌"} | stakeAmount: {stakeAmount || "❌"}
       </div>
@@ -1925,9 +1951,9 @@ border: "1px solid #333" }} />
       width: "90%",
       backgroundColor: "#fff",
       borderRadius: "12px",
-      padding: "15px 20px",
+      padding: isMobile ? "15px 20px" : "20px 30px",
       boxShadow: "0 0 20px rgba(0,0,0,0.3)",
-      fontSize: "14px",
+      fontSize: isMobile ? "14px" : "16px",
     }}
   >
     <h3 style={{ marginTop: 0 }}>⚠ Important: Reveal File Backup</h3>
@@ -1942,7 +1968,7 @@ border: "1px solid #333" }} />
       will forfeit the game and your stake.
     </p>
 
-    <p style={{ fontSize: 12, opacity: 0.8 }}>
+    <p style={{ fontSize: isMobile ? 12 : 14, opacity: 0.8 }}>
       By continuing, you confirm that you understand this risk and have
       ensured your reveal file can be securely saved.
     </p>
@@ -1958,7 +1984,7 @@ border: "1px solid #333" }} />
           backgroundColor: "#1a75ff",
           color: "#fff",
           border: "none",
-          padding: "8px 15px",
+          padding: isMobile ? "8px 15px" : "12px 20px",
           borderRadius: 8,
           cursor: "pointer",
           fontWeight: "bold",
@@ -1970,7 +1996,7 @@ border: "1px solid #333" }} />
       <button
         onClick={() => setShowDeviceWarning(false)}
         style={{
-          padding: "8px 15px",
+          padding: isMobile ? "8px 15px" : "12px 20px",
           borderRadius: 8,
           cursor: "pointer",
           border: "1px solid #ccc",
@@ -1983,12 +2009,47 @@ border: "1px solid #333" }} />
   </div>
 )}
 
+{isMobile && (
+  <div
+    style={{
+      display: "flex",
+      gap: 8,
+      marginBottom: 16,
+      overflowX: "auto",
+    }}
+  >
+    {[
+      { key: "open", label: `Open (${openGames.length})` },
+      { key: "active", label: `Active (${activeGames.length})` },
+      { key: "settled", label: `Settled (${latestSettled.length})` },
+      { key: "leaderboard", label: "Leaderboard" },
+    ].map((tab) => (
+      <button
+        key={tab.key}
+        onClick={() => setActiveTab(tab.key)}
+        style={{
+          padding: "8px 14px",
+          borderRadius: 8,
+          border: "1px solid #333",
+          background: activeTab === tab.key ? "#18bb1a" : "#111",
+          color: activeTab === tab.key ? "#000" : "#fff",
+          fontWeight: "bold",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
+)}
+
 {/* ---------------- GAMES GRID ---------------- */}
 <div style={{ marginTop: 40, marginBottom: 10 }}>
   <h2
     style={{
       fontWeight: "bold",
-      fontSize: 26,
+      fontSize: isMobile ? 26 : 30,
       letterSpacing: 1.5,
       textTransform: "uppercase",
       color: "#18bb1a",
@@ -2007,10 +2068,10 @@ border: "1px solid #333" }} />
     background: "#222",
     color: "#18bb1a",
     border: "1px solid #18bb1a",
-    padding: "6px 12px",
+    padding: isMobile ? "6px 12px" : "8px 16px",
     borderRadius: 4,
     cursor: loadingGames ? "not-allowed" : "pointer",
-    fontSize: 13,
+    fontSize: isMobile ? 13 : 16,
     opacity: loadingGames ? 0.6 : 1,
   }}
 >
@@ -2018,24 +2079,36 @@ border: "1px solid #333" }} />
 </button>
 </div>
 
-<div style={{ display: "grid", gridTemplateColumns: "250px 300px 1fr 500px", gap: 20 }}>
-  {/* ---------------- GAMES COLUMNS ---------------- */}
+<div
+  style={{
+    display: isMobile ? "flex" : "grid",
+    flexDirection: isMobile ? "column" : undefined,
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: 20,
+  }}
+>
+{/* ---------------- GAMES COLUMNS ---------------- */}
+{(!isMobile || activeTab === "open") && (
   <div>
-    <h3>🟢 Open ({openGames.length})</h3>
+        <h3>🟢 Open ({openGames.length})</h3>
     {openGames.map((g) => (
       <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
     ))}
   </div>
+)}
 
+{(!isMobile || activeTab === "active") && (
   <div>
-    <h3>🟡 In Progress ({activeGames.length})</h3>
+        <h3>🟡 In Progress ({activeGames.length})</h3>
     {activeGames.map((g) => (
       <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
     ))}
-  </div>
+</div>
+)}
 
+{(!isMobile || activeTab === "settled") && (
   <div>
-    {/* Settled / Cancelled / Archive Column */}
+        {/* Settled / Cancelled / Archive Column */}
     <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
       <label>
         <input type="checkbox" checked={showResolved} onChange={() => setShowResolved(v => !v)} /> Settled (Winner)
@@ -2081,15 +2154,17 @@ border: "1px solid #333" }} />
         ))}
       </div>
     )}
-  </div>
+</div>
+)}
 
   {/* ---------------- LEADERBOARD ---------------- */}
-  <div style={{ gridColumn: 4, marginTop: 0 }}>
+{(!isMobile || activeTab === "leaderboard") && (
+<div style={{ gridColumn: isMobile ? "auto" : 4 }}>
     <h2
       style={{
         color: "#18bb1a",
         fontWeight: "bold",
-        fontSize: 26,
+        fontSize: isMobile ? 26 : 30,
         textTransform: "uppercase",
         textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
         marginBottom: 12,
@@ -2101,7 +2176,7 @@ border: "1px solid #333" }} />
     <div
       style={{
         background: "#111",
-        padding: 16,
+        padding: isMobile ? 16 : 24,
         borderRadius: 12,
         border: "1px solid #333",
         display: "flex",
@@ -2114,7 +2189,7 @@ border: "1px solid #333" }} />
         style={{
           display: "grid",
           gridTemplateColumns: "2fr 1fr 1fr 1fr",
-          fontSize: 13,
+          fontSize: isMobile ? 13 : 16,
           opacity: 0.7,
           borderBottom: "1px solid #333",
           paddingBottom: 6,
@@ -2129,7 +2204,7 @@ border: "1px solid #333" }} />
 
       {/* No leaderboard */}
       {leaderboard.length === 0 && (
-        <div style={{ opacity: 0.6, padding: "8px 0", textAlign: "center" }}>
+        <div style={{ opacity: 0.6, padding: isMobile ? "8px 0" : "12px 0", textAlign: "center" }}>
           No settled games yet.
         </div>
       )}
@@ -2149,9 +2224,9 @@ border: "1px solid #333" }} />
             style={{
               display: "grid",
               gridTemplateColumns: "2fr 1fr 1fr 1fr",
-              padding: "6px 0",
+              padding: isMobile ? "6px 0" : "8px 0",
               borderBottom: "1px solid #222",
-              fontSize: 14,
+              fontSize: isMobile ? 14 : 16,
               color: isCurrentUser ? "#4da3ff" : medalColor,
               fontWeight: isCurrentUser ? "bold" : "normal",
               transition: "background 0.2s",
@@ -2169,14 +2244,16 @@ border: "1px solid #333" }} />
           </div>
         );
       })}
-    </div>
+</div>
+</div>
+)}
 
 {/* ---------------- TOTAL CORE BURNED ---------------- */}
 <div
   style={{
     marginTop: 20,
     background: "#111",
-    padding: 18,
+    padding: isMobile ? 18 : 24,
     borderRadius: 12,
     border: "1px solid #333",
     textAlign: "center",
@@ -2185,7 +2262,7 @@ border: "1px solid #333" }} />
 >
   <div
     style={{
-      fontSize: 14,
+      fontSize: isMobile ? 14 : 16,
       opacity: 0.7,
       marginBottom: 6,
       letterSpacing: 1,
@@ -2196,7 +2273,7 @@ border: "1px solid #333" }} />
 
   <div
     style={{
-      fontSize: 28,
+      fontSize: isMobile ? 28 : 32,
       fontWeight: "bold",
       color: "#bb6918",
       textShadow: "0 0 8px #cd3309, 0 0 16px #cd3309",
@@ -2205,12 +2282,11 @@ border: "1px solid #333" }} />
     🔥 {totalGameBurned.toFixed(2)} CORE 🔥
   </div>
 
-  <div style={{ fontSize: 14, opacity: 0.7, marginTop: 6 }}>
+  <div style={{ fontSize: isMobile ? 14 : 16, opacity: 0.7, marginTop: 6 }}>
     {burnPercent.toFixed(4)}% of total supply
   </div>
 </div>
 </div>
 </div>
-    </div>
   );
 }
