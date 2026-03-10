@@ -1811,34 +1811,34 @@ return (
             disabled={!n.address}
           >
             <option value="">Select Token</option>
-            {ownedNFTs
-              .filter(
-                (nft) =>
-                  nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
-                  !nfts.some(
-                    (s, idx) => idx !== i && s.tokenId === nft.tokenId && s.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
-                  )
-              )
-              .sort((a, b) => {
-                const bgA = (a.background || "").trim();
-                const bgB = (b.background || "").trim();
-                const rankA = RARE_BACKGROUNDS.indexOf(bgA);
-                const rankB = RARE_BACKGROUNDS.indexOf(bgB);
-                if (rankA !== -1 || rankB !== -1) {
-                  if (rankA === -1) return 1;
-                  if (rankB === -1) return -1;
-                  return rankA - rankB;
-                }
-                if (bgA !== bgB) return bgA.toLowerCase().localeCompare(bgB.toLowerCase());
-                return (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase());
-              })
-              .map((nft) => (
-                <option key={nft.tokenId} value={nft.tokenId}>
-                  {RARE_BACKGROUNDS.includes(nft.background) ? "🟢 " : ""}
-                  #{nft.tokenId} — {nft.name} ({nft.background})
-                </option>
-              ))}
-          </select>
+{ownedNFTs
+  .filter(
+    (nft) =>
+      nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
+      !nfts.some(
+        (s, idx) => idx !== i && s.tokenId === nft.tokenId && s.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
+      )
+  )
+  .sort((a, b) => {
+    const bgA = (a.background || "").trim();
+    const bgB = (b.background || "").trim();
+    const rankA = RARE_BACKGROUNDS.indexOf(bgA);
+    const rankB = RARE_BACKGROUNDS.indexOf(bgB);
+    if (rankA !== -1 || rankB !== -1) {
+      if (rankA === -1) return 1;
+      if (rankB === -1) return -1;
+      return rankA - rankB;
+    }
+    if (bgA !== bgB) return bgA.toLowerCase().localeCompare(bgB.toLowerCase());
+    return (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase());
+  })
+  .map((nftOption) => (
+    <option key={nftOption.tokenId} value={nftOption.tokenId}>
+      {RARE_BACKGROUNDS.includes(nftOption.background) ? "🟢 " : ""}
+      #{nftOption.tokenId} — {nftOption.name} ({nftOption.background})
+    </option>
+  ))}
+            </select>
         </div>
       </div>
 
