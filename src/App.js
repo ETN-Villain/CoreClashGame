@@ -1845,83 +1845,63 @@ return (
         </div>
       </div>
 
-      {/* Image Preview or Placeholder */}
-      {n.tokenId && collectionKey && imageFile ? (
-        <div
-          style={{
-            marginTop: 8,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: 12,
-            background: "#0f0f0f",
-            borderRadius: 8,
-            border: "1px solid #333",
-          }}
-        >
-          <img
-            src={`${BACKEND_URL}/images/${collectionKey}/${imageFile}`}
-            alt={`${collectionKey} #${n.tokenId}`}
-            style={{
-              width: 80,
-              height: 80,
-              objectFit: "cover",
-              borderRadius: 6,
-              border: "1px solid #444",
-              background: "#111",
-            }}
-            onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-          />
-          {n.metadata && (
-            <div style={{ fontSize: 14 }}>
-              <strong>{n.metadata.name}</strong>
-              <div style={{ opacity: 0.85 }}>Background: {n.metadata.background}</div>
-            </div>
-          )}
-        </div>
-      ) : n.address ? (
-        <div
-          style={{
-            marginTop: 12,
-            width: 80,
-            height: 80,
-            background: "#111",
-            border: "1px dashed #444",
-            borderRadius: 6,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#666",
-            fontSize: isMobile ? 12 : 14,
-          }}
-        >
-          Select Token ID
-        </div>
-      ) : null}
+{/* Image Preview or Placeholder */}
+{n.tokenId && collectionKey && imageFile ? (
+  <div
+    style={{
+      marginTop: 8,
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      padding: 12,
+      background: "#0f0f0f",
+      borderRadius: 8,
+      border: "1px solid #333",
+    }}
+  >
+    <img
+      src={`${BACKEND_URL}/images/${collectionKey}/${imageFile}`}
+      alt={`${collectionKey} #${n.tokenId}`}
+      style={{
+        width: 80,
+        height: 80,
+        objectFit: "cover",
+        borderRadius: 6,
+        border: "1px solid #444",
+        background: "#111",
+      }}
+      onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+    />
+    {n.metadata && (
+      <div style={{ fontSize: 14 }}>
+        <strong>{n.metadata.name}</strong>
+        <div style={{ opacity: 0.85 }}>Background: {n.metadata.background}</div>
+      </div>
+    )}
+  </div>
+) : n.address ? (
+  // ✅ Only one placeholder needed
+  <div
+    style={{
+      marginTop: 12,
+      width: 80,
+      height: 80,
+      background: "#111",
+      border: "1px dashed #444",
+      borderRadius: 6,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#666",
+      fontSize: isMobile ? 12 : 14,
+    }}
+  >
+    Select Token ID
+  </div>
+) : null}
     </div>
   );
 })}
-
-      {/* Optional: show placeholder while loading/selecting */}
-      {n.address && !n.tokenId && (
-        <div
-          style={{
-            marginTop: 12,
-            width: 80,
-            height: 80,
-            background: "#111",
-            border: "1px dashed #444",
-            borderRadius: 6,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#666",
-            fontSize: isMobile ? 12 : 14,
-          }}
-        >
-          Select Token ID
-        </div>
-      )}
 
     {account?.toLowerCase() === ADMIN_ADDRESS ? (
       <>
