@@ -1588,7 +1588,7 @@ return (
     alt="Verdant Kin NFT Collection"
     style={{
       height: 60,
-      width: "auto",
+      width: 240,
       borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)", border: "1px solid #333",
       cursor: "pointer",
       transition: "transform 0.2s ease",
@@ -1664,6 +1664,46 @@ return (
     flexWrap: isMobile ? "wrap" : "nowrap",
   }}
 >
+
+{/* ---------------- TOTAL CORE BURNED ---------------- */}
+<div
+  style={{
+    marginTop: 20,
+    background: "#111",
+    padding: isMobile ? 18 : 24,
+    borderRadius: 12,
+    border: "1px solid #333",
+    textAlign: "center",
+    boxShadow: "0 0 12px rgba(24,187,26,0.15)",
+  }}
+>
+  <div
+    style={{
+      fontSize: isMobile ? 14 : 16,
+      opacity: 0.7,
+      marginBottom: 6,
+      letterSpacing: 1,
+    }}
+  >
+    TOTAL CORE BURNED FROM CORE CLASH
+  </div>
+
+  <div
+    style={{
+      fontSize: isMobile ? 28 : 32,
+      fontWeight: "bold",
+      color: "#bb6918",
+      textShadow: "0 0 8px #cd3309, 0 0 16px #cd3309",
+    }}
+  >
+    🔥 {totalGameBurned.toFixed(2)} CORE 🔥
+  </div>
+
+  <div style={{ fontSize: isMobile ? 14 : 16, opacity: 0.7, marginTop: 6 }}>
+    {burnPercent.toFixed(4)}% of total supply
+  </div>
+</div>
+
   {/* ---------------- CREATE GAME SECTION ---------------- */}
   <div style={{ flex: 1 /* take available width */ }}>
     <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1692,195 +1732,173 @@ return (
     <h3>Your Clash Team (3)</h3>
 
 {nfts.map((n, i) => {
-  // Resolve collection key from address (VKIN / VQLE)
   const collectionKey = WHITELISTED_NFTS.find(
     (x) => x.address?.toLowerCase() === n.address?.toLowerCase()
-  )?.label === "Verdant Kin" ? "VKIN" : "VQLE";
+  )?.label === "Verdant Kin"
+    ? "VKIN"
+    : "VQLE";
 
-  // Compute the image filename using new mapping.json structure
   let imageFile = null;
   if (n.tokenId && collectionKey) {
     const mapped = mapping[collectionKey]?.[String(n.tokenId)];
-
-    if (mapped) {
-      // Prefer real image_file if present
-      imageFile = mapped.image_file ||
-                  (mapped.token_uri?.replace(/\.json$/i, ".png") || `${n.tokenId}.png`);
-      console.log(`Team preview slot ${i}: ${collectionKey} #${n.tokenId} → ${imageFile}`);
-    } else {
-      imageFile = `${n.tokenId}.png`;
-      console.log(`Team preview slot ${i}: fallback ${collectionKey} #${n.tokenId} → ${imageFile}`);
-    }
+    imageFile = mapped
+      ? mapped.image_file || mapped.token_uri?.replace(/\.json$/i, ".png") || `${n.tokenId}.png`
+      : `${n.tokenId}.png`;
   }
 
   return (
-    <div key={n.tokenId || n.address || i} style={{ marginBottom: 16 }}>
-      {/* NFT Collection Dropdown */}
-      <label style={{ marginLeft: 8 }}>NFT Collection: </label>
-      <select
-        value={n.address}
-        onChange={(e) => {
-          const newAddress = e.target.value;
-          setNfts((prev) =>
-            prev.map((slot, idx) =>
-              idx === i
-                ? {
-                    ...slot,
-                    address: newAddress,
-                    tokenId: "",
-                    metadata: null,
-                    tokenURI: null,
-                    imageSrc: null, // reset to prevent old image flicker
-                  }
-                : slot
-            )
-          );
-        }}
-        style={{ width: "100%", maxWidth: 260, marginRight: 12 }}
-      >
-        <option value="">Select Collection</option>
-        {WHITELISTED_NFTS.map((nft) => (
-          <option key={nft.address} value={nft.address}>
-            {nft.label}
-          </option>
-        ))}
-      </select>
-
-{/* Token ID Dropdown */}
-<label style={{ marginLeft: 8 }}>Token ID</label>
-<select
-  value={n.tokenId}
-  onChange={(e) => {
-    const tokenId = e.target.value;
-    const selected = ownedNFTs.find(
-      (nft) =>
-        nft.tokenId === tokenId &&
-        nft.nftAddress?.toLowerCase() === n.address?.toLowerCase()
-    );
-    setNfts((prev) =>
-      prev.map((slot, idx) =>
-        idx === i
-          ? {
-              ...slot,
-              tokenId,
-              metadata: selected
-                ? {
-                    name: selected.name,
-                    background: selected.background,
-                  }
-                : null,
-              tokenURI: selected?.tokenURI,
-              address: selected?.nftAddress || slot.address,
-            }
-          : slot
-      )
-    );
-  }}
-  style={{ width: "100%", maxWidth: 260, marginLeft: 8 }}
-  disabled={!n.address}
->
-  <option value="">Select Token</option>
-  {ownedNFTs
-    .filter(
-      (nft) =>
-        nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
-      !nfts.some(
-        (s, idx) =>
-          idx !== i &&
-          s.tokenId === nft.tokenId &&
-          s.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
-      )
-    )
-    .sort((a, b) => {
-      const bgA = (a.background || "").trim();
-      const bgB = (b.background || "").trim();
-
-      const rankA = RARE_BACKGROUNDS.indexOf(bgA);
-      const rankB = RARE_BACKGROUNDS.indexOf(bgB);
-
-      if (rankA !== -1 || rankB !== -1) {
-        if (rankA === -1) return 1;
-        if (rankB === -1) return -1;
-        return rankA - rankB;
-      }
-
-      if (bgA !== bgB) {
-        return bgA.toLowerCase().localeCompare(bgB.toLowerCase());
-      }
-
-      const nameA = (a.name || "").toLowerCase();
-      const nameB = (b.name || "").toLowerCase();
-      return nameA.localeCompare(nameB);
-    })
-    .map((nft) => (
-      <option key={nft.tokenId} value={nft.tokenId}>
-        {RARE_BACKGROUNDS.includes(nft.background) ? "🟢 " : ""}
-        #{nft.tokenId} — {nft.name} ({nft.background})
-      </option>
-    ))}
-</select>
-
-      {/* Image Preview – appears once token is selected */}
-      {n.tokenId && collectionKey && imageFile && (
-        <div
-          style={{
-            marginTop: 12,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: isMobile ? 8 : 16,
-            background: "#0f0f0f",
-            borderRadius: 8,
-            border: "1px solid #333",
-          }}
-        >
-          <img
-            src={`${BACKEND_URL}/images/${collectionKey}/${imageFile}`}
-            alt={`${collectionKey} #${n.tokenId}`}
-            style={{
-              width: 80,
-              height: 80,
-              objectFit: "cover",
-              borderRadius: 6,
-              border: "1px solid #444",
-              background: "#111",
+    <div
+      key={n.tokenId || n.address || i}
+      style={{
+        marginBottom: 16,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        maxWidth: 280,
+      }}
+    >
+      {/* NFT Collection & Token ID Row */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+          <label>NFT Collection</label>
+          <select
+            value={n.address}
+            onChange={(e) => {
+              const newAddress = e.target.value;
+              setNfts((prev) =>
+                prev.map((slot, idx) =>
+                  idx === i
+                    ? { ...slot, address: newAddress, tokenId: "", metadata: null, tokenURI: null, imageSrc: null }
+                    : slot
+                )
+              );
             }}
-            onError={(e) => {
-              e.currentTarget.src = "/placeholder.png";
-              console.warn(`Preview failed: ${collectionKey}/${imageFile}`);
-            }}
-          />
-          {n.metadata && (
-            <div style={{ fontSize: isMobile ? 14 : 16 }}>
-              <strong>{n.metadata.name}</strong>
-              <div style={{ opacity: 0.85 }}>
-                Background: {n.metadata.background}
-              </div>
-            </div>
-          )}
+            style={{ width: "100%" }}
+          >
+            <option value="">Select Collection</option>
+            {WHITELISTED_NFTS.map((nft) => (
+              <option key={nft.address} value={nft.address}>
+                {nft.label}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
 
-      {/* Optional: show placeholder while loading/selecting */}
-      {n.address && !n.tokenId && (
-        <div
-          style={{
-            marginTop: 12,
-            width: 80,
-            height: 80,
-            background: "#111",
-            border: "1px dashed #444",
-            borderRadius: 6,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#666",
-            fontSize: isMobile ? 12 : 14,
-          }}
-        >
-          Select Token ID
+        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+          <label>Token ID</label>
+          <select
+            value={n.tokenId}
+            onChange={(e) => {
+              const tokenId = e.target.value;
+              const selected = ownedNFTs.find(
+                (nft) => nft.tokenId === tokenId && nft.nftAddress?.toLowerCase() === n.address?.toLowerCase()
+              );
+              setNfts((prev) =>
+                prev.map((slot, idx) =>
+                  idx === i
+                    ? {
+                        ...slot,
+                        tokenId,
+                        metadata: selected ? { name: selected.name, background: selected.background } : null,
+                        tokenURI: selected?.tokenURI,
+                        address: selected?.nftAddress || slot.address,
+                      }
+                    : slot
+                )
+              );
+            }}
+            style={{ width: "100%" }}
+            disabled={!n.address}
+          >
+            <option value="">Select Token</option>
+            {ownedNFTs
+              .filter(
+                (nft) =>
+                  nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
+                  !nfts.some(
+                    (s, idx) =>
+                      idx !== i &&
+                      s.tokenId === nft.tokenId &&
+                      s.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
+                  )
+              )
+              .sort((a, b) => {
+                const bgA = (a.background || "").trim();
+                const bgB = (b.background || "").trim();
+                const rankA = RARE_BACKGROUNDS.indexOf(bgA);
+                const rankB = RARE_BACKGROUNDS.indexOf(bgB);
+                if (rankA !== -1 || rankB !== -1) {
+                  if (rankA === -1) return 1;
+                  if (rankB === -1) return -1;
+                  return rankA - rankB;
+                }
+                if (bgA !== bgB) return bgA.toLowerCase().localeCompare(bgB.toLowerCase());
+                return (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase());
+              })
+              .map((nftOption) => (
+                <option key={nftOption.tokenId} value={nftOption.tokenId}>
+                  {RARE_BACKGROUNDS.includes(nftOption.background) ? "🟢 " : ""}
+                  #{nftOption.tokenId} — {nftOption.name} ({nftOption.background})
+                </option>
+              ))}
+          </select>
         </div>
-      )}
+      </div>
+
+{/* Image Preview or Placeholder */}
+{n.tokenId && collectionKey && imageFile ? (
+  <div
+    style={{
+      marginTop: 8,
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      padding: 12,
+      background: "#0f0f0f",
+      borderRadius: 8,
+      border: "1px solid #333",
+    }}
+  >
+    <img
+      src={`${BACKEND_URL}/images/${collectionKey}/${imageFile}`}
+      alt={`${collectionKey} #${n.tokenId}`}
+      style={{
+        width: 80,
+        height: 80,
+        objectFit: "cover",
+        borderRadius: 6,
+        border: "1px solid #444",
+        background: "#111",
+      }}
+      onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+    />
+    {n.metadata && (
+      <div style={{ fontSize: 14 }}>
+        <strong>{n.metadata.name}</strong>
+        <div style={{ opacity: 0.85 }}>Background: {n.metadata.background}</div>
+      </div>
+    )}
+  </div>
+) : n.address ? (
+  // ✅ Only one placeholder needed
+  <div
+    style={{
+      marginTop: 12,
+      width: 80,
+      height: 80,
+      background: "#111",
+      border: "1px dashed #444",
+      borderRadius: 6,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#666",
+      fontSize: isMobile ? 12 : 14,
+    }}
+  >
+    Select Token ID
+  </div>
+) : null}
     </div>
   );
 })}
@@ -1902,22 +1920,37 @@ return (
   </div>
 
   {/* RIGHT: IMAGES */}
-  <div
+<div
+  style={{
+    display: "flex",
+    flexDirection: isMobile ? "row" : "column", // row on mobile, column on desktop
+    gap: 8, // spacing between images
+    flexWrap: "wrap", // ensures images wrap if needed
+  }}
+>
+  <img
+    src={HowToPlay}
+    alt="How to Play"
     style={{
-      width: "100%",
-      maxWidth: 300,
-      display: "flex",
-      flexDirection: "column",
-      gap: 12,
-      position: "sticky",
-      top: 24,
+      borderRadius: 8,
+      width: isMobile ? "48%" : "100%", // side by side on mobile
+      height: "auto",
+      boxShadow: "0 0 8px rgba(0,0,0,0.6)",
+      border: "1px solid #333",
     }}
-  >
-    <img src={HowToPlay} alt="How to Play" style={{ borderRadius: 8, width: "100%", height: "auto", boxShadow: "0 0 8px rgba(0,0,0,0.6)",
-border: "1px solid #333"}} />
-    <img src={GameInfo} alt="Game Info" style={{ borderRadius: 8, width: "100%", height: "auto", boxShadow: "0 0 8px rgba(0,0,0,0.6)",
-border: "1px solid #333" }} />
-  </div>
+  />
+  <img
+    src={GameInfo}
+    alt="Game Info"
+    style={{
+      borderRadius: 8,
+      width: isMobile ? "48%" : "100%",
+      height: "auto",
+      boxShadow: "0 0 8px rgba(0,0,0,0.6)",
+      border: "1px solid #333",
+    }}
+  />
+</div>
 </div>
 
       {/* ---------------- STATUS ---------------- */}
@@ -1927,7 +1960,7 @@ border: "1px solid #333" }} />
       </div>
 
       {/* ---------------- ACTION BUTTONS ---------------- */}
-      <div style={{ marginTop: 12 }}>
+      <div style={{ marginTop: 12, marginBottom: 24, display: "flex", gap: 12, flexWrap: "wrap" }}>        
         <button disabled={validating} onClick={validateTeam}>
           {validating ? "Validating..." : "Validate Team"}
         </button>
@@ -2247,45 +2280,6 @@ border: "1px solid #333" }} />
 </div>
 </div>
 )}
-
-{/* ---------------- TOTAL CORE BURNED ---------------- */}
-<div
-  style={{
-    marginTop: 20,
-    background: "#111",
-    padding: isMobile ? 18 : 24,
-    borderRadius: 12,
-    border: "1px solid #333",
-    textAlign: "center",
-    boxShadow: "0 0 12px rgba(24,187,26,0.15)",
-  }}
->
-  <div
-    style={{
-      fontSize: isMobile ? 14 : 16,
-      opacity: 0.7,
-      marginBottom: 6,
-      letterSpacing: 1,
-    }}
-  >
-    TOTAL CORE BURNED FROM CORE CLASH
-  </div>
-
-  <div
-    style={{
-      fontSize: isMobile ? 28 : 32,
-      fontWeight: "bold",
-      color: "#bb6918",
-      textShadow: "0 0 8px #cd3309, 0 0 16px #cd3309",
-    }}
-  >
-    🔥 {totalGameBurned.toFixed(2)} CORE 🔥
-  </div>
-
-  <div style={{ fontSize: isMobile ? 14 : 16, opacity: 0.7, marginTop: 6 }}>
-    {burnPercent.toFixed(4)}% of total supply
-  </div>
-</div>
 </div>
 </div>
   );
