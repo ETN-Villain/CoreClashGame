@@ -1669,37 +1669,51 @@ return (
 <div
   style={{
     marginTop: 20,
+    width: "100%",
+    padding: "16px 12px",
     background: "#111",
-    fontSize: isMobile ? 26 : 30,
     borderRadius: 12,
     border: "1px solid #333",
     textAlign: "center",
     boxShadow: "0 0 12px rgba(24,187,26,0.15)",
   }}
 >
+  {/* Label */}
   <div
     style={{
-      fontSize: isMobile ? 14 : 16,
-      opacity: 0.7,
-      marginBottom: 4,
+      fontSize: isMobile ? 12 : 14,
+      opacity: 0.75,
+      marginBottom: 6,
       letterSpacing: 1,
+      textTransform: "uppercase",
+      color: "#ccc",
     }}
   >
-    TOTAL CORE BURNED FROM CORE CLASH
+    Total Core Burned from Core Clash
   </div>
 
+  {/* Main Number */}
   <div
     style={{
-      fontSize: isMobile ? 28 : 32,
-      fontWeight: "bold",
-      color: "#bb6918",
-      textShadow: "0 0 8px #cd3309, 0 0 16px #cd3309",
+      fontSize: isMobile ? 28 : 36,
+      fontWeight: 700,
+      color: "#ff9a3c",
+      textShadow: "0 0 6px #ff6b00, 0 0 12px #ff6b00",
+      marginBottom: 4,
     }}
   >
     🔥 {totalGameBurned.toFixed(2)} CORE 🔥
   </div>
 
-  <div style={{ fontSize: isMobile ? 14 : 16, opacity: 0.7, marginTop: 6 }}>
+  {/* Percentage */}
+  <div
+    style={{
+      fontSize: isMobile ? 12 : 14,
+      opacity: 0.7,
+      color: "#aaa",
+      letterSpacing: 0.5,
+    }}
+  >
     {burnPercent.toFixed(4)}% of total supply
   </div>
 </div>
@@ -1903,6 +1917,84 @@ return (
   );
 })}
 
+      {/* ---------------- STATUS ---------------- */}
+      <div style={{ fontSize: isMobile ? 12 : 14, color: "#aaa", marginTop: 12 }}>
+        signer: {signer ? "✅" : "❌"} | validated: {validated ? "✅" : "❌"} | stakeToken:{" "}
+        {stakeToken || "❌"} | stakeAmount: {stakeAmount || "❌"}
+      </div>
+
+{/* ---------------- ACTION BUTTONS ---------------- */}
+<div
+  style={{
+    marginTop: 16,
+    marginBottom: 24,
+    display: "flex",
+    gap: 12,
+    flexWrap: "wrap",
+    justifyContent: isMobile ? "center" : "flex-start",
+  }}
+>
+  {/* Validate Team Button */}
+  <button
+    disabled={validating}
+    onClick={validateTeam}
+    style={{
+      flex: 1,
+      maxWidth: 200,
+      padding: isMobile ? "12px 0" : "14px 0",
+      fontSize: isMobile ? 14 : 16,
+      fontWeight: "bold",
+      borderRadius: 12,
+      border: "none",
+      background: validating
+        ? "#555"
+        : "linear-gradient(90deg, #1affb3, #00c6ff)",
+      color: "#111",
+      cursor: validating ? "not-allowed" : "pointer",
+      boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+      transition: "transform 0.1s ease, box-shadow 0.2s ease",
+    }}
+    onMouseEnter={(e) => !validating && (e.currentTarget.style.transform = "scale(1.05)")}
+    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+  >
+    {validating ? "Validating..." : "Validate Team"}
+  </button>
+
+  {/* Create Game Button */}
+  <button
+    disabled={!validated || !stakeToken || !stakeAmount || !signer}
+    onClick={() => setShowDeviceWarning(true)}
+    style={{
+      flex: 1,
+      maxWidth: 200,
+      padding: isMobile ? "12px 0" : "14px 0",
+      fontSize: isMobile ? 14 : 16,
+      fontWeight: "bold",
+      borderRadius: 12,
+      border: "none",
+      background:
+        !validated || !stakeToken || !stakeAmount || !signer
+          ? "#555"
+          : "linear-gradient(90deg, #ff7a00, #ff3d00)",
+      color: "#fff",
+      cursor:
+        !validated || !stakeToken || !stakeAmount || !signer
+          ? "not-allowed"
+          : "pointer",
+      boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+      transition: "transform 0.1s ease, box-shadow 0.2s ease",
+    }}
+    onMouseEnter={(e) =>
+      validated && stakeToken && stakeAmount && signer
+        ? (e.currentTarget.style.transform = "scale(1.05)")
+        : null
+    }
+    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+  >
+    Create Game
+  </button>
+</div>
+
     {account?.toLowerCase() === ADMIN_ADDRESS ? (
       <>
         <button type="button" onClick={loadGames}>🔄 Refresh Games</button>
@@ -1919,19 +2011,39 @@ return (
     )}
   </div>
 
-      {/* ---------------- ACTION BUTTONS ---------------- */}
-      <div style={{ marginTop: 12, marginBottom: 24, display: "flex", gap: 12, flexWrap: "wrap" }}>        
-        <button disabled={validating} onClick={validateTeam}>
-          {validating ? "Validating..." : "Validate Team"}
-        </button>
-        <button
-          onClick={() => setShowDeviceWarning(true)}
-          disabled={!validated || !stakeToken || !stakeAmount || !signer}
-          style={{ marginLeft: 12 }}
-        >
-          Create Game
-        </button>
-      </div>
+  {/* RIGHT: IMAGES */}
+<div
+  style={{
+    display: "flex",
+    flexDirection: isMobile ? "row" : "column", // row on mobile, column on desktop
+    gap: 8, // spacing between images
+    flexWrap: "wrap", // ensures images wrap if needed
+  }}
+>
+  <img
+    src={HowToPlay}
+    alt="How to Play"
+    style={{
+      borderRadius: 8,
+      width: isMobile ? "48%" : "100%", // side by side on mobile
+      height: "auto",
+      boxShadow: "0 0 8px rgba(0,0,0,0.6)",
+      border: "1px solid #333",
+    }}
+  />
+  <img
+    src={GameInfo}
+    alt="Game Info"
+    style={{
+      borderRadius: 8,
+      width: isMobile ? "48%" : "100%",
+      height: "auto",
+      boxShadow: "0 0 8px rgba(0,0,0,0.6)",
+      border: "1px solid #333",
+    }}
+  />
+</div>
+</div>
 
 {showDeviceWarning && (
   <div
@@ -2001,46 +2113,6 @@ return (
     </div>
   </div>
 )}
-
-  {/* RIGHT: IMAGES */}
-<div
-  style={{
-    display: "flex",
-    flexDirection: isMobile ? "row" : "column", // row on mobile, column on desktop
-    gap: 8, // spacing between images
-    flexWrap: "wrap", // ensures images wrap if needed
-  }}
->
-  <img
-    src={HowToPlay}
-    alt="How to Play"
-    style={{
-      borderRadius: 8,
-      width: isMobile ? "48%" : "100%", // side by side on mobile
-      height: "auto",
-      boxShadow: "0 0 8px rgba(0,0,0,0.6)",
-      border: "1px solid #333",
-    }}
-  />
-  <img
-    src={GameInfo}
-    alt="Game Info"
-    style={{
-      borderRadius: 8,
-      width: isMobile ? "48%" : "100%",
-      height: "auto",
-      boxShadow: "0 0 8px rgba(0,0,0,0.6)",
-      border: "1px solid #333",
-    }}
-  />
-</div>
-</div>
-
-      {/* ---------------- STATUS ---------------- */}
-      <div style={{ fontSize: isMobile ? 12 : 14, color: "#aaa", marginTop: 12 }}>
-        signer: {signer ? "✅" : "❌"} | validated: {validated ? "✅" : "❌"} | stakeToken:{" "}
-        {stakeToken || "❌"} | stakeAmount: {stakeAmount || "❌"}
-      </div>
 
 {isMobile && (
   <div
