@@ -1420,20 +1420,19 @@ return (
 <div
   style={{
     display: "flex",
-    alignItems: "center",
+    alignItems: "center",       // vertical alignment
     justifyContent: "space-between",
     gap: isMobile ? 12 : 24,
     width: "100%",
-    maxWidth: "100%",
     padding: 0,
   }}
 >
-  {/* LEFT: Core Clash Logo */}
+  {/* LEFT: Logo */}
   <img
     src={CoreClashLogo}
     alt="Core Clash"
     style={{
-      height: isMobile ? 60 : 80,
+      height: isMobile ? 80 : 80,
       width: "auto",
       pointerEvents: "none",
       display: "block",
@@ -1450,7 +1449,6 @@ return (
         gap: isMobile ? 10 : 16,
       }}
     >
-      {/* MetaMask */}
       <button
         onClick={() => {
           setWalletError(null);
@@ -1479,7 +1477,6 @@ return (
         Connect MetaMask
       </button>
 
-      {/* WalletConnect */}
       <button
         onClick={() => {
           setWalletError(null);
@@ -1509,7 +1506,6 @@ return (
       </button>
     </div>
   ) : (
-    // ---------------- Connected Wallet ----------------
     <div
       style={{
         display: "flex",
@@ -1540,7 +1536,6 @@ return (
           {account?.slice(0, 6)}...{account?.slice(-4)}
         </span>
 
-        {/* Divider */}
         <div
           style={{
             width: 1,
@@ -1549,7 +1544,6 @@ return (
           }}
         />
 
-        {/* Disconnect */}
         <button
           onClick={disconnectWallet}
           style={{
@@ -1570,28 +1564,18 @@ return (
       </div>
     </div>
   )}
-
-<div style={{
-  fontSize: 12,
-  letterSpacing: 1,
-  textTransform: "uppercase",
-  opacity: 0.6,
-  marginTop: 10
-}}>
-Core Clash Ecosystem
 </div>
 
-{/* ECOSYSTEM LINKS */}
+{/* ---------------- ECOSYSTEM BLOCK ---------------- */}
 <div
   style={{
+    marginTop: 16,
+    width: "100%",
     display: "grid",
     gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1.4fr 1fr",
-    gridTemplateRows: isMobile ? "auto auto" : "auto",
     gap: 14,
-    marginTop: 14,
     alignItems: "center",
     justifyItems: "center",
-    width: "100%",
   }}
 >
   {/* Buy CORE */}
@@ -1599,13 +1583,7 @@ Core Clash Ecosystem
     href="https://app.electroswap.io/explore/tokens/electroneum/0x309b916b3a90cb3e071697ea9680e9217a30066f?inputCurrency=ETN"
     target="_blank"
     rel="noopener noreferrer"
-    style={{
-      textDecoration: "none",
-      width: "100%",
-      maxWidth: 140,
-      gridColumn: "1", // column 1 on mobile
-      gridRow: "1", // first row
-    }}
+    style={{ textDecoration: "none", width: "100%", maxWidth: 140 }}
   >
     <div
       style={{
@@ -1620,27 +1598,9 @@ Core Clash Ecosystem
         boxShadow: "0 0 8px rgba(0,0,0,0.5)",
         transition: "all 0.2s ease",
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.boxShadow = "0 0 16px rgba(0,200,255,0.4)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 0 8px rgba(0,0,0,0.5)";
-      }}
     >
-      <img
-        src={ElectroSwap}
-        alt="Buy CORE"
-        style={{ width: 34, height: 34, borderRadius: 6 }}
-      />
-      <span
-        style={{
-          fontSize: isMobile ? 12 : 14,
-          fontWeight: 600,
-          color: "#fff",
-        }}
-      >
+      <img src={ElectroSwap} alt="Buy CORE" style={{ width: 34, height: 34, borderRadius: 6 }} />
+      <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 600, color: "#fff" }}>
         Buy CORE
       </span>
     </div>
@@ -1651,13 +1611,7 @@ Core Clash Ecosystem
     href="https://planetetn.org/zephyros"
     target="_blank"
     rel="noopener noreferrer"
-    style={{
-      textDecoration: "none",
-      width: "100%",
-      maxWidth: 140,
-      gridColumn: isMobile ? "2" : "3", // mobile: column 2, desktop: column 3
-      gridRow: "1",
-    }}
+    style={{ textDecoration: "none", width: "100%", maxWidth: 140 }}
   >
     <div
       style={{
@@ -1672,14 +1626,6 @@ Core Clash Ecosystem
         boxShadow: "0 0 8px rgba(0,0,0,0.5)",
         transition: "all 0.2s ease",
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.boxShadow = "0 0 16px rgba(0,200,255,0.4)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 0 8px rgba(0,0,0,0.5)";
-      }}
     >
       <video
         src={PlanetZephyrosAE}
@@ -1689,13 +1635,7 @@ Core Clash Ecosystem
         playsInline
         style={{ width: 38, height: 38, borderRadius: 6, objectFit: "cover" }}
       />
-      <span
-        style={{
-          fontSize: isMobile ? 12 : 14,
-          fontWeight: 600,
-          color: "#fff",
-        }}
-      >
+      <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 600, color: "#fff" }}>
         Planet ETN
       </span>
     </div>
@@ -1709,8 +1649,7 @@ Core Clash Ecosystem
     style={{
       textDecoration: "none",
       width: "100%",
-      gridColumn: isMobile ? "1 / span 2" : "2", // mobile: span both columns
-      gridRow: isMobile ? "2" : "1",
+      gridColumn: isMobile ? "1 / span 2" : "2",
     }}
   >
     <div
@@ -1726,34 +1665,15 @@ Core Clash Ecosystem
         boxShadow: "0 0 8px rgba(0,0,0,0.5)",
         transition: "all 0.2s ease",
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.boxShadow = "0 0 16px rgba(0,200,255,0.4)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 0 8px rgba(0,0,0,0.5)";
-      }}
     >
       <img
         src={VerdantKinBanner}
         alt="Verdant Kin"
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "contain", // ensures full banner visible
-          borderRadius: 8,
-        }}
+        style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 8 }}
       />
     </div>
   </a>
 </div>
-
-        {walletError && (
-          <div style={{ fontSize: isMobile ? 14 : 16, opacity: 0.7 }}>{walletError}</div>
-        )}
-      </div>
-      </div>
 
 <div
   style={{
@@ -2453,6 +2373,7 @@ Core Clash Ecosystem
 </div>
 </div>
 )}
+</div>
 </div>
 </div>
   );
