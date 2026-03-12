@@ -70,8 +70,8 @@ router.get("/burn-total", (req, res) => {
 });
 
 // ---------------- GET SINGLE GAME ----------------
-router.get("/:id", (req, res) => {
-  try {
+router.get("/:id(\\d+)", (req, res) => {
+    try {
     const gameId = Number(req.params.id);
     if (!Number.isInteger(gameId)) {
       return res.status(400).json({ error: "Invalid game ID" });
@@ -162,7 +162,7 @@ games.push({
 });
 
   // ---------------- JOIN GAME ----------------
-router.post("/:id/join", (req, res) => {
+router.post("/:id(\\d+)/join", (req, res) => {
   console.log("🔥 JOIN GAME HIT", req.params, req.body);
 
   const gameId = Number(req.params.id);
@@ -205,7 +205,7 @@ if (!game) {
   res.json({ success: true });
 });
 
-router.post("/:id/reveal", authWallet, async (req, res) => {
+router.post("/:id(\\d+)/reveal", authWallet, async (req, res) => {
   try {
     const gameId = Number(req.params.id);
     const { player, salt, nftContracts, tokenIds } = req.body;
@@ -373,7 +373,7 @@ router.post("/:id/reveal", authWallet, async (req, res) => {
 });
 
 // ────────────── BACKFILL ──────────────
-router.post("/:id/backfill", async (req, res) => {
+router.post("/:id(\\d+)/backfill", async (req, res) => {
   try {
     const gameId = Number(req.params.id);
     const { field, value } = req.body;
@@ -404,7 +404,7 @@ router.post("/:id/backfill", async (req, res) => {
 
 
 // ────────────── COMPUTE RESULTS ──────────────
-router.post("/:id/compute-results", async (req, res) => {
+router.post("/:id(\\d+)/compute-results", async (req, res) => {
   try {
     const gameId = Number(req.params.id);
     if (!Number.isInteger(gameId)) {
@@ -463,7 +463,7 @@ router.post("/:id/compute-results", async (req, res) => {
 });
 
 /* ---------------- POST WINNER ---------------- */
-router.post("/:id/post-winner", async (req, res) => {
+router.post("/:id(\\d+)/post-winner", async (req, res) => {
   await withLock(async () => {
     try {
       const gameId = Number(req.params.id);
@@ -515,7 +515,7 @@ router.post("/:id/post-winner", async (req, res) => {
 });
 
 /* ---------------- MANUAL SETTLE GAME ---------------- */
-router.post("/:id/settle-game", async (req, res) => {
+router.post("/:id(\\d+)/settle-game", async (req, res) => {
   await withLock(async () => {
     try {
       const gameId = Number(req.params.id);
@@ -584,7 +584,7 @@ router.post("/:id/settle-game", async (req, res) => {
 });
 
 /* ---------------- FINALIZE SETTLE ---------------- */
-router.post("/:id/finalize-settle", async (req, res) => {
+router.post("/:id(\\d+)/finalize-settle", async (req, res) => {
   const gameId = Number(req.params.id);
   const { txHash } = req.body;
 
@@ -628,7 +628,7 @@ router.post("/:id/finalize-settle", async (req, res) => {
     }
 
 /* ---------- CANCEL UNJOINED GAME ----------- */
-router.post("/:id/cancel-unjoined", async (req, res) => {
+router.post("/:id(\\d+)/cancel-unjoined", async (req, res) => {
   try {
     const gameId = Number(req.params.id);
     if (!Number.isInteger(gameId)) {
@@ -687,7 +687,7 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
 
 // Ensure store file exists
 if (!fs.existsSync(STORE_FILE)) {
-  fs.writeFileSync(STORE_FILE, JSON.stringify([]));
+  fs.writeFileSync(STORE_FILE, JSON.stringify({}));
 }
 
 /**
@@ -727,9 +727,9 @@ router.post("/weekly", (req, res) => {
 router.get("/weekly", (req, res) => {
   try {
     // Return empty object if file doesn't exist yet
-    if (!fs.existsSync(STORE_PATH)) return res.json({});
+    if (!fs.existsSync(STORE_FILE)) return res.json({});
 
-    const data = fs.readFileSync(STORE_PATH, "utf-8");
+    const data = fs.readFileSync(STORE_FILE, "utf-8");
     const leaderboards = JSON.parse(data);
 
     // Sort weeks descending (most recent first)
@@ -740,7 +740,6 @@ router.get("/weekly", (req, res) => {
         return acc;
       }, {});
 
-    // Respond with sorted weekly leaderboards
     res.json(sortedWeeks);
   } catch (err) {
     console.error("Failed to read weekly leaderboards:", err);

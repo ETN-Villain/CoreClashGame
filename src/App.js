@@ -2446,16 +2446,26 @@ return (
     const isCurrentUser = entry.address === account?.toLowerCase();
 
     return (
-      <div
-        key={entry.address + (showWeekly ? "-weekly" : "-alltime")}
-        className={`leaderboard-row ${showWeekly && index === 0 ? "glow" : ""}`}
-        style={{ color: isCurrentUser ? "#4da3ff" : medalColor }}
-      >
-        <span>#{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}</span>
-        <span style={{ textAlign: "center" }}>{entry.played}</span>
-        <span style={{ textAlign: "center" }}>{entry.wins}</span>
-        <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
-      </div>
+<div
+  key={entry.address + (showWeekly ? "-weekly" : "-alltime")}
+  className={`leaderboard-row ${showWeekly && index === 0 ? "glow" : ""}`}
+  style={{
+    display: "grid",
+    gridTemplateColumns: "2fr 1fr 1fr 1fr",
+    padding: isMobile ? "6px 0" : "8px 0",
+    borderBottom: "1px solid #222",
+    fontSize: isMobile ? 14 : 16,
+    color: isCurrentUser ? "#4da3ff" : medalColor,
+    fontWeight: isCurrentUser ? "bold" : "normal"
+  }}
+>
+  <span>
+    #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
+  </span>
+  <span style={{ textAlign: "center" }}>{entry.played}</span>
+  <span style={{ textAlign: "center" }}>{entry.wins}</span>
+  <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+</div>
     );
   }
 )}
