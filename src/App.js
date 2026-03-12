@@ -1389,13 +1389,15 @@ return (
   style={{
     position: "relative",
     minHeight: "100vh",
-    padding: isMobile ? 20 : 40,
+    padding: isMobile ? "16px 14px" : 40,
     width: "100%",
     maxWidth: 1100,
     margin: "0 auto",
+    boxSizing: "border-box",
+    overflowX: "hidden",
   }}
-
->    {/* ---------------- WATERMARK ---------------- */}
+>
+{/* ---------------- WATERMARK ---------------- */}
 <div
   style={{
     position: "fixed",
@@ -1413,248 +1415,265 @@ return (
 
     {/* ---------------- APP CONTENT ---------------- */}
     <div style={{ position: "relative", zIndex: 1 }}>
-      {/* ---------------- WALLET SECTION ---------------- */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          marginBottom: 12,
-        }}
-      >
+
+{/* ---------------- HEADER: LOGO + WALLET ---------------- */}
 <div
   style={{
     display: "flex",
-    alignItems: "center",
-    gap: 16,
-    flexWrap: "wrap",
+    alignItems: "center",       // vertical alignment
     justifyContent: "space-between",
+    gap: isMobile ? 12 : 24,
+    width: "100%",
+    padding: 0,
   }}
 >
-          {/* LEFT: Logo */}
-          <img
-            src={CoreClashLogo}
-            alt="Core Clash"
-            style={{ height: 80, width: "auto", pointerEvents: "none" }}
-          />
-
-{/* CENTER: Connect Wallet / Status */}
-{!account ? (
-  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-    <button
-      onClick={() => {
-        setWalletError(null);
-        connectMetamask();  // Your original MetaMask connect
-      }}
-      style={{
-        backgroundColor: "#18bb1a",
-        color: "#fff",
-        border: "none",
-        padding: isMobile ? "12px 24px" : "16px 32px",
-        fontSize: isMobile ? 18 : 20,
-        fontWeight: "bold",
-        borderRadius: 12,
-        cursor: "pointer",
-        boxShadow: "0 0 10px rgba(24,187,26,0.6)",
-        transition: "all 0.2s ease",
-        whiteSpace: "nowrap",
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 20px rgba(24,187,26,0.9)")}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 10px rgba(24,187,26,0.6)")}
-    >
-      Connect with MetaMask
-    </button>
-
-    <button
-      onClick={() => {
-        setWalletError(null);
-        connectWalletConnect();
-      }}
-      style={{
-        backgroundColor: "#1a75ff", // Blue to differentiate
-        color: "#fff",
-        border: "none",
-        padding: isMobile ? "10px 20px" : "16px 32px",
-        fontSize: isMobile ? 16 : 18,
-        fontWeight: "bold",
-        borderRadius: 12,
-        cursor: "pointer",
-        boxShadow: "0 0 10px rgba(26,117,255,0.6)",
-        transition: "all 0.2s ease",
-        whiteSpace: "nowrap",
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 20px rgba(26,117,255,0.9)")}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 10px rgba(26,117,255,0.6)")}
-    >
-      Connect Mobile / Other Wallets (WalletConnect)
-    </button>
-
-    {walletError && (
-      <p style={{ color: "#ff4d4d", fontSize: isMobile ? 14 : 16, marginTop: 8, textAlign: "center" }}>
-        {walletError}
-      </p>
-    )}
-  </div>
-) : (
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      padding: isMobile ? "12px 24px" : "16px 32px",
-      gap: 8,
-    }}
-  >
-    <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: "bold" }}>Connected:</div>
-    <div style={{ fontSize: isMobile ? 10 : 14, opacity: 0.85, wordBreak: "break-all", maxWidth: "200px" }}>
-      {account}
-    </div>
-    <button
-      onClick={disconnectWallet}
-      style={{
-        backgroundColor: "#c62828",
-        color: "#fff",
-        border: "none",
-        padding: isMobile ? "6px 14px" : "8px 16px",
-        fontSize: isMobile ? 12 : 14,
-        fontWeight: "bold",
-        borderRadius: 8,
-        cursor: "pointer",
-        boxShadow: "0 0 8px rgba(198,40,40,0.6)",
-        transition: "all 0.2s ease",
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 16px rgba(198,40,40,0.9)")}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 8px rgba(198,40,40,0.6)")}
-    >
-      Disconnect
-    </button>
-  </div>
-)}
-
-{/* RIGHT: Video + External Links */}
-<div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-{/* CORE Token Link */}
-<a
-  href="https://app.electroswap.io/explore/tokens/electroneum/0x309b916b3a90cb3e071697ea9680e9217a30066f?inputCurrency=ETN"
-  target="_blank"
-  rel="noopener noreferrer"
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    textDecoration: "none",
-  }}
->
+  {/* LEFT: Logo */}
   <img
-    src={ElectroSwap}
-    alt="Buy CORE on ElectroSwap"
+    src={CoreClashLogo}
+    alt="Core Clash"
     style={{
-      width: 60,
-      height: 60,
-      borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)", border: "1px solid #333",
-      cursor: "pointer",
-      transition: "transform 0.2s ease",
-    }}
-    onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
-    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-  />
-  <span
-    style={{
-      marginTop: 6,
-      fontSize: isMobile ? 12 : 14,
-      fontWeight: "bold",
-      color: "#fff",
-      opacity: 0.9,
-    }}
-  >
-    Buy CORE
-  </span>
-</a>
-
-{/* Verdant Kin NFT Link */}
-<a
-  href="https://app.electroswap.io/nfts/collection/0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
-  target="_blank"
-  rel="noopener noreferrer"
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    textDecoration: "none",
-  }}
->
-  <img
-    src={VerdantKinBanner}
-    alt="Verdant Kin NFT Collection"
-    style={{
-      height: 60,
-      width: 240,
-      borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)", border: "1px solid #333",
-      cursor: "pointer",
-      transition: "transform 0.2s ease",
-    }}
-    onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-  />
-  <span
-    style={{
-      marginTop: 6,
-      fontSize: isMobile ? 12 : 14,
-      fontWeight: "bold",
-      color: "#fff",
-      opacity: 0.9,
-    }}
-  >
-    Build Your Team
-  </span>
-</a>
-
-{/* Planet ETN Link */}
-<a
-  href="https://planetetn.org/zephyros"
-  target="_blank"
-  rel="noopener noreferrer"
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    textDecoration: "none",
-  }}
->
-  <video
-    src={PlanetZephyrosAE}
-    autoPlay
-    loop
-    muted
-    playsInline
-    style={{
-      width: 70,
-      height: 60,
-      objectFit: "cover",
-      borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)", border: "1px solid #333",
+      height: isMobile ? 80 : 80,
+      width: "auto",
       pointerEvents: "none",
-    }}    
+      display: "block",
+    }}
   />
-  <span
+
+  {/* RIGHT: Wallet Section */}
+  {!account ? (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: isMobile ? "column" : "row",
+        alignItems: "center",
+        gap: isMobile ? 10 : 16,
+      }}
+    >
+      <button
+        onClick={() => {
+          setWalletError(null);
+          connectMetamask();
+        }}
+        style={{
+          backgroundColor: "#18bb1a",
+          color: "#fff",
+          border: "none",
+          padding: isMobile ? "10px 16px" : "14px 28px",
+          fontSize: isMobile ? 14 : 16,
+          fontWeight: "bold",
+          borderRadius: 12,
+          cursor: "pointer",
+          boxShadow: "0 0 10px rgba(24,187,26,0.6)",
+          transition: "all 0.2s ease",
+          whiteSpace: "nowrap",
+        }}
+        onMouseEnter={(e) =>
+          (e.currentTarget.style.boxShadow = "0 0 20px rgba(24,187,26,0.9)")
+        }
+        onMouseLeave={(e) =>
+          (e.currentTarget.style.boxShadow = "0 0 10px rgba(24,187,26,0.6)")
+        }
+      >
+        Connect MetaMask
+      </button>
+
+      <button
+        onClick={() => {
+          setWalletError(null);
+          connectWalletConnect();
+        }}
+        style={{
+          backgroundColor: "#1a75ff",
+          color: "#fff",
+          border: "none",
+          padding: isMobile ? "10px 16px" : "14px 28px",
+          fontSize: isMobile ? 14 : 16,
+          fontWeight: "bold",
+          borderRadius: 12,
+          cursor: "pointer",
+          boxShadow: "0 0 10px rgba(26,117,255,0.6)",
+          transition: "all 0.2s ease",
+          whiteSpace: "nowrap",
+        }}
+        onMouseEnter={(e) =>
+          (e.currentTarget.style.boxShadow = "0 0 20px rgba(26,117,255,0.9)")
+        }
+        onMouseLeave={(e) =>
+          (e.currentTarget.style.boxShadow = "0 0 10px rgba(26,117,255,0.6)")
+        }
+      >
+        Connect Mobile (WalletConnect)
+      </button>
+    </div>
+  ) : (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "#0f0f0f",
+          padding: "6px 12px",
+          borderRadius: 12,
+          border: "1px solid #333",
+          boxShadow: "0 0 8px rgba(0,0,0,0.4)",
+        }}
+      >
+        <span
+          style={{
+            fontSize: isMobile ? 12 : 14,
+            fontWeight: 600,
+            color: "#fff",
+            letterSpacing: 0.3,
+          }}
+        >
+          {account?.slice(0, 6)}...{account?.slice(-4)}
+        </span>
+
+        <div
+          style={{
+            width: 1,
+            height: 16,
+            background: "#333",
+          }}
+        />
+
+        <button
+          onClick={disconnectWallet}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "#ff6b6b",
+            fontWeight: 600,
+            fontSize: isMobile ? 11 : 13,
+            cursor: "pointer",
+            padding: "2px 6px",
+            transition: "all 0.2s ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#ff3b3b")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#ff6b6b")}
+        >
+          Disconnect
+        </button>
+      </div>
+    </div>
+  )}
+</div>
+
+{/* ---------------- ECOSYSTEM BLOCK ---------------- */}
+<div
+  style={{
+    marginTop: 16,
+    width: "100%",
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1.4fr 1fr",
+    gap: 14,
+    alignItems: "center",
+    justifyItems: "center",
+  }}
+>
+  {/* Buy CORE */}
+  <a
+    href="https://app.electroswap.io/explore/tokens/electroneum/0x309b916b3a90cb3e071697ea9680e9217a30066f?inputCurrency=ETN"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{ textDecoration: "none", width: "100%", maxWidth: 140 }}
+  >
+    <div
+      style={{
+        background: "#0f0f0f",
+        border: "1px solid #333",
+        borderRadius: 12,
+        padding: "10px 12px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
+        transition: "all 0.2s ease",
+      }}
+    >
+      <img src={ElectroSwap} alt="Buy CORE" style={{ width: 34, height: 34, borderRadius: 6 }} />
+      <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 600, color: "#fff" }}>
+        Buy CORE
+      </span>
+    </div>
+  </a>
+
+  {/* Planet ETN */}
+  <a
+    href="https://planetetn.org/zephyros"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{ textDecoration: "none", width: "100%", maxWidth: 140 }}
+  >
+    <div
+      style={{
+        background: "#0f0f0f",
+        border: "1px solid #333",
+        borderRadius: 12,
+        padding: "10px 12px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
+        transition: "all 0.2s ease",
+      }}
+    >
+      <video
+        src={PlanetZephyrosAE}
+        autoPlay
+        loop
+        muted
+        playsInline
+        style={{ width: 38, height: 38, borderRadius: 6, objectFit: "cover" }}
+      />
+      <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 600, color: "#fff" }}>
+        Planet ETN
+      </span>
+    </div>
+  </a>
+
+  {/* Verdant Kin Banner */}
+  <a
+    href="https://app.electroswap.io/nfts/collection/0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+    target="_blank"
+    rel="noopener noreferrer"
     style={{
-      marginTop: 6,
-      fontSize: isMobile ? 12 : 14,
-      fontWeight: "bold",
-      color: "#fff",
-      opacity: 0.9,
+      textDecoration: "none",
+      width: "100%",
+      gridColumn: isMobile ? "1 / span 2" : "2",
     }}
   >
-    Planet ETN
-  </span>
+    <div
+      style={{
+        background: "#0f0f0f",
+        border: "1px solid #333",
+        borderRadius: 12,
+        width: "100%",
+        height: 60,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
+        transition: "all 0.2s ease",
+      }}
+    >
+      <img
+        src={VerdantKinBanner}
+        alt="Verdant Kin"
+        style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 8 }}
+      />
+    </div>
   </a>
 </div>
-</div>
-
-        {walletError && (
-          <div style={{ fontSize: isMobile ? 14 : 16, opacity: 0.7 }}>{walletError}</div>
-        )}
-      </div>
-      </div>
 
 <div
   style={{
@@ -1740,7 +1759,7 @@ return (
     <input
       value={stakeAmount}
       onChange={(e) => setStakeAmount(e.target.value)}
-      style={{ width: "100%", maxWidth: 260, marginBottom: 12 }}
+      style={{ width: "100%", maxWidth: 220, marginBottom: 12 }}
     />
 
     <h3>Your Clash Team (3)</h3>
@@ -2354,6 +2373,7 @@ return (
 </div>
 </div>
 )}
+</div>
 </div>
 </div>
   );
