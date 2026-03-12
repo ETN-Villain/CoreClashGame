@@ -1268,6 +1268,50 @@ const leaderboard = useMemo(() => {
     .slice(0, 10);
 }, [games]);
 
+/* ---------------- WEEKLY LEADERBOARD (Top 3) ---------------- */
+const weeklyLeaderboard = useMemo(() => {
+  const stats = {};
+
+  // Get timestamp for 7 days ago
+  const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+  games
+    .filter(
+      g => g.settled && !g.cancelled && new Date(g.date).getTime() >= oneWeekAgo
+    )
+    .forEach(g => {
+      const p1 = g.player1?.toLowerCase();
+      const p2 = g.player2?.toLowerCase();
+      const winner = g.winner?.toLowerCase();
+      const isTie = g.tie;
+
+      [p1, p2].forEach(player => {
+        if (!player || player === ethers.ZeroAddress.toLowerCase()) return;
+
+        if (!stats[player]) stats[player] = { wins: 0, played: 0 };
+        stats[player].played += 1;
+      });
+
+      if (!isTie && winner && winner !== ethers.ZeroAddress.toLowerCase()) {
+        if (!stats[winner]) stats[winner] = { wins: 0, played: 0 };
+        stats[winner].wins += 1;
+      }
+    });
+
+  return Object.entries(stats)
+    .map(([address, data]) => ({
+      address,
+      wins: data.wins,
+      played: data.played,
+      winRate: data.played > 0 ? Math.round((data.wins / data.played) * 100) : 0,
+    }))
+    .sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return b.winRate - a.winRate;
+    })
+    .slice(0, 3); // Top 3 only
+}, [games]);
+
 /* --------- TOTAL CORE BURN ---------*/
 const [totalGameBurned, setTotalGameBurned] = useState(0);
 const [burnPercent, setBurnPercent] = useState(0);
@@ -2283,9 +2327,23 @@ return (
 </div>
 )}
 
-  {/* ---------------- LEADERBOARD ---------------- */}
+{/* ---------------- LEADERBOARD ---------------- */}
 {(!isMobile || activeTab === "leaderboard") && (
-<div style={{ gridColumn: isMobile ? "auto" : 4 }}>
+  <div style={{ gridColumn: isMobile ? "auto" : 4 }}>
+    {/* Checkbox toggle */}
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+      <input
+        type="checkbox"
+        id="weeklyToggle"
+        checked={showWeekly}
+        onChange={(e) => setShowWeekly(e.target.checked)}
+      />
+      <label htmlFor="weeklyToggle" style={{ fontSize: isMobile ? 14 : 16, color: "#fff", fontWeight: 500 }}>
+        Show Weekly Top 3
+      </label>
+    </div>
+
+    {/* Leaderboard heading */}
     <h2
       style={{
         color: "#18bb1a",
@@ -2296,9 +2354,10 @@ return (
         marginBottom: 12,
       }}
     >
-      🏆 Top 10 Leaderboard
+      {showWeekly ? "🏆 Weekly Top 3" : "🏆 All-Time Top 10"}
     </h2>
 
+    {/* Leaderboard table */}
     <div
       style={{
         background: "#111",
@@ -2329,14 +2388,20 @@ return (
       </div>
 
       {/* No leaderboard */}
-      {leaderboard.length === 0 && (
-        <div style={{ opacity: 0.6, padding: isMobile ? "8px 0" : "12px 0", textAlign: "center" }}>
+      {(showWeekly ? weeklyLeaderboard : leaderboard).length === 0 && (
+        <div
+          style={{
+            opacity: 0.6,
+            padding: isMobile ? "8px 0" : "12px 0",
+            textAlign: "center",
+          }}
+        >
           No settled games yet.
         </div>
       )}
 
       {/* Leaderboard entries */}
-      {leaderboard.map((entry, index) => {
+      {(showWeekly ? weeklyLeaderboard : leaderboard).map((entry, index) => {
         let medalColor = "#fff";
         if (index === 0) medalColor = "#FFD700";
         if (index === 1) medalColor = "#C0C0C0";
@@ -2370,8 +2435,8 @@ return (
           </div>
         );
       })}
-</div>
-</div>
+    </div>
+  </div>
 )}
 </div>
 </div>
