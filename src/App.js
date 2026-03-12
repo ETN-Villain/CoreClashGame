@@ -1229,6 +1229,8 @@ const latestSettled = sortedSettledGames.slice(0, 10);
 const archivedSettled = sortedSettledGames.slice(10);
 
 /* ---------------- LEADERBOARD ---------------- */
+const [showWeekly, setShowWeekly] = useState(false);
+
 const leaderboard = useMemo(() => {
   const stats = {};
 
