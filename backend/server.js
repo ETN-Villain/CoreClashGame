@@ -186,10 +186,18 @@ function initializeWeeklyLeaderboard() {
 
 // 2️⃣ Backfill top 3 for past weeks
 function backfillWeeklyLeaderboard(games) {
-  const weeklyData = fs.existsSync(weeklyFilePath)
-    ? JSON.parse(fs.readFileSync(weeklyFilePath, "utf8"))
-    : {};
+let weeklyData = {};
+if (fs.existsSync(weeklyFilePath)) {
+  const raw = fs.readFileSync(weeklyFilePath, "utf8");
+  const parsed = JSON.parse(raw);
 
+  // Convert array to object if necessary
+  if (Array.isArray(parsed)) {
+    weeklyData = Object.assign({}, ...parsed);
+  } else {
+    weeklyData = parsed;
+  }
+}
   const now = new Date();
   const startDate = new Date(now);
   startDate.setDate(startDate.getDate() - 28); // backfill last 4 weeks
