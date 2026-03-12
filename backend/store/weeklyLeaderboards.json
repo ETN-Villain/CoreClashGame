@@ -1,4 +1,3 @@
-[
 {
   "2026-03-09": [
     { "address": "0x2871835ca982f248f61c3a1995931e205c9d5243", "wins": 3, "played": 4, "winRate": 75 },
@@ -6,4 +5,3 @@
     { "address": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099", "wins": 1, "played": 4, "winRate": 25 }
   ]
 }
-]
