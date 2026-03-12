@@ -1585,57 +1585,75 @@ return (
 </div>
 )}
 
-{/* RIGHT: Video + External Links */}
+<div style={{
+  fontSize: 12,
+  letterSpacing: 1,
+  textTransform: "uppercase",
+  opacity: 0.6,
+  marginTop: 10
+}}>
+Core Clash Ecosystem
+</div>
+
+{/* ECOSYSTEM LINKS */}
 <div
   style={{
-    display: "flex",
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1.4fr 1fr", // Mobile: 2 columns
+    gap: 14,
+    marginTop: 14,
     alignItems: "center",
-    justifyContent: "center",
-    gap: 16,
-    flexWrap: isMobile ? "wrap" : "nowrap",
-    marginTop: 10,
+    justifyItems: "center",
   }}
 >
-  {/* CORE Token */}
+  {/* Buy CORE */}
   <a
     href="https://app.electroswap.io/explore/tokens/electroneum/0x309b916b3a90cb3e071697ea9680e9217a30066f?inputCurrency=ETN"
     target="_blank"
     rel="noopener noreferrer"
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      textDecoration: "none",
-      minWidth: 70,
-    }}
+    style={{ textDecoration: "none", width: "100%", maxWidth: 120 }}
   >
-    <img
-      src={ElectroSwap}
-      alt="Buy CORE"
+    <div
       style={{
-        width: 60,
-        height: 60,
-        objectFit: "cover",
-        borderRadius: 10,
+        background: "#0f0f0f",
         border: "1px solid #333",
-        boxShadow: "0 0 8px rgba(0,0,0,0.6)",
-        transition: "transform 0.2s ease",
+        borderRadius: 12,
+        padding: "10px 12px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
+        transition: "all 0.2s ease",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
-      onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-    />
-
-    <span
-      style={{
-        marginTop: 6,
-        fontSize: isMobile ? 11 : 13,
-        fontWeight: 600,
-        color: "#fff",
-        opacity: 0.9,
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.boxShadow = "0 0 16px rgba(0,200,255,0.4)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "0 0 8px rgba(0,0,0,0.5)";
       }}
     >
-      Buy CORE
-    </span>
+      <img
+        src={ElectroSwap}
+        alt="Buy CORE"
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 6,
+        }}
+      />
+      <span
+        style={{
+          fontSize: isMobile ? 12 : 14,
+          fontWeight: 600,
+          color: "#fff",
+        }}
+      >
+        Buy CORE
+      </span>
+    </div>
   </a>
 
   {/* Verdant Kin Banner */}
@@ -1643,42 +1661,41 @@ return (
     href="https://app.electroswap.io/nfts/collection/0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
     target="_blank"
     rel="noopener noreferrer"
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      textDecoration: "none",
-      flex: isMobile ? "1 1 100%" : "0 0 auto",
-      maxWidth: isMobile ? "100%" : 240,
-    }}
+    style={{ textDecoration: "none", width: "100%" }}
   >
-    <img
-      src={VerdantKinBanner}
-      alt="Verdant Kin NFT"
+    <div
       style={{
-        width: isMobile ? "100%" : 240,
-        height: isMobile ? 70 : 60,
-        objectFit: "cover",
-        borderRadius: 10,
+        background: "#0f0f0f",
         border: "1px solid #333",
-        boxShadow: "0 0 8px rgba(0,0,0,0.6)",
-        transition: "transform 0.2s ease",
+        borderRadius: 12,
+        width: "100%",
+        height: 60,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
+        transition: "all 0.2s ease",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
-      onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-    />
-
-    <span
-      style={{
-        marginTop: 6,
-        fontSize: isMobile ? 11 : 13,
-        fontWeight: 600,
-        color: "#fff",
-        opacity: 0.9,
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.boxShadow = "0 0 16px rgba(0,200,255,0.4)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "0 0 8px rgba(0,0,0,0.5)";
       }}
     >
-      Build Your Team
-    </span>
+      <img
+        src={VerdantKinBanner}
+        alt="Verdant Kin"
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain", // ensures full banner visible
+          borderRadius: 8,
+        }}
+      />
+    </div>
   </a>
 
   {/* Planet ETN */}
@@ -1686,42 +1703,53 @@ return (
     href="https://planetetn.org/zephyros"
     target="_blank"
     rel="noopener noreferrer"
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      textDecoration: "none",
-      minWidth: 70,
-    }}
+    style={{ textDecoration: "none", width: "100%", maxWidth: 120 }}
   >
-    <video
-      src={PlanetZephyrosAE}
-      autoPlay
-      loop
-      muted
-      playsInline
+    <div
       style={{
-        width: 60,
-        height: 60,
-        objectFit: "cover",
-        borderRadius: 10,
+        background: "#0f0f0f",
         border: "1px solid #333",
-        boxShadow: "0 0 8px rgba(0,0,0,0.6)",
-        pointerEvents: "none",
+        borderRadius: 12,
+        padding: "10px 12px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
+        transition: "all 0.2s ease",
       }}
-    />
-
-    <span
-      style={{
-        marginTop: 6,
-        fontSize: isMobile ? 11 : 13,
-        fontWeight: 600,
-        color: "#fff",
-        opacity: 0.9,
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.boxShadow = "0 0 16px rgba(0,200,255,0.4)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "0 0 8px rgba(0,0,0,0.5)";
       }}
     >
-      Planet ETN
-    </span>
+      <video
+        src={PlanetZephyrosAE}
+        autoPlay
+        loop
+        muted
+        playsInline
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 6,
+          objectFit: "cover",
+        }}
+      />
+      <span
+        style={{
+          fontSize: isMobile ? 12 : 14,
+          fontWeight: 600,
+          color: "#fff",
+        }}
+      >
+        Planet ETN
+      </span>
+    </div>
   </a>
 </div>
 
