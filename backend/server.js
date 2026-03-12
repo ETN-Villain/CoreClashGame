@@ -35,6 +35,7 @@ app.use(express.json());
 
 // ---------------- ROUTES ----------------
 app.use("/games", gamesRouter);
+app.use("/leaderboard", gamesRouter);
 app.use("/events", sseRouter);
 app.use("/nfts", nftsRouter);
 
