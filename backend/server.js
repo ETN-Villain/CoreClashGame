@@ -192,12 +192,17 @@ if (fs.existsSync(weeklyFilePath)) {
   const parsed = JSON.parse(raw);
 
   // Convert array to object if necessary
-  if (Array.isArray(parsed)) {
-    weeklyData = Object.assign({}, ...parsed);
-  } else {
-    weeklyData = parsed;
-  }
+if (Array.isArray(parsed)) {
+  weeklyData = {};
+  parsed.forEach(obj => {
+    Object.entries(obj).forEach(([week, top3]) => {
+      weeklyData[week] = top3;
+    });
+  });
+} else {
+  weeklyData = parsed;
 }
+
   const now = new Date();
   const startDate = new Date(now);
   startDate.setDate(startDate.getDate() - 28); // backfill last 4 weeks
