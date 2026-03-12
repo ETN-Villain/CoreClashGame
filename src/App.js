@@ -1389,13 +1389,15 @@ return (
   style={{
     position: "relative",
     minHeight: "100vh",
-    padding: isMobile ? 20 : 40,
+    padding: isMobile ? "16px 14px" : 40,
     width: "100%",
     maxWidth: 1100,
     margin: "0 auto",
+    boxSizing: "border-box",
+    overflowX: "hidden",
   }}
-
->    {/* ---------------- WATERMARK ---------------- */}
+>
+{/* ---------------- WATERMARK ---------------- */}
 <div
   style={{
     position: "fixed",
@@ -1505,30 +1507,82 @@ return (
       gap: 8,
     }}
   >
-    <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: "bold" }}>Connected:</div>
-    <div style={{ fontSize: isMobile ? 10 : 14, opacity: 0.85, wordBreak: "break-all", maxWidth: "200px" }}>
-      {account}
+<div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginBottom: 14,
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      padding: isMobile ? "6px 10px" : "8px 14px",
+      background: "#0f0f0f",
+      border: "1px solid #333",
+      borderRadius: 999,
+      boxShadow: "0 0 10px rgba(0,0,0,0.4)",
+    }}
+  >
+    {/* Green Connection Dot */}
+    <div
+      style={{
+        width: 8,
+        height: 8,
+        borderRadius: "50%",
+        background: "#2ecc71",
+        boxShadow: "0 0 6px #2ecc71",
+      }}
+    />
+
+    {/* Wallet Address */}
+    <div
+      style={{
+        fontSize: isMobile ? 12 : 14,
+        fontWeight: 600,
+        color: "#fff",
+        letterSpacing: 0.3,
+      }}
+    >
+      {account?.slice(0, 6)}...{account?.slice(-4)}
     </div>
+
+    {/* Divider */}
+    <div
+      style={{
+        width: 1,
+        height: 16,
+        background: "#333",
+      }}
+    />
+
+    {/* Disconnect Button */}
     <button
       onClick={disconnectWallet}
       style={{
-        backgroundColor: "#c62828",
-        color: "#fff",
+        background: "transparent",
         border: "none",
-        padding: isMobile ? "6px 14px" : "8px 16px",
-        fontSize: isMobile ? 12 : 14,
-        fontWeight: "bold",
-        borderRadius: 8,
+        color: "#ff6b6b",
+        fontWeight: 600,
+        fontSize: isMobile ? 11 : 13,
         cursor: "pointer",
-        boxShadow: "0 0 8px rgba(198,40,40,0.6)",
-        transition: "all 0.2s ease",
+        padding: "2px 4px",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 16px rgba(198,40,40,0.9)")}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 8px rgba(198,40,40,0.6)")}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = "#ff3b3b";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = "#ff6b6b";
+      }}
     >
       Disconnect
     </button>
   </div>
+</div>
+</div>
 )}
 
 {/* RIGHT: Video + External Links */}
