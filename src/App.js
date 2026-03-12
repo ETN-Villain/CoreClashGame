@@ -1229,6 +1229,8 @@ const latestSettled = sortedSettledGames.slice(0, 10);
 const archivedSettled = sortedSettledGames.slice(10);
 
 /* ---------------- LEADERBOARD ---------------- */
+const [showWeekly, setShowWeekly] = useState(false);
+
 const leaderboard = useMemo(() => {
   const stats = {};
 
@@ -1267,6 +1269,94 @@ const leaderboard = useMemo(() => {
     })
     .slice(0, 10);
 }, [games]);
+
+/* ---------------- WEEKLY LEADERBOARD (Top 3, fixed weeks) ---------------- */
+const weeklyLeaderboard = useMemo(() => {
+  const stats = {};
+
+  // Define the first week start (Sunday 01/03/2026)
+  const firstWeekStart = new Date("2026-03-02T00:00:00Z").getTime();
+  const now = Date.now();
+
+  // Calculate current week number from firstWeekStart
+  const weekNumber = Math.floor((now - firstWeekStart) / (7 * 24 * 60 * 60 * 1000));
+
+  // Start and end of the current week
+  const weekStart = firstWeekStart + weekNumber * 7 * 24 * 60 * 60 * 1000;
+  const weekEnd = weekStart + 7 * 24 * 60 * 60 * 1000;
+
+  // Filter games in the current week
+  games
+    .filter(
+      g =>
+        g.settled &&
+        !g.cancelled &&
+        new Date(g.date).getTime() >= weekStart &&
+        new Date(g.date).getTime() < weekEnd
+    )
+    .forEach(g => {
+      const p1 = g.player1?.toLowerCase();
+      const p2 = g.player2?.toLowerCase();
+      const winner = g.winner?.toLowerCase();
+      const isTie = g.tie;
+
+      [p1, p2].forEach(player => {
+        if (!player || player === ethers.ZeroAddress.toLowerCase()) return;
+
+        if (!stats[player]) stats[player] = { wins: 0, played: 0 };
+        stats[player].played += 1;
+      });
+
+      if (!isTie && winner && winner !== ethers.ZeroAddress.toLowerCase()) {
+        if (!stats[winner]) stats[winner] = { wins: 0, played: 0 };
+        stats[winner].wins += 1;
+      }
+    });
+
+  // Map and sort top 3
+  return Object.entries(stats)
+    .map(([address, data]) => ({
+      address,
+      wins: data.wins,
+      played: data.played,
+      winRate: data.played > 0 ? Math.round((data.wins / data.played) * 100) : 0,
+    }))
+    .sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return b.winRate - a.winRate;
+    })
+    .slice(0, 3); // Top 3 only
+}, [games]);
+
+const [lastSavedTop3, setLastSavedTop3] = useState([]);
+
+useEffect(() => {
+  if (weeklyLeaderboard.length === 0) return;
+
+  // Determine the start of the current week (Sunday)
+  const now = new Date();
+  const weekStart = new Date(now); 
+  weekStart.setUTCHours(0, 0, 0, 0);      // reset time
+  weekStart.setUTCDate(now.getUTCDate() - now.getUTCDay()); // go back to Sunday
+
+  fetch("/api/leaderboard/weekly", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      weekStart: weekStart.toISOString(), // ISO string for backend
+      top3: weeklyLeaderboard,            // top 3 players
+    }),
+  }).catch(err => console.error("Failed to save weekly leaderboard:", err));
+}, [weeklyLeaderboard]);
+
+const [weeklyHistory, setWeeklyHistory] = useState({});
+
+useEffect(() => {
+  fetch("/api/leaderboard/weekly")
+    .then(res => res.json())
+    .then(data => setWeeklyHistory(data))
+    .catch(console.error);
+}, []);
 
 /* --------- TOTAL CORE BURN ---------*/
 const [totalGameBurned, setTotalGameBurned] = useState(0);
@@ -2283,9 +2373,30 @@ return (
 </div>
 )}
 
-  {/* ---------------- LEADERBOARD ---------------- */}
+{/* ---------------- LEADERBOARD ---------------- */}
 {(!isMobile || activeTab === "leaderboard") && (
-<div style={{ gridColumn: isMobile ? "auto" : 4 }}>
+  <div style={{ gridColumn: isMobile ? "auto" : 4 }}>
+    {/* Checkbox toggle */}
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+      <input
+        type="checkbox"
+        id="weeklyToggle"
+        checked={showWeekly}
+        onChange={(e) => setShowWeekly(e.target.checked)}
+      />
+      <label
+        htmlFor="weeklyToggle"
+        style={{
+          fontSize: isMobile ? 14 : 16,
+          color: "#fff",
+          fontWeight: 500,
+        }}
+      >
+        Show Weekly Top 3
+      </label>
+    </div>
+
+    {/* Leaderboard heading */}
     <h2
       style={{
         color: "#18bb1a",
@@ -2296,9 +2407,10 @@ return (
         marginBottom: 12,
       }}
     >
-      🏆 Top 10 Leaderboard
+      {showWeekly ? "🏆 Weekly Top 3" : "🏆 All-Time Top 10"}
     </h2>
 
+    {/* Leaderboard table */}
     <div
       style={{
         background: "#111",
@@ -2328,50 +2440,40 @@ return (
         <span>%</span>
       </div>
 
-      {/* No leaderboard */}
-      {leaderboard.length === 0 && (
-        <div style={{ opacity: 0.6, padding: isMobile ? "8px 0" : "12px 0", textAlign: "center" }}>
-          No settled games yet.
+{(showWeekly ? Object.values(weeklyHistory)?.[0] || [] : leaderboard).map(
+  (entry, index) => {
+    const medalColor = ["#FFD700", "#C0C0C0", "#CD7F32"][index] || "#fff";
+    const isCurrentUser = entry.address === account?.toLowerCase();
+
+    return (
+      <div
+        key={entry.address + (showWeekly ? "-weekly" : "-alltime")}
+        className={`leaderboard-row ${showWeekly && index === 0 ? "glow" : ""}`}
+        style={{ color: isCurrentUser ? "#4da3ff" : medalColor }}
+      >
+        <span>#{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}</span>
+        <span style={{ textAlign: "center" }}>{entry.played}</span>
+        <span style={{ textAlign: "center" }}>{entry.wins}</span>
+        <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+      </div>
+    );
+  }
+)}
+
+      {/* No data fallback */}
+      {(showWeekly ? Object.values(weeklyHistory)?.[0]?.length === 0 : leaderboard.length === 0) && (
+        <div
+          style={{
+            opacity: 0.6,
+            padding: isMobile ? "8px 0" : "12px 0",
+            textAlign: "center",
+          }}
+        >
+          No games to display.
         </div>
       )}
-
-      {/* Leaderboard entries */}
-      {leaderboard.map((entry, index) => {
-        let medalColor = "#fff";
-        if (index === 0) medalColor = "#FFD700";
-        if (index === 1) medalColor = "#C0C0C0";
-        if (index === 2) medalColor = "#CD7F32";
-
-        const isCurrentUser = entry.address === account?.toLowerCase();
-
-        return (
-          <div
-            key={entry.address}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr 1fr 1fr",
-              padding: isMobile ? "6px 0" : "8px 0",
-              borderBottom: "1px solid #222",
-              fontSize: isMobile ? 14 : 16,
-              color: isCurrentUser ? "#4da3ff" : medalColor,
-              fontWeight: isCurrentUser ? "bold" : "normal",
-              transition: "background 0.2s",
-              cursor: "default",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#222")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          >
-            <span>
-              #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
-            </span>
-            <span style={{ textAlign: "center" }}>{entry.played}</span>
-            <span style={{ textAlign: "center" }}>{entry.wins}</span>
-            <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
-          </div>
-        );
-      })}
-</div>
-</div>
+    </div>
+  </div>
 )}
 </div>
 </div>

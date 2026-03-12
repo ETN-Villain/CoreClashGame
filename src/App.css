@@ -64,3 +64,29 @@ html, body {
   padding: 0;
   overflow-x: hidden;
 }
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  padding: 8px 0;
+  border-bottom: 1px solid #222;
+  font-size: 16px;
+  color: #fff;
+  font-weight: normal;
+  transition: background 0.2s, color 0.3s;
+}
+
+.leaderboard-row:hover {
+  background: #222;
+}
+
+.leaderboard-row.glow {
+  color: #FFD700;
+  text-shadow: 0 0 8px #FFD700, 0 0 16px #FFD700;
+  animation: glowPulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes glowPulse {
+  0% { text-shadow: 0 0 8px #FFD700, 0 0 16px #FFD700; }
+  100% { text-shadow: 0 0 16px #FFD700, 0 0 32px #FFD700; }
+}

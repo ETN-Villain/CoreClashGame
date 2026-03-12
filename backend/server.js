@@ -20,6 +20,7 @@ import "./eventListener.js";
 
 const app = express();
 const GAMES_FILE = path.join(__dirname, "games", "games.json");
+const weeklyFilePath = path.join(__dirname, "store", "weeklyLeaderboard.json");
 
 // ---------------- MIDDLEWARE ----------------
 app.use(cors({
@@ -173,3 +174,90 @@ app.get("/burn-total", (req, res) => {
 });
 
 console.log("Owner cache file path will be:", path.join(__dirname, "cache/owners.json"));
+
+function initializeWeeklyLeaderboard() {
+  if (!fs.existsSync(weeklyFilePath)) {
+    console.log("Weekly leaderboard file not found. Creating default...");
+    fs.writeFileSync(weeklyFilePath, JSON.stringify({}), "utf8");
+  }
+}
+
+// 1️⃣ Initialize file if missing
+function initializeWeeklyLeaderboard() {
+  if (!fs.existsSync(weeklyFilePath)) {
+    console.log("Weekly leaderboard file not found. Creating default...");
+    fs.writeFileSync(weeklyFilePath, JSON.stringify({}), "utf8");
+  }
+}
+
+// 2️⃣ Backfill top 3 for past weeks
+function backfillWeeklyLeaderboard(games) {
+  const weeklyData = fs.existsSync(weeklyFilePath)
+    ? JSON.parse(fs.readFileSync(weeklyFilePath, "utf8"))
+    : {};
+
+  const now = new Date();
+  const startDate = new Date(now);
+  startDate.setDate(startDate.getDate() - 28); // backfill last 4 weeks
+  startDate.setUTCHours(0, 0, 0, 0);
+
+  let current = new Date(startDate);
+
+  while (current <= now) {
+    const weekStart = new Date(current);
+    const weekEnd = new Date(current);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+
+    const weeklyGames = games.filter((g) => {
+      const gTime = new Date(g.date).getTime();
+      return gTime >= weekStart.getTime() && gTime <= weekEnd.getTime() && g.settled && !g.cancelled;
+    });
+
+    if (weeklyGames.length > 0) {
+      const stats = {};
+      weeklyGames.forEach((g) => {
+        const p1 = g.player1?.toLowerCase();
+        const p2 = g.player2?.toLowerCase();
+        const winner = g.winner?.toLowerCase();
+        const isTie = g.tie;
+
+        [p1, p2].forEach((player) => {
+          if (!player || player === "0x0000000000000000000000000000000000000000") return;
+          if (!stats[player]) stats[player] = { wins: 0, played: 0 };
+          stats[player].played += 1;
+        });
+
+        if (!isTie && winner && winner !== "0x0000000000000000000000000000000000000000") {
+          if (!stats[winner]) stats[winner] = { wins: 0, played: 0 };
+          stats[winner].wins += 1;
+        }
+      });
+
+      const top3 = Object.entries(stats)
+        .map(([address, data]) => ({
+          address,
+          wins: data.wins,
+          played: data.played,
+          winRate: data.played > 0 ? Math.round((data.wins / data.played) * 100) : 0,
+        }))
+        .sort((a, b) => {
+          if (b.wins !== a.wins) return b.wins - a.wins;
+          return b.winRate - a.winRate;
+        })
+        .slice(0, 3);
+
+      weeklyData[weekStart.toISOString()] = top3;
+    }
+
+    current.setDate(current.getDate() + 7);
+  }
+
+  fs.writeFileSync(weeklyFilePath, JSON.stringify(weeklyData, null, 2), "utf8");
+  console.log("Weekly leaderboard backfilled!");
+}
+
+// 3️⃣ Run on server startup
+initializeWeeklyLeaderboard();
+
+const games = JSON.parse(fs.readFileSync(GAMES_FILE, "utf8"));
+backfillWeeklyLeaderboard(games);
