@@ -176,13 +176,6 @@ app.get("/burn-total", (req, res) => {
 
 console.log("Owner cache file path will be:", path.join(__dirname, "cache/owners.json"));
 
-function initializeWeeklyLeaderboard() {
-  if (!fs.existsSync(weeklyFilePath)) {
-    console.log("Weekly leaderboard file not found. Creating default...");
-    fs.writeFileSync(weeklyFilePath, JSON.stringify({}), "utf8");
-  }
-}
-
 // 1️⃣ Initialize file if missing
 function initializeWeeklyLeaderboard() {
   if (!fs.existsSync(weeklyFilePath)) {
