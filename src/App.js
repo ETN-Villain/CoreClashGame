@@ -1429,17 +1429,16 @@ return (
   }}
 >
   {/* LEFT: Core Clash Logo */}
-  <div style={{ display: "flex", alignItems: "center", height: isMobile ? 60 : 80 }}>
-    <img
-      src={CoreClashLogo}
-      alt="Core Clash"
-      style={{
-        height: "100%",
-        width: "auto",
-        pointerEvents: "none",
-      }}
-    />
-  </div>
+  <img
+    src={CoreClashLogo}
+    alt="Core Clash"
+    style={{
+      height: isMobile ? 60 : 80,
+      width: "auto",
+      pointerEvents: "none",
+      display: "block",
+    }}
+  />
 
   {/* RIGHT: Wallet Section */}
   {!account ? (
@@ -1449,8 +1448,6 @@ return (
         flexDirection: isMobile ? "column" : "row",
         alignItems: "center",
         gap: isMobile ? 10 : 16,
-        flexWrap: "wrap",
-        height: isMobile ? "auto" : isMobile ? "auto" : isMobile ? "auto" : isMobile ? "auto" : isMobile ? "auto" : isMobile ? "auto" : isMobile ? "auto" : "80px",
       }}
     >
       {/* MetaMask */}
@@ -1512,16 +1509,14 @@ return (
       </button>
     </div>
   ) : (
-    // ---------------- Connected Status ----------------
+    // ---------------- Connected Wallet ----------------
     <div
       style={{
         display: "flex",
         alignItems: "center",
         gap: 12,
-        height: isMobile ? "auto" : isMobile ? "auto" : "80px", // match logo height
       }}
     >
-      {/* Address + Disconnect */}
       <div
         style={{
           display: "flex",
@@ -1532,7 +1527,6 @@ return (
           borderRadius: 12,
           border: "1px solid #333",
           boxShadow: "0 0 8px rgba(0,0,0,0.4)",
-          height: "100%", // stretch to match logo
         }}
       >
         <span
@@ -1555,7 +1549,7 @@ return (
           }}
         />
 
-        {/* Disconnect Button */}
+        {/* Disconnect */}
         <button
           onClick={disconnectWallet}
           style={{
