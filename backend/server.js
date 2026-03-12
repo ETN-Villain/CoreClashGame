@@ -263,10 +263,11 @@ if (Array.isArray(parsed)) {
   fs.writeFileSync(weeklyFilePath, JSON.stringify(weeklyData, null, 2), "utf8");
   console.log("Weekly leaderboard backfilled!");
 }
+}
 
 // 3️⃣ Run on server startup
 initializeWeeklyLeaderboard();
 
-const games = JSON.parse(fs.readFileSync(GAMES_FILE, "utf8"));
-backfillWeeklyLeaderboard(games);
-}
+// Read games once for backfill
+const allGames = JSON.parse(fs.readFileSync(GAMES_FILE, "utf8"));
+backfillWeeklyLeaderboard(allGames);
