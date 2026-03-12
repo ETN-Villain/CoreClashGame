@@ -2440,52 +2440,25 @@ return (
         <span>%</span>
       </div>
 
-<AnimatePresence mode="wait">
-  {(showWeekly ? Object.values(weeklyHistory)?.[0] || [] : leaderboard).map(
-    (entry, index) => {
-      const medalColor = ["#FFD700", "#C0C0C0", "#CD7F32"][index] || "#fff";
-      const isCurrentUser = entry.address === account?.toLowerCase();
-      const isTopWeekly = showWeekly && index === 0; // Top 1 weekly
+{(showWeekly ? Object.values(weeklyHistory)?.[0] || [] : leaderboard).map(
+  (entry, index) => {
+    const medalColor = ["#FFD700", "#C0C0C0", "#CD7F32"][index] || "#fff";
+    const isCurrentUser = entry.address === account?.toLowerCase();
 
-      return (
-        <motion.div
-          key={entry.address + (showWeekly ? "-weekly" : "-alltime")}
-          initial={{ opacity: 0, y: -10 }}
-          animate={{
-            opacity: 1,
-            y: 0,
-            boxShadow: isTopWeekly
-              ? "0 0 16px #FFD700, 0 0 32px #FFD700"
-              : "0 0 0px transparent",
-          }}
-          exit={{ opacity: 0, y: 10 }}
-          transition={{
-            duration: 0.3,
-            repeat: isTopWeekly ? Infinity : 0,
-            repeatType: "mirror",
-          }}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "2fr 1fr 1fr 1fr",
-            padding: isMobile ? "6px 0" : "8px 0",
-            borderBottom: "1px solid #222",
-            fontSize: isMobile ? 14 : 16,
-            color: isCurrentUser ? "#4da3ff" : medalColor,
-            fontWeight: isCurrentUser ? "bold" : "normal",
-            cursor: "default",
-          }}
-        >
-          <span>
-            #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
-          </span>
-          <span style={{ textAlign: "center" }}>{entry.played}</span>
-          <span style={{ textAlign: "center" }}>{entry.wins}</span>
-          <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
-        </motion.div>
-      );
-    }
-  )}
-</AnimatePresence>
+    return (
+      <div
+        key={entry.address + (showWeekly ? "-weekly" : "-alltime")}
+        className={`leaderboard-row ${showWeekly && index === 0 ? "glow" : ""}`}
+        style={{ color: isCurrentUser ? "#4da3ff" : medalColor }}
+      >
+        <span>#{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}</span>
+        <span style={{ textAlign: "center" }}>{entry.played}</span>
+        <span style={{ textAlign: "center" }}>{entry.wins}</span>
+        <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+      </div>
+    );
+  }
+)}
 
       {/* No data fallback */}
       {(showWeekly ? Object.values(weeklyHistory)?.[0]?.length === 0 : leaderboard.length === 0) && (
