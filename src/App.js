@@ -1433,157 +1433,163 @@ return (
     justifyContent: "space-between",
   }}
 >
-          {/* LEFT: Logo */}
-          <img
-            src={CoreClashLogo}
-            alt="Core Clash"
-            style={{ height: 80, width: "auto", pointerEvents: "none" }}
-          />
-
-{/* CENTER: Connect Wallet / Status */}
-{!account ? (
-  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-    <button
-      onClick={() => {
-        setWalletError(null);
-        connectMetamask();  // Your original MetaMask connect
-      }}
-      style={{
-        backgroundColor: "#18bb1a",
-        color: "#fff",
-        border: "none",
-        padding: isMobile ? "12px 24px" : "16px 32px",
-        fontSize: isMobile ? 18 : 20,
-        fontWeight: "bold",
-        borderRadius: 12,
-        cursor: "pointer",
-        boxShadow: "0 0 10px rgba(24,187,26,0.6)",
-        transition: "all 0.2s ease",
-        whiteSpace: "nowrap",
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 20px rgba(24,187,26,0.9)")}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 10px rgba(24,187,26,0.6)")}
-    >
-      Connect with MetaMask
-    </button>
-
-    <button
-      onClick={() => {
-        setWalletError(null);
-        connectWalletConnect();
-      }}
-      style={{
-        backgroundColor: "#1a75ff", // Blue to differentiate
-        color: "#fff",
-        border: "none",
-        padding: isMobile ? "10px 20px" : "16px 32px",
-        fontSize: isMobile ? 16 : 18,
-        fontWeight: "bold",
-        borderRadius: 12,
-        cursor: "pointer",
-        boxShadow: "0 0 10px rgba(26,117,255,0.6)",
-        transition: "all 0.2s ease",
-        whiteSpace: "nowrap",
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 20px rgba(26,117,255,0.9)")}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 10px rgba(26,117,255,0.6)")}
-    >
-      Connect with Mobile: WalletConnect)
-    </button>
-
-    {walletError && (
-      <p style={{ color: "#ff4d4d", fontSize: isMobile ? 14 : 16, marginTop: 8, textAlign: "center" }}>
-        {walletError}
-      </p>
-    )}
-  </div>
-) : (
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      padding: isMobile ? "12px 24px" : "16px 32px",
-      gap: 8,
-    }}
-  >
+{/* ---------------- HEADER: LOGO + WALLET ---------------- */}
 <div
   style={{
     display: "flex",
     alignItems: "center",
-    justifyContent: "flex-end",
-    marginBottom: 14,
+    justifyContent: "space-between",
+    flexWrap: isMobile ? "wrap" : "nowrap",
+    gap: isMobile ? 12 : 24,
+    padding: "12px 0",
+    width: "100%",
   }}
 >
-  <div
+  {/* LEFT: Core Clash Logo */}
+  <img
+    src={CoreClashLogo}
+    alt="Core Clash"
     style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-      padding: isMobile ? "6px 10px" : "8px 14px",
-      background: "#0f0f0f",
-      border: "1px solid #333",
-      borderRadius: 999,
-      boxShadow: "0 0 10px rgba(0,0,0,0.4)",
+      height: isMobile ? 60 : 80,
+      width: "auto",
+      pointerEvents: "none",
     }}
-  >
-    {/* Green Connection Dot */}
-    <div
-      style={{
-        width: 8,
-        height: 8,
-        borderRadius: "50%",
-        background: "#2ecc71",
-        boxShadow: "0 0 6px #2ecc71",
-      }}
-    />
+  />
 
-    {/* Wallet Address */}
+  {/* RIGHT: Wallet Section */}
+  {!account ? (
     <div
       style={{
-        fontSize: isMobile ? 12 : 14,
-        fontWeight: 600,
-        color: "#fff",
-        letterSpacing: 0.3,
+        display: "flex",
+        flexDirection: isMobile ? "column" : "row",
+        alignItems: "center",
+        gap: isMobile ? 10 : 16,
+        flexWrap: "wrap",
       }}
     >
-      {account?.slice(0, 6)}...{account?.slice(-4)}
+      {/* MetaMask */}
+      <button
+        onClick={() => {
+          setWalletError(null);
+          connectMetamask();
+        }}
+        style={{
+          backgroundColor: "#18bb1a",
+          color: "#fff",
+          border: "none",
+          padding: isMobile ? "10px 16px" : "14px 28px",
+          fontSize: isMobile ? 14 : 16,
+          fontWeight: "bold",
+          borderRadius: 12,
+          cursor: "pointer",
+          boxShadow: "0 0 10px rgba(24,187,26,0.6)",
+          transition: "all 0.2s ease",
+          whiteSpace: "nowrap",
+        }}
+        onMouseEnter={(e) =>
+          (e.currentTarget.style.boxShadow = "0 0 20px rgba(24,187,26,0.9)")
+        }
+        onMouseLeave={(e) =>
+          (e.currentTarget.style.boxShadow = "0 0 10px rgba(24,187,26,0.6)")
+        }
+      >
+        Connect with MetaMask
+      </button>
+
+      {/* WalletConnect */}
+      <button
+        onClick={() => {
+          setWalletError(null);
+          connectWalletConnect();
+        }}
+        style={{
+          backgroundColor: "#1a75ff",
+          color: "#fff",
+          border: "none",
+          padding: isMobile ? "10px 16px" : "14px 28px",
+          fontSize: isMobile ? 14 : 16,
+          fontWeight: "bold",
+          borderRadius: 12,
+          cursor: "pointer",
+          boxShadow: "0 0 10px rgba(26,117,255,0.6)",
+          transition: "all 0.2s ease",
+          whiteSpace: "nowrap",
+        }}
+        onMouseEnter={(e) =>
+          (e.currentTarget.style.boxShadow = "0 0 20px rgba(26,117,255,0.9)")
+        }
+        onMouseLeave={(e) =>
+          (e.currentTarget.style.boxShadow = "0 0 10px rgba(26,117,255,0.6)")
+        }
+      >
+        Connect with Mobile (WalletConnect)
+      </button>
     </div>
-
-    {/* Divider */}
+  ) : (
+    // ---------------- Connected Status ----------------
     <div
       style={{
-        width: 1,
-        height: 16,
-        background: "#333",
-      }}
-    />
-
-    {/* Disconnect Button */}
-    <button
-      onClick={disconnectWallet}
-      style={{
-        background: "transparent",
-        border: "none",
-        color: "#ff6b6b",
-        fontWeight: 600,
-        fontSize: isMobile ? 11 : 13,
-        cursor: "pointer",
-        padding: "2px 4px",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.color = "#ff3b3b";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.color = "#ff6b6b";
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        flexWrap: "wrap",
       }}
     >
-      Disconnect
-    </button>
-  </div>
+      {/* Address Display */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "#0f0f0f",
+          padding: "6px 12px",
+          borderRadius: 12,
+          border: "1px solid #333",
+          boxShadow: "0 0 8px rgba(0,0,0,0.4)",
+        }}
+      >
+        <span
+          style={{
+            fontSize: isMobile ? 12 : 14,
+            fontWeight: 600,
+            color: "#fff",
+            letterSpacing: 0.3,
+          }}
+        >
+          {account?.slice(0, 6)}...{account?.slice(-4)}
+        </span>
+
+        {/* Divider */}
+        <div
+          style={{
+            width: 1,
+            height: 16,
+            background: "#333",
+          }}
+        />
+
+        {/* Disconnect Button */}
+        <button
+          onClick={disconnectWallet}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "#ff6b6b",
+            fontWeight: 600,
+            fontSize: isMobile ? 11 : 13,
+            cursor: "pointer",
+            padding: "2px 6px",
+            transition: "all 0.2s ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#ff3b3b")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#ff6b6b")}
+        >
+          Disconnect
+        </button>
+      </div>
+    </div>
+  )}
 </div>
-</div>
-)}
 
 <div style={{
   fontSize: 12,
@@ -1853,7 +1859,7 @@ Core Clash Ecosystem
     <input
       value={stakeAmount}
       onChange={(e) => setStakeAmount(e.target.value)}
-      style={{ width: "100%", maxWidth: 260, marginBottom: 12 }}
+      style={{ width: "100%", maxWidth: 220, marginBottom: 12 }}
     />
 
     <h3>Your Clash Team (3)</h3>
