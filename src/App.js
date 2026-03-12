@@ -1422,10 +1422,10 @@ return (
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    flexWrap: isMobile ? "wrap" : "nowrap",
     gap: isMobile ? 12 : 24,
-    padding: "12px 0",
     width: "100%",
+    maxWidth: "100%",
+    padding: 0,
   }}
 >
   {/* LEFT: Core Clash Logo */}
@@ -1476,7 +1476,7 @@ return (
           (e.currentTarget.style.boxShadow = "0 0 10px rgba(24,187,26,0.6)")
         }
       >
-        Connect with MetaMask
+        Connect MetaMask
       </button>
 
       {/* WalletConnect */}
@@ -1505,7 +1505,7 @@ return (
           (e.currentTarget.style.boxShadow = "0 0 10px rgba(26,117,255,0.6)")
         }
       >
-        Connect with Mobile (WalletConnect)
+        Connect Mobile (WalletConnect)
       </button>
     </div>
   ) : (
@@ -1687,7 +1687,7 @@ Core Clash Ecosystem
         loop
         muted
         playsInline
-        style={{ width: 34, height: 34, borderRadius: 6, objectFit: "cover" }}
+        style={{ width: 38, height: 38, borderRadius: 6, objectFit: "cover" }}
       />
       <span
         style={{
