@@ -1415,24 +1415,7 @@ return (
 
     {/* ---------------- APP CONTENT ---------------- */}
     <div style={{ position: "relative", zIndex: 1 }}>
-      {/* ---------------- WALLET SECTION ---------------- */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          marginBottom: 12,
-        }}
-      >
-<div
-  style={{
-    display: "flex",
-    alignItems: "center",
-    gap: 16,
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  }}
->
+
 {/* ---------------- HEADER: LOGO + WALLET ---------------- */}
 <div
   style={{
@@ -1593,7 +1576,6 @@ return (
       </div>
     </div>
   )}
-</div>
 
 <div style={{
   fontSize: 12,
@@ -2477,7 +2459,6 @@ Core Clash Ecosystem
 </div>
 </div>
 )}
-</div>
 </div>
 </div>
   );
