@@ -20,7 +20,7 @@ import "./eventListener.js";
 
 const app = express();
 const GAMES_FILE = path.join(__dirname, "games", "games.json");
-const weeklyFilePath = path.join(__dirname, "store", "weeklyLeaderboard.json");
+const weeklyFilePath = path.join(__dirname, "store", "weeklyLeaderboards.json");
 
 // ---------------- MIDDLEWARE ----------------
 app.use(cors({
