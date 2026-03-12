@@ -2475,7 +2475,7 @@ return (
   }
 )}
 
-/* No data fallback */
+{/* No data fallback */}
 {(showWeekly ? (weeklyHistory.latest?.length === 0) : leaderboard.length === 0) && (
   <div
     style={{
