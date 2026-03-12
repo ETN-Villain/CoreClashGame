@@ -1599,11 +1599,13 @@ Core Clash Ecosystem
 <div
   style={{
     display: "grid",
-    gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1.4fr 1fr", // Mobile: 2 columns
+    gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1.4fr 1fr",
+    gridTemplateRows: isMobile ? "auto auto" : "auto",
     gap: 14,
     marginTop: 14,
     alignItems: "center",
     justifyItems: "center",
+    width: "100%",
   }}
 >
   {/* Buy CORE */}
@@ -1611,7 +1613,13 @@ Core Clash Ecosystem
     href="https://app.electroswap.io/explore/tokens/electroneum/0x309b916b3a90cb3e071697ea9680e9217a30066f?inputCurrency=ETN"
     target="_blank"
     rel="noopener noreferrer"
-    style={{ textDecoration: "none", width: "100%", maxWidth: 120 }}
+    style={{
+      textDecoration: "none",
+      width: "100%",
+      maxWidth: 140,
+      gridColumn: "1", // column 1 on mobile
+      gridRow: "1", // first row
+    }}
   >
     <div
       style={{
@@ -1638,11 +1646,7 @@ Core Clash Ecosystem
       <img
         src={ElectroSwap}
         alt="Buy CORE"
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 6,
-        }}
+        style={{ width: 34, height: 34, borderRadius: 6 }}
       />
       <span
         style={{
@@ -1656,12 +1660,72 @@ Core Clash Ecosystem
     </div>
   </a>
 
+  {/* Planet ETN */}
+  <a
+    href="https://planetetn.org/zephyros"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      textDecoration: "none",
+      width: "100%",
+      maxWidth: 140,
+      gridColumn: isMobile ? "2" : "3", // mobile: column 2, desktop: column 3
+      gridRow: "1",
+    }}
+  >
+    <div
+      style={{
+        background: "#0f0f0f",
+        border: "1px solid #333",
+        borderRadius: 12,
+        padding: "10px 12px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
+        transition: "all 0.2s ease",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.boxShadow = "0 0 16px rgba(0,200,255,0.4)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "0 0 8px rgba(0,0,0,0.5)";
+      }}
+    >
+      <video
+        src={PlanetZephyrosAE}
+        autoPlay
+        loop
+        muted
+        playsInline
+        style={{ width: 34, height: 34, borderRadius: 6, objectFit: "cover" }}
+      />
+      <span
+        style={{
+          fontSize: isMobile ? 12 : 14,
+          fontWeight: 600,
+          color: "#fff",
+        }}
+      >
+        Planet ETN
+      </span>
+    </div>
+  </a>
+
   {/* Verdant Kin Banner */}
   <a
     href="https://app.electroswap.io/nfts/collection/0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
     target="_blank"
     rel="noopener noreferrer"
-    style={{ textDecoration: "none", width: "100%" }}
+    style={{
+      textDecoration: "none",
+      width: "100%",
+      gridColumn: isMobile ? "1 / span 2" : "2", // mobile: span both columns
+      gridRow: isMobile ? "2" : "1",
+    }}
   >
     <div
       style={{
@@ -1695,60 +1759,6 @@ Core Clash Ecosystem
           borderRadius: 8,
         }}
       />
-    </div>
-  </a>
-
-  {/* Planet ETN */}
-  <a
-    href="https://planetetn.org/zephyros"
-    target="_blank"
-    rel="noopener noreferrer"
-    style={{ textDecoration: "none", width: "100%", maxWidth: 120 }}
-  >
-    <div
-      style={{
-        background: "#0f0f0f",
-        border: "1px solid #333",
-        borderRadius: 12,
-        padding: "10px 12px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
-        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
-        transition: "all 0.2s ease",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.boxShadow = "0 0 16px rgba(0,200,255,0.4)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 0 8px rgba(0,0,0,0.5)";
-      }}
-    >
-      <video
-        src={PlanetZephyrosAE}
-        autoPlay
-        loop
-        muted
-        playsInline
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 6,
-          objectFit: "cover",
-        }}
-      />
-      <span
-        style={{
-          fontSize: isMobile ? 12 : 14,
-          fontWeight: 600,
-          color: "#fff",
-        }}
-      >
-        Planet ETN
-      </span>
     </div>
   </a>
 </div>
