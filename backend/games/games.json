@@ -3086,20 +3086,7 @@
     "player2Revealed": false,
     "createdAt": "2026-03-01T21:51:08.739Z"
   },
-  {
-    "id": 54,
-    "player1": "0xbccf55d5b19703e3f3b8df31196714f92d15cf3d",
-    "player2": "0x0000000000000000000000000000000000000000",
-    "stakeAmount": "60000000000000000000",
-    "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
-    "settled": false,
-    "cancelled": false,
-    "winner": null,
-    "player1Revealed": false,
-    "player2Revealed": false,
-    "createdAt": "2026-03-01T21:51:08.739Z"
-  },
-  {
+{"id":54,"player1":"0xbccf55d5b19703e3f3b8df31196714f92d15cf3d","player2":"0x4933fffd2a3ee6fdd2c3eeb724e4c754beea50e4","stakeAmount":"60000000000000000000","stakeToken":"0x309B916b3A90cb3E071697Ea9680e9217A30066f","settled":false,"cancelled":false,"winner":null,"player1Revealed":false,"player2Revealed":true,"createdAt":"2026-03-01T21:51:08.739Z","player2Reveal":{"salt":"95667598449664723856331063831889151923144095795576128142732583402579585211537","nftContracts":["0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4","0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4","0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"],"tokenIds":["158","155","156"],"tokenURIs":["445.json","439.json","340.json"],"backgrounds":["Gold","Verdant Green","Silver"]},"backendPlayer1Revealed":false,"backendPlayer2Revealed":true},  {
     "id": 55,
     "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
     "player2": "0xe4CCA28f011C619e2D8B6bc39DD4389dfEfb7311",

@@ -70,7 +70,7 @@ router.get("/burn-total", (req, res) => {
 });
 
 // ---------------- GET SINGLE GAME ----------------
-router.get("/:id(\\d+)", (req, res) => {
+router.get("/:id", (req, res) => {
     try {
     const gameId = Number(req.params.id);
     if (!Number.isInteger(gameId)) {
@@ -162,7 +162,7 @@ games.push({
 });
 
   // ---------------- JOIN GAME ----------------
-router.post("/:id(\\d+)/join", (req, res) => {
+router.post("/:id/join", (req, res) => {
   console.log("🔥 JOIN GAME HIT", req.params, req.body);
 
   const gameId = Number(req.params.id);
@@ -205,7 +205,7 @@ if (!game) {
   res.json({ success: true });
 });
 
-router.post("/:id(\\d+)/reveal", authWallet, async (req, res) => {
+router.post("/:id/reveal", authWallet, async (req, res) => {
   try {
     const gameId = Number(req.params.id);
     const { player, salt, nftContracts, tokenIds } = req.body;
@@ -373,7 +373,7 @@ router.post("/:id(\\d+)/reveal", authWallet, async (req, res) => {
 });
 
 // ────────────── BACKFILL ──────────────
-router.post("/:id(\\d+)/backfill", async (req, res) => {
+router.post("/:id/backfill", async (req, res) => {
   try {
     const gameId = Number(req.params.id);
     const { field, value } = req.body;
@@ -404,7 +404,7 @@ router.post("/:id(\\d+)/backfill", async (req, res) => {
 
 
 // ────────────── COMPUTE RESULTS ──────────────
-router.post("/:id(\\d+)/compute-results", async (req, res) => {
+router.post("/:id/compute-results", async (req, res) => {
   try {
     const gameId = Number(req.params.id);
     if (!Number.isInteger(gameId)) {
@@ -463,7 +463,7 @@ router.post("/:id(\\d+)/compute-results", async (req, res) => {
 });
 
 /* ---------------- POST WINNER ---------------- */
-router.post("/:id(\\d+)/post-winner", async (req, res) => {
+router.post("/:id/post-winner", async (req, res) => {
   await withLock(async () => {
     try {
       const gameId = Number(req.params.id);
@@ -515,7 +515,7 @@ router.post("/:id(\\d+)/post-winner", async (req, res) => {
 });
 
 /* ---------------- MANUAL SETTLE GAME ---------------- */
-router.post("/:id(\\d+)/settle-game", async (req, res) => {
+router.post("/:id/settle-game", async (req, res) => {
   await withLock(async () => {
     try {
       const gameId = Number(req.params.id);
@@ -584,7 +584,7 @@ router.post("/:id(\\d+)/settle-game", async (req, res) => {
 });
 
 /* ---------------- FINALIZE SETTLE ---------------- */
-router.post("/:id(\\d+)/finalize-settle", async (req, res) => {
+router.post("/:id/finalize-settle", async (req, res) => {
   const gameId = Number(req.params.id);
   const { txHash } = req.body;
 
@@ -628,7 +628,7 @@ router.post("/:id(\\d+)/finalize-settle", async (req, res) => {
     }
 
 /* ---------- CANCEL UNJOINED GAME ----------- */
-router.post("/:id(\\d+)/cancel-unjoined", async (req, res) => {
+router.post("/:id/cancel-unjoined", async (req, res) => {
   try {
     const gameId = Number(req.params.id);
     if (!Number.isInteger(gameId)) {
