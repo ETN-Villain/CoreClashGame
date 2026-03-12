@@ -1488,7 +1488,7 @@ return (
       onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 20px rgba(26,117,255,0.9)")}
       onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 10px rgba(26,117,255,0.6)")}
     >
-      Connect Mobile / Other Wallets (WalletConnect)
+      Connect with Mobile: WalletConnect)
     </button>
 
     {walletError && (
@@ -1586,122 +1586,143 @@ return (
 )}
 
 {/* RIGHT: Video + External Links */}
-<div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-{/* CORE Token Link */}
-<a
-  href="https://app.electroswap.io/explore/tokens/electroneum/0x309b916b3a90cb3e071697ea9680e9217a30066f?inputCurrency=ETN"
-  target="_blank"
-  rel="noopener noreferrer"
+<div
   style={{
     display: "flex",
-    flexDirection: "column",
     alignItems: "center",
-    textDecoration: "none",
+    justifyContent: "center",
+    gap: 16,
+    flexWrap: isMobile ? "wrap" : "nowrap",
+    marginTop: 10,
   }}
 >
-  <img
-    src={ElectroSwap}
-    alt="Buy CORE on ElectroSwap"
+  {/* CORE Token */}
+  <a
+    href="https://app.electroswap.io/explore/tokens/electroneum/0x309b916b3a90cb3e071697ea9680e9217a30066f?inputCurrency=ETN"
+    target="_blank"
+    rel="noopener noreferrer"
     style={{
-      width: 60,
-      height: 60,
-      borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)", border: "1px solid #333",
-      cursor: "pointer",
-      transition: "transform 0.2s ease",
-    }}
-    onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
-    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-  />
-  <span
-    style={{
-      marginTop: 6,
-      fontSize: isMobile ? 12 : 14,
-      fontWeight: "bold",
-      color: "#fff",
-      opacity: 0.9,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      textDecoration: "none",
+      minWidth: 70,
     }}
   >
-    Buy CORE
-  </span>
-</a>
+    <img
+      src={ElectroSwap}
+      alt="Buy CORE"
+      style={{
+        width: 60,
+        height: 60,
+        objectFit: "cover",
+        borderRadius: 10,
+        border: "1px solid #333",
+        boxShadow: "0 0 8px rgba(0,0,0,0.6)",
+        transition: "transform 0.2s ease",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
+      onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+    />
 
-{/* Verdant Kin NFT Link */}
-<a
-  href="https://app.electroswap.io/nfts/collection/0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
-  target="_blank"
-  rel="noopener noreferrer"
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    textDecoration: "none",
-  }}
->
-  <img
-    src={VerdantKinBanner}
-    alt="Verdant Kin NFT Collection"
-    style={{
-      height: 60,
-      width: 240,
-      borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)", border: "1px solid #333",
-      cursor: "pointer",
-      transition: "transform 0.2s ease",
-    }}
-    onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-  />
-  <span
-    style={{
-      marginTop: 6,
-      fontSize: isMobile ? 12 : 14,
-      fontWeight: "bold",
-      color: "#fff",
-      opacity: 0.9,
-    }}
-  >
-    Build Your Team
-  </span>
-</a>
-
-{/* Planet ETN Link */}
-<a
-  href="https://planetetn.org/zephyros"
-  target="_blank"
-  rel="noopener noreferrer"
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    textDecoration: "none",
-  }}
->
-  <video
-    src={PlanetZephyrosAE}
-    autoPlay
-    loop
-    muted
-    playsInline
-    style={{
-      width: 70,
-      height: 60,
-      objectFit: "cover",
-      borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.6)", border: "1px solid #333",
-      pointerEvents: "none",
-    }}    
-  />
-  <span
-    style={{
-      marginTop: 6,
-      fontSize: isMobile ? 12 : 14,
-      fontWeight: "bold",
-      color: "#fff",
-      opacity: 0.9,
-    }}
-  >
-    Planet ETN
-  </span>
+    <span
+      style={{
+        marginTop: 6,
+        fontSize: isMobile ? 11 : 13,
+        fontWeight: 600,
+        color: "#fff",
+        opacity: 0.9,
+      }}
+    >
+      Buy CORE
+    </span>
   </a>
-</div>
+
+  {/* Verdant Kin Banner */}
+  <a
+    href="https://app.electroswap.io/nfts/collection/0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      textDecoration: "none",
+      flex: isMobile ? "1 1 100%" : "0 0 auto",
+      maxWidth: isMobile ? "100%" : 240,
+    }}
+  >
+    <img
+      src={VerdantKinBanner}
+      alt="Verdant Kin NFT"
+      style={{
+        width: isMobile ? "100%" : 240,
+        height: isMobile ? 70 : 60,
+        objectFit: "cover",
+        borderRadius: 10,
+        border: "1px solid #333",
+        boxShadow: "0 0 8px rgba(0,0,0,0.6)",
+        transition: "transform 0.2s ease",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+      onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+    />
+
+    <span
+      style={{
+        marginTop: 6,
+        fontSize: isMobile ? 11 : 13,
+        fontWeight: 600,
+        color: "#fff",
+        opacity: 0.9,
+      }}
+    >
+      Build Your Team
+    </span>
+  </a>
+
+  {/* Planet ETN */}
+  <a
+    href="https://planetetn.org/zephyros"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      textDecoration: "none",
+      minWidth: 70,
+    }}
+  >
+    <video
+      src={PlanetZephyrosAE}
+      autoPlay
+      loop
+      muted
+      playsInline
+      style={{
+        width: 60,
+        height: 60,
+        objectFit: "cover",
+        borderRadius: 10,
+        border: "1px solid #333",
+        boxShadow: "0 0 8px rgba(0,0,0,0.6)",
+        pointerEvents: "none",
+      }}
+    />
+
+    <span
+      style={{
+        marginTop: 6,
+        fontSize: isMobile ? 11 : 13,
+        fontWeight: 600,
+        color: "#fff",
+        opacity: 0.9,
+      }}
+    >
+      Planet ETN
+    </span>
+  </a>
 </div>
 
         {walletError && (
