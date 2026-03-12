@@ -240,7 +240,8 @@ function backfillWeeklyLeaderboard(games) {
         })
         .slice(0, 3);
 
-      weeklyData[weekStart.toISOString()] = top3;
+      const weekDateKey = weekStart.toISOString().split("T")[0];
+        weeklyData[weekDateKey] = top3;
     }
 
     current.setDate(current.getDate() + 7);
