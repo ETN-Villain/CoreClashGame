@@ -1291,8 +1291,8 @@ const weeklyLeaderboard = useMemo(() => {
       g =>
         g.settled &&
         !g.cancelled &&
-        new Date(g.date).getTime() >= weekStart &&
-        new Date(g.date).getTime() < weekEnd
+        new Date(g.createdAt).getTime() >= weekStart &&
+        new Date(g.createdAt).getTime() < weekEnd
     )
     .forEach(g => {
       const p1 = g.player1?.toLowerCase();
@@ -1354,7 +1354,14 @@ const [weeklyHistory, setWeeklyHistory] = useState({});
 useEffect(() => {
   fetch("/api/leaderboard/weekly")
     .then(res => res.json())
-    .then(data => setWeeklyHistory(data))
+    .then(data => {
+      // Convert {0:{},1:{},2:{}} → [{},{},{}]
+      const normalized = Array.isArray(data)
+        ? data
+        : Object.values(data);
+
+      setWeeklyHistory({ latest: normalized });
+    })
     .catch(console.error);
 }, []);
 
