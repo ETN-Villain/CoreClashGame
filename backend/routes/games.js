@@ -695,7 +695,7 @@ if (!fs.existsSync(STORE_FILE)) {
  * Body: { weekStart: ISOString, top3: [{ address, wins, played, winRate }] }
  * Adds or updates the weekly leaderboard in a single JSON file
  */
-router.post("/leaderboard/weekly", (req, res) => {
+router.post("/weekly", (req, res) => {
   try {
     const { weekStart, top3 } = req.body;
     if (!weekStart || !Array.isArray(top3) || top3.length === 0) {
@@ -724,7 +724,7 @@ router.post("/leaderboard/weekly", (req, res) => {
 });
 
 // ---------------- GET WEEKLY LEADERBOARDS ----------------
-router.get("/leaderboard/weekly", (req, res) => {
+router.get("/weekly", (req, res) => {
   try {
     if (!fs.existsSync(STORE_PATH)) {
       return res.json({}); // return empty object if file doesn't exist yet
