@@ -32,6 +32,8 @@ import {
   VerdantKinBanner, ElectroneumLogo,
 } from "./appMedia/media.js";
 
+import { motion, AnimatePresence } from "framer-motion";
+
 import GameCard from "./gameCard.jsx";
 
 export default function App() {
@@ -1268,16 +1270,29 @@ const leaderboard = useMemo(() => {
     .slice(0, 10);
 }, [games]);
 
-/* ---------------- WEEKLY LEADERBOARD (Top 3) ---------------- */
+/* ---------------- WEEKLY LEADERBOARD (Top 3, fixed weeks) ---------------- */
 const weeklyLeaderboard = useMemo(() => {
   const stats = {};
 
-  // Get timestamp for 7 days ago
-  const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  // Define the first week start (Sunday 01/03/2026)
+  const firstWeekStart = new Date("2026-03-02T00:00:00Z").getTime();
+  const now = Date.now();
 
+  // Calculate current week number from firstWeekStart
+  const weekNumber = Math.floor((now - firstWeekStart) / (7 * 24 * 60 * 60 * 1000));
+
+  // Start and end of the current week
+  const weekStart = firstWeekStart + weekNumber * 7 * 24 * 60 * 60 * 1000;
+  const weekEnd = weekStart + 7 * 24 * 60 * 60 * 1000;
+
+  // Filter games in the current week
   games
     .filter(
-      g => g.settled && !g.cancelled && new Date(g.date).getTime() >= oneWeekAgo
+      g =>
+        g.settled &&
+        !g.cancelled &&
+        new Date(g.date).getTime() >= weekStart &&
+        new Date(g.date).getTime() < weekEnd
     )
     .forEach(g => {
       const p1 = g.player1?.toLowerCase();
@@ -1298,6 +1313,7 @@ const weeklyLeaderboard = useMemo(() => {
       }
     });
 
+  // Map and sort top 3
   return Object.entries(stats)
     .map(([address, data]) => ({
       address,
@@ -1311,6 +1327,36 @@ const weeklyLeaderboard = useMemo(() => {
     })
     .slice(0, 3); // Top 3 only
 }, [games]);
+
+const [lastSavedTop3, setLastSavedTop3] = useState([]);
+
+useEffect(() => {
+  if (weeklyLeaderboard.length === 0) return;
+
+  // Determine the start of the current week (Sunday)
+  const now = new Date();
+  const weekStart = new Date(now); 
+  weekStart.setUTCHours(0, 0, 0, 0);      // reset time
+  weekStart.setUTCDate(now.getUTCDate() - now.getUTCDay()); // go back to Sunday
+
+  fetch("/api/leaderboard/weekly", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      weekStart: weekStart.toISOString(), // ISO string for backend
+      top3: weeklyLeaderboard,            // top 3 players
+    }),
+  }).catch(err => console.error("Failed to save weekly leaderboard:", err));
+}, [weeklyLeaderboard]);
+
+const [weeklyHistory, setWeeklyHistory] = useState({});
+
+useEffect(() => {
+  fetch("/api/leaderboard/weekly")
+    .then(res => res.json())
+    .then(data => setWeeklyHistory(data))
+    .catch(console.error);
+}, []);
 
 /* --------- TOTAL CORE BURN ---------*/
 const [totalGameBurned, setTotalGameBurned] = useState(0);
@@ -2338,7 +2384,14 @@ return (
         checked={showWeekly}
         onChange={(e) => setShowWeekly(e.target.checked)}
       />
-      <label htmlFor="weeklyToggle" style={{ fontSize: isMobile ? 14 : 16, color: "#fff", fontWeight: 500 }}>
+      <label
+        htmlFor="weeklyToggle"
+        style={{
+          fontSize: isMobile ? 14 : 16,
+          color: "#fff",
+          fontWeight: 500,
+        }}
+      >
         Show Weekly Top 3
       </label>
     </div>
@@ -2387,8 +2440,55 @@ return (
         <span>%</span>
       </div>
 
-      {/* No leaderboard */}
-      {(showWeekly ? weeklyLeaderboard : leaderboard).length === 0 && (
+<AnimatePresence mode="wait">
+  {(showWeekly ? Object.values(weeklyHistory)?.[0] || [] : leaderboard).map(
+    (entry, index) => {
+      const medalColor = ["#FFD700", "#C0C0C0", "#CD7F32"][index] || "#fff";
+      const isCurrentUser = entry.address === account?.toLowerCase();
+      const isTopWeekly = showWeekly && index === 0; // Top 1 weekly
+
+      return (
+        <motion.div
+          key={entry.address + (showWeekly ? "-weekly" : "-alltime")}
+          initial={{ opacity: 0, y: -10 }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            boxShadow: isTopWeekly
+              ? "0 0 16px #FFD700, 0 0 32px #FFD700"
+              : "0 0 0px transparent",
+          }}
+          exit={{ opacity: 0, y: 10 }}
+          transition={{
+            duration: 0.3,
+            repeat: isTopWeekly ? Infinity : 0,
+            repeatType: "mirror",
+          }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr 1fr 1fr",
+            padding: isMobile ? "6px 0" : "8px 0",
+            borderBottom: "1px solid #222",
+            fontSize: isMobile ? 14 : 16,
+            color: isCurrentUser ? "#4da3ff" : medalColor,
+            fontWeight: isCurrentUser ? "bold" : "normal",
+            cursor: "default",
+          }}
+        >
+          <span>
+            #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
+          </span>
+          <span style={{ textAlign: "center" }}>{entry.played}</span>
+          <span style={{ textAlign: "center" }}>{entry.wins}</span>
+          <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+        </motion.div>
+      );
+    }
+  )}
+</AnimatePresence>
+
+      {/* No data fallback */}
+      {(showWeekly ? Object.values(weeklyHistory)?.[0]?.length === 0 : leaderboard.length === 0) && (
         <div
           style={{
             opacity: 0.6,
@@ -2396,45 +2496,9 @@ return (
             textAlign: "center",
           }}
         >
-          No settled games yet.
+          No games to display.
         </div>
       )}
-
-      {/* Leaderboard entries */}
-      {(showWeekly ? weeklyLeaderboard : leaderboard).map((entry, index) => {
-        let medalColor = "#fff";
-        if (index === 0) medalColor = "#FFD700";
-        if (index === 1) medalColor = "#C0C0C0";
-        if (index === 2) medalColor = "#CD7F32";
-
-        const isCurrentUser = entry.address === account?.toLowerCase();
-
-        return (
-          <div
-            key={entry.address}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr 1fr 1fr",
-              padding: isMobile ? "6px 0" : "8px 0",
-              borderBottom: "1px solid #222",
-              fontSize: isMobile ? 14 : 16,
-              color: isCurrentUser ? "#4da3ff" : medalColor,
-              fontWeight: isCurrentUser ? "bold" : "normal",
-              transition: "background 0.2s",
-              cursor: "default",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#222")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          >
-            <span>
-              #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
-            </span>
-            <span style={{ textAlign: "center" }}>{entry.played}</span>
-            <span style={{ textAlign: "center" }}>{entry.wins}</span>
-            <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
-          </div>
-        );
-      })}
     </div>
   </div>
 )}

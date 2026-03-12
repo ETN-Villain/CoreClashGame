@@ -26,6 +26,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const TOKEN_URI_MAP = loadTokenURIMapping();
 const GAMES_FILE = path.join(process.cwd(), "games", "games.json");
+const STORE_FILE = path.join(__dirname, "../store/weeklyLeaderboards.json");
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const adminWallet = new ethers.Wallet(BACKEND_PRIVATE_KEY, provider);
@@ -681,6 +682,69 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
     return res.status(500).json({
       error: err.reason || err.message || "Internal server error"
     });
+  }
+});
+
+// Ensure store file exists
+if (!fs.existsSync(STORE_FILE)) {
+  fs.writeFileSync(STORE_FILE, JSON.stringify([]));
+}
+
+/**
+ * POST /api/leaderboard/weekly
+ * Body: { weekStart: ISOString, top3: [{ address, wins, played, winRate }] }
+ * Adds or updates the weekly leaderboard in a single JSON file
+ */
+router.post("/leaderboard/weekly", (req, res) => {
+  try {
+    const { weekStart, top3 } = req.body;
+    if (!weekStart || !Array.isArray(top3) || top3.length === 0) {
+      return res.status(400).json({ error: "Invalid payload" });
+    }
+
+    const weekDate = new Date(weekStart).toISOString().split("T")[0];
+    const fileData = JSON.parse(fs.readFileSync(STORE_FILE, "utf-8"));
+
+    // Check if this week already exists
+    const index = fileData.findIndex(entry => entry.weekStart === weekDate);
+    if (index > -1) {
+      // Update existing week
+      fileData[index].top3 = top3;
+    } else {
+      // Add new week
+      fileData.push({ weekStart: weekDate, top3 });
+    }
+
+    fs.writeFileSync(STORE_FILE, JSON.stringify(fileData, null, 2));
+    res.status(200).json({ message: "Weekly leaderboard saved" });
+  } catch (err) {
+    console.error("Error saving weekly leaderboard:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ---------------- GET WEEKLY LEADERBOARDS ----------------
+router.get("/leaderboard/weekly", (req, res) => {
+  try {
+    if (!fs.existsSync(STORE_PATH)) {
+      return res.json({}); // return empty object if file doesn't exist yet
+    }
+
+    const data = fs.readFileSync(STORE_PATH, "utf-8");
+    const leaderboards = JSON.parse(data);
+
+    // Sort keys by weekStart descending (most recent week first)
+    const sortedWeeks = Object.keys(leaderboards)
+      .sort((a, b) => new Date(b) - new Date(a))
+      .reduce((acc, key) => {
+        acc[key] = leaderboards[key];
+        return acc;
+      }, {});
+
+    res.json(sortedWeeks);
+  } catch (err) {
+    console.error("Failed to read weekly leaderboards:", err);
+    res.status(500).json({ error: "Failed to read weekly leaderboards" });
   }
 });
 
