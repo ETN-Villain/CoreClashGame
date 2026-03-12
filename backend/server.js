@@ -217,7 +217,7 @@ if (Array.isArray(parsed)) {
 
     const weeklyGames = games.filter((g) => {
       const gTime = new Date(g.date).getTime();
-      return gTime >= weekStart.getTime() && gTime <= weekEnd.getTime() && g.settled && !g.cancelled;
+      return gTime >= weekStart.getTime() && gTime >= weekStart.getTime() && gTime < weekStart.getTime() + 7 * 24 * 60 * 60 * 1000 && g.settled && !g.cancelled;
     });
 
     if (weeklyGames.length > 0) {
@@ -269,3 +269,4 @@ initializeWeeklyLeaderboard();
 
 const games = JSON.parse(fs.readFileSync(GAMES_FILE, "utf8"));
 backfillWeeklyLeaderboard(games);
+}
