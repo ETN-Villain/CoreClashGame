@@ -32,8 +32,6 @@ import {
   VerdantKinBanner, ElectroneumLogo,
 } from "./appMedia/media.js";
 
-import { motion, AnimatePresence } from "framer-motion";
-
 import GameCard from "./gameCard.jsx";
 
 export default function App() {
