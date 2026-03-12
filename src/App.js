@@ -1355,12 +1355,10 @@ useEffect(() => {
   fetch("/api/leaderboard/weekly")
     .then(res => res.json())
     .then(data => {
-      // Convert {0:{},1:{},2:{}} → [{},{},{}]
-      const normalized = Array.isArray(data)
-        ? data
-        : Object.values(data);
-
-      setWeeklyHistory({ latest: normalized });
+      const weeks = Object.keys(data).sort((a, b) => new Date(b) - new Date(a));
+      const latestWeek = weeks[0];
+      const top3 = data[latestWeek] || [];
+      setWeeklyHistory({ latest: top3, week: latestWeek });
     })
     .catch(console.error);
 }, []);
@@ -2447,48 +2445,48 @@ return (
         <span>%</span>
       </div>
 
-{(showWeekly ? Object.values(weeklyHistory)?.[0] || [] : leaderboard).map(
+{(showWeekly ? weeklyHistory.latest || [] : leaderboard).map(
   (entry, index) => {
     const medalColor = ["#FFD700", "#C0C0C0", "#CD7F32"][index] || "#fff";
     const isCurrentUser = entry.address === account?.toLowerCase();
 
     return (
-<div
-  key={entry.address + (showWeekly ? "-weekly" : "-alltime")}
-  className={`leaderboard-row ${showWeekly && index === 0 ? "glow" : ""}`}
-  style={{
-    display: "grid",
-    gridTemplateColumns: "2fr 1fr 1fr 1fr",
-    padding: isMobile ? "6px 0" : "8px 0",
-    borderBottom: "1px solid #222",
-    fontSize: isMobile ? 14 : 16,
-    color: isCurrentUser ? "#4da3ff" : medalColor,
-    fontWeight: isCurrentUser ? "bold" : "normal"
-  }}
->
-  <span>
-    #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
-  </span>
-  <span style={{ textAlign: "center" }}>{entry.played}</span>
-  <span style={{ textAlign: "center" }}>{entry.wins}</span>
-  <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
-</div>
+      <div
+        key={entry.address + (showWeekly ? "-weekly" : "-alltime")}
+        className={`leaderboard-row ${showWeekly && index === 0 ? "glow" : ""}`}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr 1fr 1fr",
+          padding: isMobile ? "6px 0" : "8px 0",
+          borderBottom: "1px solid #222",
+          fontSize: isMobile ? 14 : 16,
+          color: isCurrentUser ? "#4da3ff" : medalColor,
+          fontWeight: isCurrentUser ? "bold" : "normal"
+        }}
+      >
+        <span>
+          #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
+        </span>
+        <span style={{ textAlign: "center" }}>{entry.played}</span>
+        <span style={{ textAlign: "center" }}>{entry.wins}</span>
+        <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+      </div>
     );
   }
 )}
 
-      {/* No data fallback */}
-      {(showWeekly ? Object.values(weeklyHistory)?.[0]?.length === 0 : leaderboard.length === 0) && (
-        <div
-          style={{
-            opacity: 0.6,
-            padding: isMobile ? "8px 0" : "12px 0",
-            textAlign: "center",
-          }}
-        >
-          No games to display.
-        </div>
-      )}
+/* No data fallback */
+{(showWeekly ? (weeklyHistory.latest?.length === 0) : leaderboard.length === 0) && (
+  <div
+    style={{
+      opacity: 0.6,
+      padding: isMobile ? "8px 0" : "12px 0",
+      textAlign: "center",
+    }}
+  >
+    No games to display.
+  </div>
+)}
     </div>
   </div>
 )}
