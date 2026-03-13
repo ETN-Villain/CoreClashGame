@@ -186,88 +186,93 @@ function initializeWeeklyLeaderboard() {
 
 // 2️⃣ Backfill top 3 for past weeks
 function backfillWeeklyLeaderboard(games) {
-let weeklyData = {};
-if (fs.existsSync(weeklyFilePath)) {
-  const raw = fs.readFileSync(weeklyFilePath, "utf8");
-  const parsed = JSON.parse(raw);
+  let weeklyData = {};
 
-  // Convert array to object if necessary
-if (Array.isArray(parsed)) {
-  weeklyData = {};
-  parsed.forEach(obj => {
-    Object.entries(obj).forEach(([week, top3]) => {
-      weeklyData[week] = top3;
-    });
-  });
-} else {
-  weeklyData = parsed;
-}
+  if (fs.existsSync(weeklyFilePath)) {
+    const raw = fs.readFileSync(weeklyFilePath, "utf8");
+    weeklyData = JSON.parse(raw);
+  }
 
   const now = new Date();
   const startDate = new Date(now);
-  startDate.setDate(startDate.getDate() - 28); // backfill last 4 weeks
+  startDate.setDate(startDate.getDate() - 28);
   startDate.setUTCHours(0, 0, 0, 0);
 
   let current = new Date(startDate);
 
   while (current <= now) {
     const weekStart = new Date(current);
-    const weekEnd = new Date(current);
-    weekEnd.setDate(weekEnd.getDate() + 6);
+    const weekStartTime = weekStart.getTime();
+    const weekEndTime = weekStartTime + 7 * 24 * 60 * 60 * 1000;
 
-    const weeklyGames = games.filter((g) => {
+    const weekDateKey = weekStart.toISOString().split("T")[0];
+
+    // skip if week already exists
+    if (weeklyData[weekDateKey]) {
+      current.setDate(current.getDate() + 7);
+      continue;
+    }
+
+    const weeklyGames = games.filter(g => {
       const gTime = new Date(g.date).getTime();
-      return gTime >= weekStart.getTime() && gTime >= weekStart.getTime() && gTime < weekStart.getTime() + 7 * 24 * 60 * 60 * 1000 && g.settled && !g.cancelled;
+      return gTime >= weekStartTime &&
+             gTime < weekEndTime &&
+             g.settled &&
+             !g.cancelled;
     });
 
-    if (weeklyGames.length > 0) {
-      const stats = {};
-      weeklyGames.forEach((g) => {
-        const p1 = g.player1?.toLowerCase();
-        const p2 = g.player2?.toLowerCase();
-        const winner = g.winner?.toLowerCase();
-        const isTie = g.tie;
+    const stats = {};
 
-        [p1, p2].forEach((player) => {
-          if (!player || player === "0x0000000000000000000000000000000000000000") return;
-          if (!stats[player]) stats[player] = { wins: 0, played: 0 };
-          stats[player].played += 1;
-        });
+    weeklyGames.forEach(g => {
+      const p1 = g.player1?.toLowerCase();
+      const p2 = g.player2?.toLowerCase();
+      const winner = g.winner?.toLowerCase();
 
-        if (!isTie && winner && winner !== "0x0000000000000000000000000000000000000000") {
-          if (!stats[winner]) stats[winner] = { wins: 0, played: 0 };
-          stats[winner].wins += 1;
-        }
-      });
+if (!stats[player]) {
+  stats[player] = { wins: 0, played: 0 };
+}
 
-      const top3 = Object.entries(stats)
-        .map(([address, data]) => ({
-          address,
-          wins: data.wins,
-          played: data.played,
-          winRate: data.played > 0 ? Math.round((data.wins / data.played) * 100) : 0,
-        }))
-        .sort((a, b) => {
-          if (b.wins !== a.wins) return b.wins - a.wins;
-          return b.winRate - a.winRate;
-        })
-        .slice(0, 3);
+stats[player].played = (stats[player].played || 0) + 1;
 
-      const weekDateKey = weekStart.toISOString().split("T")[0];
-        weeklyData[weekDateKey] = top3;
+if (winner && stats[winner]) {
+stats[winner].wins = (stats[winner].wins || 0) + 1;}
+    });
+
+Object.values(stats).forEach(s => {
+  s.wins = Number(s.wins);
+  s.played = Number(s.played);
+});
+
+const top3 = Object.entries(stats)
+      .map(([address, data]) => ({
+        address,
+        wins: data.wins,
+        played: data.played,
+        winRate: data.played
+          ? Math.round((Number(data.wins) / Number(data.played)) * 100)
+          : 0
+      }))
+      .sort((a, b) => b.wins - a.wins || b.winRate - a.winRate)
+      .slice(0, 3);
+
+    if (top3.length > 0) {
+      weeklyData[weekDateKey] = top3;
     }
 
     current.setDate(current.getDate() + 7);
   }
 
   fs.writeFileSync(weeklyFilePath, JSON.stringify(weeklyData, null, 2), "utf8");
-  console.log("Weekly leaderboard backfilled!");
-}
 }
 
 // 3️⃣ Run on server startup
 initializeWeeklyLeaderboard();
 
 // Read games once for backfill
+const weekDateKey = weekStart.toISOString().split("T")[0];
+
+if (!weeklyData[weekDateKey]) {
+  weeklyData[weekDateKey] = top3;
+}
 const allGames = JSON.parse(fs.readFileSync(GAMES_FILE, "utf8"));
 backfillWeeklyLeaderboard(allGames);
