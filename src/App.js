@@ -1299,7 +1299,7 @@ const [weeklyHistory, setWeeklyHistory] = useState({
 });
 
 useEffect(() => {
-  fetch(`${API}/leaderboard/weekly`)
+  fetch("/leaderboard/weekly")
     .then(res => res.json())
     .then(data => {
       const weeks = Object.keys(data).sort((a,b)=>new Date(b)-new Date(a));
