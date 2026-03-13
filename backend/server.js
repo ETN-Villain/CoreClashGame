@@ -15,6 +15,7 @@ import { loadMapping, METADATA_JSON_DIR } from "./paths.js";
 import gamesRouter from "./routes/games.js";
 import sseRouter from "./routes/sse.js";
 import nftsRouter from "./routes/nfts.js";
+import leaderboardRouter from "./routes/leaderboard.js";
 import { reconcileActiveGamesScheduled } from "./reconcile.js";
 import "./eventListener.js";
 
@@ -35,7 +36,7 @@ app.use(express.json());
 
 // ---------------- ROUTES ----------------
 app.use("/games", gamesRouter);
-app.use("/leaderboard", gamesRouter);
+app.use("/leaderboard", leaderboardRouter);
 app.use("/events", sseRouter);
 app.use("/nfts", nftsRouter);
 
