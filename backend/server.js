@@ -269,10 +269,6 @@ const top3 = Object.entries(stats)
 initializeWeeklyLeaderboard();
 
 // Read games once for backfill
-const weekDateKey = weekStart.toISOString().split("T")[0];
-
-if (!weeklyData[weekDateKey]) {
-  weeklyData[weekDateKey] = top3;
-}
 const allGames = JSON.parse(fs.readFileSync(GAMES_FILE, "utf8"));
+
 backfillWeeklyLeaderboard(allGames);
