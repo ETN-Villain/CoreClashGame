@@ -3086,7 +3086,8 @@
     "player2Revealed": false,
     "createdAt": "2026-03-01T21:51:08.739Z"
   },
-{"id":54,"player1":"0xbccf55d5b19703e3f3b8df31196714f92d15cf3d","player2":"0x4933fffd2a3ee6fdd2c3eeb724e4c754beea50e4","stakeAmount":"60000000000000000000","stakeToken":"0x309B916b3A90cb3E071697Ea9680e9217A30066f","settled":false,"cancelled":false,"winner":null,"player1Revealed":false,"player2Revealed":true,"createdAt":"2026-03-01T21:51:08.739Z","player2Reveal":{"salt":"95667598449664723856331063831889151923144095795576128142732583402579585211537","nftContracts":["0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4","0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4","0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"],"tokenIds":["158","155","156"],"tokenURIs":["445.json","439.json","340.json"],"backgrounds":["Gold","Verdant Green","Silver"]},"backendPlayer1Revealed":false,"backendPlayer2Revealed":true},  {
+{"id":54,"player1":"0xbccf55d5b19703e3f3b8df31196714f92d15cf3d","player2":"0x4933fffd2a3ee6fdd2c3eeb724e4c754beea50e4","stakeAmount":"60000000000000000000","stakeToken":"0x309B916b3A90cb3E071697Ea9680e9217A30066f","settled":true,"cancelled":false,"winner":"0x4933fffd2a3ee6fdd2c3eeb724e4c754beea50e4","player1Revealed":true,"player2Revealed":true,"createdAt":"2026-03-01T21:51:08.739Z","player1Reveal": {"salt": "53896141761276581839749498162710415092592536445905391370304264946192876464648","nftContracts": ["0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4","0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4","0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"],"tokenIds": ["361","435","432"],"tokenURIs": ["396.json","415.json","468.json"],"backgrounds": ["Silver","Verdant Green","Gold"]},"player2Reveal":{"salt":"95667598449664723856331063831889151923144095795576128142732583402579585211537","nftContracts":["0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4","0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4","0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"],"tokenIds":["158","155","156"],"tokenURIs":["445.json","439.json","340.json"],"backgrounds":["Gold","Verdant Green","Silver"]},"backendPlayer1Revealed":true,"backendPlayer2Revealed":true,"roundResults": [{"round": 1,"winner": "player2","diff": 0},{"round": 2,"winner": "player1","diff": 0},{"round": 3,"winner": "player2","diff": 9}],"settledAt": "2026-03-11T21:19:03.438Z","postWinnerTxHash": "0x16c835036d1d42cb7ad8ea2ef9350fed532ab8b2cd15753e2ad818ba4c47c097","backendWinner": "0xe4CCA28f011C619e2D8B6bc39DD4389dfEfb7311","winnerResolvedAt": "2026-02-26T21:18:58.694Z","settlementState": "settled","settleTxHash": "0xcdb3651d395065bd514a326b37778295566371e0821e4ed1116102b80a6ff08b","burnRecorded": true,"burnWei": "1200000000000000000"},  
+{
     "id": 55,
     "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
     "player2": "0xe4CCA28f011C619e2D8B6bc39DD4389dfEfb7311",
@@ -3161,10 +3162,10 @@
         "diff": 9
       }
     ],
-    "settledAt": "2026-02-26T21:19:03.438Z",
+    "settledAt": "2026-03-06T21:19:03.438Z",
     "postWinnerTxHash": "0x16c835036d1d42cb7ad8ea2ef9350fed532ab8b2cd15753e2ad818ba4c47c097",
     "backendWinner": "0xe4CCA28f011C619e2D8B6bc39DD4389dfEfb7311",
-    "winnerResolvedAt": "2026-02-26T21:18:58.694Z",
+    "winnerResolvedAt": "2026-03-06T21:19:03.438Z",
     "settlementState": "settled",
     "settled": true,
     "settleTxHash": "0x8fc44a5490cc1363efd7da71327e99df07bbdfc0f2ef234b2ca25874cd0a4b9b",
@@ -3175,7 +3176,7 @@
   {
     "id": 56,
     "player1": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
-    "player2": "0x0000000000000000000000000000000000000000",
+    "player2": "0xe4CCA28f011C619e2D8B6bc39DD4389dfEfb7311",
     "stakeAmount": "10000000000000000000",
     "stakeToken": "0x309B916b3A90cb3E071697Ea9680e9217A30066f",
     "winner": "0xe4CCA28f011C619e2D8B6bc39DD4389dfEfb7311",
@@ -3247,10 +3248,10 @@
         "diff": 9
       }
     ],
-    "settledAt": "2026-02-26T21:19:03.438Z",
+    "settledAt": "2026-03-06T21:19:03.438Z",
     "postWinnerTxHash": "0x16c835036d1d42cb7ad8ea2ef9350fed532ab8b2cd15753e2ad818ba4c47c097",
     "backendWinner": "0xe4CCA28f011C619e2D8B6bc39DD4389dfEfb7311",
-    "winnerResolvedAt": "2026-02-26T21:18:58.694Z",
+    "winnerResolvedAt": "2026-03-06T21:19:03.438Z",
     "settlementState": "settled",
     "settled": true,
     "settleTxHash": "0xe18acf10ff042f215970d7dba28726ddbb6b05f96b884aa329b12e3fb1eebd2d",
@@ -3334,10 +3335,10 @@
         "diff": 9
       }
     ],
-    "settledAt": "2026-02-26T21:19:03.438Z",
+    "settledAt": "2026-03-06T21:19:03.438Z",
     "postWinnerTxHash": "0x16c835036d1d42cb7ad8ea2ef9350fed532ab8b2cd15753e2ad818ba4c47c097",
     "backendWinner": "0xe4CCA28f011C619e2D8B6bc39DD4389dfEfb7311",
-    "winnerResolvedAt": "2026-02-26T21:18:58.694Z",
+    "winnerResolvedAt": "2026-03-06T21:19:03.438Z",
     "settlementState": "settled",
     "settled": true,
     "settleTxHash": "0x67121b1bfe1fce0e5719adea410ffa090582dfe08a2b9815f7809ded3a830347",
@@ -3421,10 +3422,10 @@
         "diff": 9
       }
     ],
-    "settledAt": "2026-02-26T21:19:03.438Z",
+    "settledAt": "2026-03-06T21:19:03.438Z",
     "postWinnerTxHash": "0x16c835036d1d42cb7ad8ea2ef9350fed532ab8b2cd15753e2ad818ba4c47c097",
     "backendWinner": "0xe4CCA28f011C619e2D8B6bc39DD4389dfEfb7311",
-    "winnerResolvedAt": "2026-02-26T21:18:58.694Z",
+    "winnerResolvedAt": "2026-03-06T21:19:03.438Z",
     "settlementState": "settled",
     "settled": true,
     "settleTxHash": "0xcd97c1ee992821464f3ad973ff515d6b755c91f7ba0ee291f27c0689738894b1",
@@ -3546,10 +3547,10 @@
         "diff": 9
       }
     ],
-    "settledAt": "2026-02-26T21:19:03.438Z",
+    "settledAt": "2026-03-06T21:19:03.438Z",
     "postWinnerTxHash": "0x16c835036d1d42cb7ad8ea2ef9350fed532ab8b2cd15753e2ad818ba4c47c097",
     "backendWinner": "0xe4CCA28f011C619e2D8B6bc39DD4389dfEfb7311",
-    "winnerResolvedAt": "2026-02-26T21:18:58.694Z",
+    "winnerResolvedAt": "2026-03-06T21:19:03.438Z",
     "settlementState": "settled",
     "settled": true,
     "settleTxHash": "0x23a982156937b9f81a2d32fc2a36096f21b0e7490ffcaea95996535d8fbf5e3e",
