@@ -1349,16 +1349,33 @@ useEffect(() => {
   }).catch(err => console.error("Failed to save weekly leaderboard:", err));
 }, [weeklyLeaderboard]);
 
-const [weeklyHistory, setWeeklyHistory] = useState({});
+const [weeklyHistory, setWeeklyHistory] = useState({
+  latest: [],
+  week: null
+});
 
 useEffect(() => {
   fetch("/leaderboard/weekly")
     .then(res => res.json())
     .then(data => {
-      const weeks = Object.keys(data).sort((a, b) => new Date(b) - new Date(a));
+      if (!data || typeof data !== "object") return;
+
+      const weeks = Object.keys(data).sort(
+        (a, b) => new Date(b) - new Date(a)
+      );
+
+      if (weeks.length === 0) {
+        setWeeklyHistory({ latest: [], week: null });
+        return;
+      }
+
       const latestWeek = weeks[0];
       const top3 = data[latestWeek] || [];
-      setWeeklyHistory({ latest: top3, week: latestWeek });
+
+      setWeeklyHistory({
+        latest: top3,
+        week: latestWeek
+      });
     })
     .catch(console.error);
 }, []);
