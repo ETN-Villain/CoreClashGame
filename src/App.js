@@ -1339,7 +1339,7 @@ useEffect(() => {
   weekStart.setUTCHours(0, 0, 0, 0);      // reset time
   weekStart.setUTCDate(now.getUTCDate() - now.getUTCDay()); // go back to Sunday
 
-  fetch("/api/leaderboard/weekly", {
+  fetch("/leaderboard/weekly", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -1352,7 +1352,7 @@ useEffect(() => {
 const [weeklyHistory, setWeeklyHistory] = useState({});
 
 useEffect(() => {
-  fetch("/api/leaderboard/weekly")
+  fetch("/leaderboard/weekly")
     .then(res => res.json())
     .then(data => {
       const weeks = Object.keys(data).sort((a, b) => new Date(b) - new Date(a));
