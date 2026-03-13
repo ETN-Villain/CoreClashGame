@@ -1283,26 +1283,13 @@ useEffect(() => {
   const day = now.getUTCDay() || 7;
   weekStart.setUTCDate(now.getUTCDate() - day + 1);
 
-  fetch("/leaderboard/weekly", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      weekStart: weekStart.toISOString(), // ISO string for backend
-      top3: weeklyLeaderboard,            // top 3 players
-    }),
-  }).catch(err => console.error("Failed to save weekly leaderboard:", err));
-}, [weeklyLeaderboard]);
-
-const [weeklyHistory, setWeeklyHistory] = useState({
-  latest: [],
-  week: null
-});
+const [weeklyHistory, setWeeklyHistory] = useState({ latest: [], week: null });
 
 useEffect(() => {
   fetch("/leaderboard/weekly")
     .then(res => res.json())
     .then(data => {
-      const weeks = Object.keys(data).sort((a,b)=>new Date(b)-new Date(a));
+      const weeks = Object.keys(data).sort((a, b) => new Date(b) - new Date(a));
       const latestWeek = weeks[0];
       const top3 = data[latestWeek] || [];
       setWeeklyHistory({ latest: top3, week: latestWeek });
