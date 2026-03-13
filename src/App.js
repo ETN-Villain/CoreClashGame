@@ -1271,64 +1271,7 @@ const leaderboard = useMemo(() => {
 }, [games]);
 
 /* ---------------- WEEKLY LEADERBOARD (Top 3, fixed weeks) ---------------- */
-const weeklyLeaderboard = useMemo(() => {
-  const stats = {};
-
-  // Define the first week start (Sunday 01/03/2026)
-  const firstWeekStart = new Date("2026-03-02T00:00:00Z").getTime();
-  const now = Date.now();
-
-  // Calculate current week number from firstWeekStart
-  const weekNumber = Math.floor((now - firstWeekStart) / (7 * 24 * 60 * 60 * 1000));
-
-  // Start and end of the current week
-  const weekStart = firstWeekStart + weekNumber * 7 * 24 * 60 * 60 * 1000;
-  const weekEnd = weekStart + 7 * 24 * 60 * 60 * 1000;
-
-  // Filter games in the current week
-  games
-    .filter(
-      g =>
-        g.settled &&
-        !g.cancelled &&
-        new Date(g.createdAt).getTime() >= weekStart &&
-        new Date(g.createdAt).getTime() < weekEnd
-    )
-    .forEach(g => {
-      const p1 = g.player1?.toLowerCase();
-      const p2 = g.player2?.toLowerCase();
-      const winner = g.winner?.toLowerCase();
-      const isTie = g.tie;
-
-      [p1, p2].forEach(player => {
-        if (!player || player === ethers.ZeroAddress.toLowerCase()) return;
-
-        if (!stats[player]) stats[player] = { wins: 0, played: 0 };
-        stats[player].played += 1;
-      });
-
-      if (!isTie && winner && winner !== ethers.ZeroAddress.toLowerCase()) {
-        if (!stats[winner]) stats[winner] = { wins: 0, played: 0 };
-        stats[winner].wins += 1;
-      }
-    });
-
-  // Map and sort top 3
-  return Object.entries(stats)
-    .map(([address, data]) => ({
-      address,
-      wins: data.wins,
-      played: data.played,
-      winRate: data.played > 0 ? Math.round((data.wins / data.played) * 100) : 0,
-    }))
-    .sort((a, b) => {
-      if (b.wins !== a.wins) return b.wins - a.wins;
-      return b.winRate - a.winRate;
-    })
-    .slice(0, 3); // Top 3 only
-}, [games]);
-
-const [lastSavedTop3, setLastSavedTop3] = useState([]);
+const weeklyLeaderboard = weeklyHistory.latest || [];
 
 useEffect(() => {
   if (weeklyLeaderboard.length === 0) return;
@@ -1337,7 +1280,8 @@ useEffect(() => {
   const now = new Date();
   const weekStart = new Date(now); 
   weekStart.setUTCHours(0, 0, 0, 0);      // reset time
-  weekStart.setUTCDate(now.getUTCDate() - now.getUTCDay()); // go back to Sunday
+  const day = now.getUTCDay() || 7;
+  weekStart.setUTCDate(now.getUTCDate() - day + 1);
 
   fetch("/leaderboard/weekly", {
     method: "POST",
@@ -1355,27 +1299,13 @@ const [weeklyHistory, setWeeklyHistory] = useState({
 });
 
 useEffect(() => {
-  fetch("/leaderboard/weekly")
+  fetch(`${API}/leaderboard/weekly`)
     .then(res => res.json())
     .then(data => {
-      if (!data || typeof data !== "object") return;
-
-      const weeks = Object.keys(data).sort(
-        (a, b) => new Date(b) - new Date(a)
-      );
-
-      if (weeks.length === 0) {
-        setWeeklyHistory({ latest: [], week: null });
-        return;
-      }
-
+      const weeks = Object.keys(data).sort((a,b)=>new Date(b)-new Date(a));
       const latestWeek = weeks[0];
       const top3 = data[latestWeek] || [];
-
-      setWeeklyHistory({
-        latest: top3,
-        week: latestWeek
-      });
+      setWeeklyHistory({ latest: top3, week: latestWeek });
     })
     .catch(console.error);
 }, []);
