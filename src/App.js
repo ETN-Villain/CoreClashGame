@@ -1271,20 +1271,10 @@ const leaderboard = useMemo(() => {
 }, [games]);
 
 /* ---------------- WEEKLY LEADERBOARD (Top 3, fixed weeks) ---------------- */
+const [weeklyHistory, setWeeklyHistory] = useState({ latest: [], week: null });
 const weeklyLeaderboard = weeklyHistory.latest || [];
 
-useEffect(() => {
-  if (weeklyLeaderboard.length === 0) return;
-
-  // Determine the start of the current week (Sunday)
-  const now = new Date();
-  const weekStart = new Date(now); 
-  weekStart.setUTCHours(0, 0, 0, 0);      // reset time
-  const day = now.getUTCDay() || 7;
-  weekStart.setUTCDate(now.getUTCDate() - day + 1);
-
-const [weeklyHistory, setWeeklyHistory] = useState({ latest: [], week: null });
-
+// Fetch weekly leaderboard from backend
 useEffect(() => {
   fetch("/leaderboard/weekly")
     .then(res => res.json())
