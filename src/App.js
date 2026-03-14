@@ -1808,26 +1808,23 @@ return (
 {/* Scrollable NFT row */}
 <div
   style={{
-    overflowX: "auto",
-    overflowY: "hidden",
-    WebkitOverflowScrolling: "touch", // smooth scroll on iOS
     display: "flex",
     gap: 10,
-    flexWrap: "nowrap",
-    width: "100%",        // container stays within viewport
-    minWidth: 0,          // ✅ allow it to shrink inside its parent
+    overflowX: "auto",      // ✅ local scroll
+    overflowY: "hidden",
+    WebkitOverflowScrolling: "touch",
+    flexWrap: "nowrap",      // prevent wrapping
     paddingBottom: 4,
-    scrollSnapType: "x mandatory", // optional: snapping
+    scrollSnapType: "x mandatory",
   }}
 >
-          {ownedNFTs.map((nftOption) => {
-          const selected = nfts[i]?.tokenId === nftOption.tokenId;
-
-          const collectionKey =
-            WHITELISTED_NFTS.find(
-              (x) =>
-                x.address?.toLowerCase() === nftOption.nftAddress?.toLowerCase()
-            )?.label === "Verdant Kin"
+    {ownedNFTs.map((nftOption) => {
+     const selected = nfts[i]?.tokenId === nftOption.tokenId;
+     const collectionKey =
+        WHITELISTED_NFTS.find(
+          (x) =>
+           x.address?.toLowerCase() === nftOption.nftAddress?.toLowerCase()
+        )?.label === "Verdant Kin"
               ? "VKIN"
               : "VQLE";
 
