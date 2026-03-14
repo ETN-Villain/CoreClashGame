@@ -85,11 +85,14 @@ useEffect(() => {
   /* ---------------- NFT STATE ---------------- */
   const [ownedNFTs, setOwnedNFTs] = useState([]);
 
-const [nfts, setNfts] = useState([
-  { address: "", tokenId: "", tokenURI: null, metadata: null },
-  { address: "", tokenId: "", tokenURI: null, metadata: null },
-  { address: "", tokenId: "", tokenURI: null, metadata: null },
-]);
+const [nfts, setNfts] = useState(
+  WHITELISTED_NFTS.slice(0,3).map(n => ({
+    address: n.address,
+    tokenId: "",
+    tokenURI: null,
+    metadata: null
+  }))
+);
 
   /* ---------- DEBUG NFTs------------*/
 useEffect(() => {
