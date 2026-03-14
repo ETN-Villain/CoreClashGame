@@ -1412,9 +1412,10 @@ return (
     maxWidth: 1100,
     margin: "0 auto",
     boxSizing: "border-box",
+    overflowX: "clip", // safer than hidden
   }}
 >
-{/* ---------------- WATERMARK ---------------- */}
+  {/* ---------------- WATERMARK ---------------- */}
 <div
   style={{
     position: "fixed",
@@ -1870,27 +1871,32 @@ return (
           )
         );
       }}
-      style={{
-        flex: "0 0 auto",
-        width: 90,
-        cursor: "pointer",
-        borderRadius: 8,
-        border: selected ? "2px solid #3ea6ff" : "1px solid #333",
-        background: "#111",
-        padding: 6,
-        textAlign: "center",
-      }}
+style={{
+  flex: "0 0 auto",
+  width: 90,
+  minWidth: 90,
+  maxWidth: 90,
+  cursor: "pointer",
+  borderRadius: 8,
+  border: selected ? "2px solid #3ea6ff" : "1px solid #333",
+  background: "#111",
+  padding: 6,
+  textAlign: "center",
+  boxSizing: "border-box",
+}}
     >
       <img
         src={imageSrc}
         alt={`${collectionKey} #${nftOption.tokenId}`}
-        style={{
-          width: "100%",
-          height: 70,
-          objectFit: "cover",
-          borderRadius: 6,
-          marginBottom: 4,
-        }}
+style={{
+  width: "100%",
+  height: 70,
+  maxWidth: "100%",
+  objectFit: "cover",
+  borderRadius: 6,
+  marginBottom: 4,
+  display: "block",
+}}
         onError={(e) => (e.currentTarget.src = "/placeholder.png")}
       />
 
