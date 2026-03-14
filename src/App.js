@@ -1412,10 +1412,11 @@ return (
     maxWidth: 1100,
     margin: "0 auto",
     boxSizing: "border-box",
-    overflowX: "clip", // safer than hidden
+    overflowX: "clip",
+    minWidth: 0,
   }}
 >
-  {/* ---------------- WATERMARK ---------------- */}
+    {/* ---------------- WATERMARK ---------------- */}
 <div
   style={{
     position: "fixed",
