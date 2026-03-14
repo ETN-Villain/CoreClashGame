@@ -1696,17 +1696,17 @@ return (
 <div
   style={{
     display: "flex",
+    flexDirection: isMobile ? "column" : "row",
     gap: 24,
     alignItems: "flex-start",
-    flexWrap: isMobile ? "wrap" : "nowrap",
-    minWidth: 0, // ✅ allow children to shrink
+    minWidth: 0, // allows children to shrink
   }}
 >
-{/* ---------------- TOTAL CORE BURNED ---------------- */}
+  {/* ---------------- TOTAL CORE BURNED ---------------- */}
 <div
   style={{
     marginTop: 20,
-    width: "100%",
+    width: isMobile ? "100%" : undefined,
     padding: "16px 12px",
     background: "#111",
     borderRadius: 12,
@@ -1758,6 +1758,7 @@ return (
 {/* ---------------- CREATE GAME SECTION ---------------- */}
 <div
   style={{
+    width: isMobile ? "100%" : "100%", 
     flex: 1,
     background: "#111",           // matches other cards
     border: "1px solid #333",
@@ -1992,31 +1993,40 @@ return (
   </div>
 ))}
 
-      {/* ---------------- STATUS ---------------- */}
-      <div style={{ fontSize: isMobile ? 12 : 14, color: "#aaa", marginTop: 12 }}>
-        signer: {signer ? "✅" : "❌"} | validated: {validated ? "✅" : "❌"} | stakeToken:{" "}
-        {stakeToken || "❌"} | stakeAmount: {stakeAmount || "❌"}
-      </div>
+{/* ---------------- STATUS ---------------- */}
+<div
+  style={{
+    display: "flex",
+    flexWrap: "wrap",        // allow items to wrap on narrow screens
+    gap: 8,                   // small spacing between items
+    fontSize: isMobile ? 12 : 14,
+    color: "#aaa",
+    marginTop: 12,
+  }}
+>
+  <span>signer: {signer ? "✅" : "❌"}</span>
+  <span>validated: {validated ? "✅" : "❌"}</span>
+  <span>stakeToken: {stakeToken || "❌"}</span>
+  <span>stakeAmount: {stakeAmount || "❌"}</span>
+</div>
 
 {/* ---------------- ACTION BUTTONS ---------------- */}
 <div
   style={{
-    width: "100%",        // ✅ make full width of viewport / parent container
+    width: "100%",
     marginTop: 16,
     marginBottom: 24,
     display: "flex",
     gap: 12,
     flexWrap: "wrap",
     justifyContent: isMobile ? "center" : "flex-start",
-    boxSizing: "border-box", // ensures padding doesn't affect width
+    boxSizing: "border-box",
   }}
 >
-  {/* Validate Team Button */}
   <button
-    disabled={validating}
-    onClick={validateTeam}
     style={{
-      flex: 1,
+      flex: isMobile ? "1 1 100%" : "1 1 auto", // full width on mobile
+      minWidth: isMobile ? 0 : 140, // optional: prevent tiny buttons
       maxWidth: 200,
       padding: isMobile ? "12px 0" : "14px 0",
       fontSize: isMobile ? 14 : 16,
@@ -2031,18 +2041,14 @@ return (
       boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
       transition: "transform 0.1s ease, box-shadow 0.2s ease",
     }}
-    onMouseEnter={(e) => !validating && (e.currentTarget.style.transform = "scale(1.05)")}
-    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
   >
     {validating ? "Validating..." : "Validate Team"}
   </button>
 
-  {/* Create Game Button */}
   <button
-    disabled={!validated || !stakeToken || !stakeAmount || !signer}
-    onClick={() => setShowDeviceWarning(true)}
     style={{
-      flex: 1,
+      flex: isMobile ? "1 1 100%" : "1 1 auto", // full width on mobile
+      minWidth: isMobile ? 0 : 140,
       maxWidth: 200,
       padding: isMobile ? "12px 0" : "14px 0",
       fontSize: isMobile ? 14 : 16,
@@ -2061,12 +2067,6 @@ return (
       boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
       transition: "transform 0.1s ease, box-shadow 0.2s ease",
     }}
-    onMouseEnter={(e) =>
-      validated && stakeToken && stakeAmount && signer
-        ? (e.currentTarget.style.transform = "scale(1.05)")
-        : null
-    }
-    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
   >
     Create Game
   </button>
