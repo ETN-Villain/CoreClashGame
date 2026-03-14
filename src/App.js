@@ -1413,6 +1413,7 @@ return (
     margin: "0 auto",
     boxSizing: "border-box",
     minWidth: 0,
+    overflowX: "hidden"
   }}
 >
     {/* ---------------- WATERMARK ---------------- */}
@@ -1811,11 +1812,8 @@ return (
     overflowY: "hidden",
     width: "100%",
     maxWidth: "100%",
-    paddingBottom: 6,
-    boxSizing: "border-box",
     WebkitOverflowScrolling: "touch",
     touchAction: "pan-x",
-    scrollSnapType: "x proximity",
   }}
 >
   <div
