@@ -1813,13 +1813,6 @@ return (
         maxWidth: "100%",
       }}
     >
-
-{nfts.map((n, i) => {
-  return (
-    <div
-      key={n.tokenId || n.address || i}
-      style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}
-    >
       {/* NFT GALLERY SELECTOR */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <label
@@ -1835,13 +1828,11 @@ return (
 
         <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
           {ownedNFTs
-            // Only whitelisted collections
             .filter((nft) =>
               WHITELISTED_NFTS.some(
                 (w) => w.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
               )
             )
-            // Hide NFTs selected in other slots
             .filter(
               (nft) =>
                 !nfts.some(
@@ -1932,9 +1923,6 @@ return (
         </div>
       </div>
     </div>
-  );
-})}
-</div>
   );
 })}
 
