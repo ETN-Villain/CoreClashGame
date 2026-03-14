@@ -1814,10 +1814,10 @@ return (
     maxWidth: "100%",
     WebkitOverflowScrolling: "touch",
     touchAction: "pan-x",
-    scrollSnapType: "x proximity"
+    display: "block"
   }}
 >
-  <div
+    <div
   style={{
     display: "flex",
     gap: 10,
@@ -1878,7 +1878,6 @@ style={{
   flex: "0 0 auto",
   width: 90,
   minWidth: 90,
-  maxWidth: 90,
   cursor: "pointer",
   borderRadius: 8,
   border: selected ? "2px solid #3ea6ff" : "1px solid #333",
@@ -1886,7 +1885,7 @@ style={{
   padding: 6,
   textAlign: "center",
   boxSizing: "border-box",
-  scrollSnapAlign: "start",
+  userSelect: "none"
 }}
     >
       <img
