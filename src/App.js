@@ -1763,11 +1763,11 @@ return (
     background: "#111",           // matches other cards
     border: "1px solid #333",
     borderRadius: 12,
-    padding: isMobile ? "16px 12px" : "24px",
+    padding: isMobile ? "12px 10px" : "16px 16px",
     boxShadow: "0 0 12px rgba(24,187,26,0.15)",
     display: "flex",
     flexDirection: "column",
-    gap: 12,
+    gap: 10,
   }}
 >
   <h2
@@ -2017,28 +2017,27 @@ onClick={() => {
 <div
   style={{
     width: "100%",
-    marginTop: 16,
-    marginBottom: 24,
+    marginTop: 12,      // slightly tighter
+    marginBottom: 12,   // reduced bottom space
     display: "flex",
-    gap: 12,
+    gap: isMobile ? 8 : 12, // smaller gap on mobile
     flexWrap: "wrap",
     justifyContent: isMobile ? "center" : "flex-start",
     boxSizing: "border-box",
   }}
 >
+  {/* Validate Team Button */}
   <button
     style={{
-      flex: isMobile ? "1 1 100%" : "1 1 auto", // full width on mobile
-      minWidth: isMobile ? 0 : 140, // optional: prevent tiny buttons
+      flex: isMobile ? "1 1 100%" : "1 1 auto",
+      minWidth: isMobile ? 0 : 140,
       maxWidth: 200,
-      padding: isMobile ? "12px 0" : "14px 0",
+      padding: isMobile ? "10px 0" : "14px 0", // slightly tighter vertical padding
       fontSize: isMobile ? 14 : 16,
       fontWeight: "bold",
       borderRadius: 12,
       border: "none",
-      background: validating
-        ? "#555"
-        : "linear-gradient(90deg, #1affb3, #00c6ff)",
+      background: validating ? "#555" : "linear-gradient(90deg, #1affb3, #00c6ff)",
       color: "#111",
       cursor: validating ? "not-allowed" : "pointer",
       boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
@@ -2048,12 +2047,13 @@ onClick={() => {
     {validating ? "Validating..." : "Validate Team"}
   </button>
 
+  {/* Create Game Button */}
   <button
     style={{
-      flex: isMobile ? "1 1 100%" : "1 1 auto", // full width on mobile
+      flex: isMobile ? "1 1 100%" : "1 1 auto",
       minWidth: isMobile ? 0 : 140,
       maxWidth: 200,
-      padding: isMobile ? "12px 0" : "14px 0",
+      padding: isMobile ? "10px 0" : "14px 0", // slightly tighter vertical padding
       fontSize: isMobile ? 14 : 16,
       fontWeight: "bold",
       borderRadius: 12,
