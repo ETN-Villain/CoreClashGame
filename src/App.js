@@ -1755,16 +1755,53 @@ return (
   </div>
 </div>
 
-  {/* ---------------- CREATE GAME SECTION ---------------- */}
-  <div style={{ flex: 1 /* take available width */ }}>
-    <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      Create Game
-      </h2>
-    <label>Stake Token: </label>
+{/* ---------------- CREATE GAME SECTION ---------------- */}
+<div
+  style={{
+    flex: 1,
+    background: "#111",           // matches other cards
+    border: "1px solid #333",
+    borderRadius: 12,
+    padding: isMobile ? "16px 12px" : "24px",
+    boxShadow: "0 0 12px rgba(24,187,26,0.15)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+  }}
+>
+  <h2
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      fontSize: isMobile ? 18 : 22,
+      color: "#18bb1a",
+      marginBottom: 12,
+    }}
+  >
+    Create Game
+  </h2>
+
+  {/* Stake Token */}
+  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <label style={{ fontSize: 12, color: "#aaa", fontWeight: 600, textTransform: "uppercase" }}>
+      Stake Token
+    </label>
     <select
       value={stakeToken}
       onChange={(e) => setStakeToken(e.target.value)}
-      style={{ width: "100%", maxWidth: 260, marginBottom: 6 }}
+      style={{
+        width: "100%",
+        maxWidth: 260,
+        padding: "8px 12px",
+        borderRadius: 8,
+        border: "1px solid #333",
+        background: "#0f0f0f",
+        color: "#fff",
+        fontSize: 14,
+        outline: "none",
+        cursor: "pointer",
+      }}
     >
       {WHITELISTED_TOKENS.map((t) => (
         <option key={t.address} value={t.address}>
@@ -1772,15 +1809,42 @@ return (
         </option>
       ))}
     </select>
+  </div>
 
-    <label> Stake Amount: </label>
+  {/* Stake Amount */}
+  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <label style={{ fontSize: 12, color: "#aaa", fontWeight: 600, textTransform: "uppercase" }}>
+      Stake Amount
+    </label>
     <input
       value={stakeAmount}
       onChange={(e) => setStakeAmount(e.target.value)}
-      style={{ width: "100%", maxWidth: 220, marginBottom: 12 }}
+      type="number"
+      placeholder="Enter amount"
+      style={{
+        width: "100%",
+        maxWidth: 220,
+        padding: "8px 12px",
+        borderRadius: 8,
+        border: "1px solid #333",
+        background: "#0f0f0f",
+        color: "#fff",
+        fontSize: 14,
+        outline: "none",
+      }}
     />
+  </div>
 
-    <h3>Your Clash Team (3)</h3>
+  <h3
+    style={{
+      fontSize: isMobile ? 16 : 18,
+      color: "#18bb1a",
+      marginTop: 16,
+      marginBottom: 8,
+    }}
+  >
+    Your Clash Team (3)
+  </h3>
 
 {/* ---------------- NFT GALLERY ---------------- */}
 {nfts.map((slot, i) => (
@@ -1809,13 +1873,13 @@ return (
       style={{
         display: "flex",
         gap: 10,
-        overflowX: "auto",      // ✅ local horizontal scroll
+        overflowX: "auto",
         overflowY: "hidden",
         WebkitOverflowScrolling: "touch",
         flexWrap: "nowrap",
         paddingBottom: 4,
         scrollSnapType: "x mandatory",
-        maxWidth: "100%",        // prevents row from expanding parent
+        maxWidth: "100%",
       }}
     >
       {ownedNFTs.map((nftOption) => {
@@ -1848,24 +1912,31 @@ return (
             key={`${nftOption.nftAddress}-${nftOption.tokenId}`}
             onClick={() => {
               setNfts((prev) =>
-                prev.map((slot, idx) =>
-                  idx === i
-                    ? {
-                        ...slot,
-                        tokenId: nftOption.tokenId,
-                        metadata: {
-                          name: nftOption.name,
-                          background: nftOption.background,
-                        },
-                        tokenURI: nftOption.tokenURI,
-                        address: nftOption.nftAddress,
-                      }
-                    : slot
-                )
+                prev.map((slot, idx) => {
+                  // if current slot is the one we clicked, assign NFT
+                  if (idx === i) {
+                    return {
+                      ...slot,
+                      tokenId: nftOption.tokenId,
+                      metadata: {
+                        name: nftOption.name,
+                        background: nftOption.background,
+                      },
+                      tokenURI: nftOption.tokenURI,
+                      address: nftOption.nftAddress,
+                    };
+                  } else {
+                    // remove NFT from other slots
+                    if (slot.tokenId === nftOption.tokenId) {
+                      return { ...slot, tokenId: null, metadata: {}, tokenURI: null, address: null };
+                    }
+                    return slot;
+                  }
+                })
               );
             }}
             style={{
-              flex: "0 0 auto",   // important for horizontal scroll
+              flex: "0 0 auto",
               width: 90,
               minWidth: 90,
               scrollSnapAlign: "start",
@@ -1930,12 +2001,14 @@ return (
 {/* ---------------- ACTION BUTTONS ---------------- */}
 <div
   style={{
+    width: "100%",        // ✅ make full width of viewport / parent container
     marginTop: 16,
     marginBottom: 24,
     display: "flex",
     gap: 12,
     flexWrap: "wrap",
     justifyContent: isMobile ? "center" : "flex-start",
+    boxSizing: "border-box", // ensures padding doesn't affect width
   }}
 >
   {/* Validate Team Button */}
