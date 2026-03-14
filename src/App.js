@@ -1412,7 +1412,6 @@ return (
     maxWidth: 1100,
     margin: "0 auto",
     boxSizing: "border-box",
-    overflowX: "clip",
     minWidth: 0,
   }}
 >
@@ -1806,16 +1805,20 @@ return (
   </label>
 
   {/* Scrollable NFT row */}
-  <div
-    style={{
-      overflowX: "auto",          // enable horizontal scroll
-      width: "100%",              // make container full width
-      paddingBottom: 4,
-      boxSizing: "border-box",
-      WebkitOverflowScrolling: "touch", // smooth scroll on iOS
-    }}
-  >
 <div
+  style={{
+    overflowX: "auto",
+    overflowY: "hidden",
+    width: "100%",
+    maxWidth: "100%",
+    paddingBottom: 6,
+    boxSizing: "border-box",
+    WebkitOverflowScrolling: "touch",
+    touchAction: "pan-x",
+    scrollSnapType: "x proximity",
+  }}
+>
+  <div
   style={{
     display: "flex",
     gap: 10,
@@ -1884,6 +1887,7 @@ style={{
   padding: 6,
   textAlign: "center",
   boxSizing: "border-box",
+  scrollSnapAlign: "start",
 }}
     >
       <img
