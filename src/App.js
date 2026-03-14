@@ -1809,93 +1809,205 @@ return (
         maxWidth: 280,
       }}
     >
-      {/* NFT Collection & Token ID Row */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          <label>NFT Collection</label>
-          <select
-            value={n.address}
-            onChange={(e) => {
-              const newAddress = e.target.value;
-              setNfts((prev) =>
-                prev.map((slot, idx) =>
-                  idx === i
-                    ? { ...slot, address: newAddress, tokenId: "", metadata: null, tokenURI: null, imageSrc: null }
-                    : slot
-                )
-              );
-            }}
-            style={{ width: "100%" }}
-          >
-            <option value="">Select Collection</option>
-            {WHITELISTED_NFTS.map((nft) => (
-              <option key={nft.address} value={nft.address}>
-                {nft.label}
-              </option>
-            ))}
-          </select>
-        </div>
+{/* NFT Collection + Token with Preview */}
+<div
+  style={{
+    display: "flex",
+    gap: 16,
+    alignItems: "center",
+    background: "#0f0f0f",
+    border: "1px solid #2a2a2a",
+    borderRadius: 10,
+    padding: "14px 16px",
+  }}
+>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          <label>Token ID</label>
-          <select
-            value={n.tokenId}
-            onChange={(e) => {
-              const tokenId = e.target.value;
-              const selected = ownedNFTs.find(
-                (nft) => nft.tokenId === tokenId && nft.nftAddress?.toLowerCase() === n.address?.toLowerCase()
-              );
-              setNfts((prev) =>
-                prev.map((slot, idx) =>
-                  idx === i
-                    ? {
-                        ...slot,
-                        tokenId,
-                        metadata: selected ? { name: selected.name, background: selected.background } : null,
-                        tokenURI: selected?.tokenURI,
-                        address: selected?.nftAddress || slot.address,
-                      }
-                    : slot
-                )
-              );
-            }}
-            style={{ width: "100%" }}
-            disabled={!n.address}
-          >
-            <option value="">Select Token</option>
-            {ownedNFTs
-              .filter(
-                (nft) =>
-                  nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
-                  !nfts.some(
-                    (s, idx) =>
-                      idx !== i &&
-                      s.tokenId === nft.tokenId &&
-                      s.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
-                  )
+  {/* NFT PREVIEW */}
+  <div
+    style={{
+      width: 72,
+      height: 72,
+      borderRadius: 8,
+      overflow: "hidden",
+      background: "#1a1a1a",
+      border: "1px solid #333",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0
+    }}
+  >
+    {n.imageSrc ? (
+      <img
+        src={n.imageSrc}
+        alt="NFT Preview"
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover"
+        }}
+      />
+    ) : (
+      <span style={{ fontSize: 11, color: "#666", textAlign: "center" }}>
+        No NFT
+      </span>
+    )}
+  </div>
+
+  {/* INPUTS */}
+  <div style={{ flex: 1, display: "flex", gap: 16 }}>
+
+    {/* COLLECTION */}
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+      <label
+        style={{
+          fontSize: 12,
+          color: "#aaa",
+          textTransform: "uppercase",
+          letterSpacing: 0.5
+        }}
+      >
+        NFT Collection
+      </label>
+
+      <select
+        value={n.address}
+        onChange={(e) => {
+          const newAddress = e.target.value;
+
+          setNfts((prev) =>
+            prev.map((slot, idx) =>
+              idx === i
+                ? {
+                    ...slot,
+                    address: newAddress,
+                    tokenId: "",
+                    metadata: null,
+                    tokenURI: null,
+                    imageSrc: null
+                  }
+                : slot
+            )
+          );
+        }}
+        style={{
+          width: "100%",
+          background: "#161616",
+          border: "1px solid #333",
+          borderRadius: 8,
+          padding: "10px 12px",
+          color: "#fff",
+          fontSize: 14
+        }}
+      >
+        <option value="">Select Collection</option>
+
+        {WHITELISTED_NFTS.map((nft) => (
+          <option key={nft.address} value={nft.address}>
+            {nft.label}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    {/* TOKEN */}
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+      <label
+        style={{
+          fontSize: 12,
+          color: "#aaa",
+          textTransform: "uppercase",
+          letterSpacing: 0.5
+        }}
+      >
+        Token ID
+      </label>
+
+      <select
+        value={n.tokenId}
+        onChange={(e) => {
+          const tokenId = e.target.value;
+
+          const selected = ownedNFTs.find(
+            (nft) =>
+              nft.tokenId === tokenId &&
+              nft.nftAddress?.toLowerCase() === n.address?.toLowerCase()
+          );
+
+          setNfts((prev) =>
+            prev.map((slot, idx) =>
+              idx === i
+                ? {
+                    ...slot,
+                    tokenId,
+                    metadata: selected
+                      ? { name: selected.name, background: selected.background }
+                      : null,
+                    tokenURI: selected?.tokenURI,
+                    imageSrc: selected?.imageSrc || null,
+                    address: selected?.nftAddress || slot.address
+                  }
+                : slot
+            )
+          );
+        }}
+        disabled={!n.address}
+        style={{
+          width: "100%",
+          background: "#161616",
+          border: "1px solid #333",
+          borderRadius: 8,
+          padding: "10px 12px",
+          color: "#fff",
+          fontSize: 14,
+          opacity: n.address ? 1 : 0.6,
+          cursor: n.address ? "pointer" : "not-allowed"
+        }}
+      >
+        <option value="">Select Token</option>
+
+        {ownedNFTs
+          .filter(
+            (nft) =>
+              nft.nftAddress?.toLowerCase() === n.address?.toLowerCase() &&
+              !nfts.some(
+                (s, idx) =>
+                  idx !== i &&
+                  s.tokenId === nft.tokenId &&
+                  s.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
               )
-              .sort((a, b) => {
-                const bgA = (a.background || "").trim();
-                const bgB = (b.background || "").trim();
-                const rankA = RARE_BACKGROUNDS.indexOf(bgA);
-                const rankB = RARE_BACKGROUNDS.indexOf(bgB);
-                if (rankA !== -1 || rankB !== -1) {
-                  if (rankA === -1) return 1;
-                  if (rankB === -1) return -1;
-                  return rankA - rankB;
-                }
-                if (bgA !== bgB) return bgA.toLowerCase().localeCompare(bgB.toLowerCase());
-                return (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase());
-              })
-              .map((nftOption) => (
-                <option key={nftOption.tokenId} value={nftOption.tokenId}>
-                  {RARE_BACKGROUNDS.includes(nftOption.background) ? "🟢 " : ""}
-                  #{nftOption.tokenId} — {nftOption.name} ({nftOption.background})
-                </option>
-              ))}
-          </select>
-        </div>
-      </div>
+          )
+          .sort((a, b) => {
+            const bgA = (a.background || "").trim();
+            const bgB = (b.background || "").trim();
+
+            const rankA = RARE_BACKGROUNDS.indexOf(bgA);
+            const rankB = RARE_BACKGROUNDS.indexOf(bgB);
+
+            if (rankA !== -1 || rankB !== -1) {
+              if (rankA === -1) return 1;
+              if (rankB === -1) return -1;
+              return rankA - rankB;
+            }
+
+            if (bgA !== bgB)
+              return bgA.toLowerCase().localeCompare(bgB.toLowerCase());
+
+            return (a.name || "")
+              .toLowerCase()
+              .localeCompare((b.name || "").toLowerCase());
+          })
+          .map((nftOption) => (
+            <option key={nftOption.tokenId} value={nftOption.tokenId}>
+              {RARE_BACKGROUNDS.includes(nftOption.background) ? "🟢 " : ""}
+              #{nftOption.tokenId} — {nftOption.name} ({nftOption.background})
+            </option>
+          ))}
+      </select>
+    </div>
+
+  </div>
+</div>
 
 {/* Image Preview or Placeholder */}
 {n.tokenId && collectionKey && imageFile ? (
