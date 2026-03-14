@@ -1814,6 +1814,7 @@ return (
     maxWidth: "100%",
     WebkitOverflowScrolling: "touch",
     touchAction: "pan-x",
+    scrollSnapType: "x proximity"
   }}
 >
   <div
