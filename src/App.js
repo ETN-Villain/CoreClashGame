@@ -2028,6 +2028,7 @@ onClick={() => {
 >
   {/* Validate Team Button */}
   <button
+onClick={validateTeam} // <-- THIS IS REQUIRED
     style={{
       flex: isMobile ? "1 1 100%" : "1 1 auto",
       minWidth: isMobile ? 0 : 140,
@@ -2049,7 +2050,8 @@ onClick={() => {
 
   {/* Create Game Button */}
   <button
-    style={{
+onClick={createGame} // <-- THIS IS REQUIRED    
+  style={{
       flex: isMobile ? "1 1 100%" : "1 1 auto",
       minWidth: isMobile ? 0 : 140,
       maxWidth: 200,
