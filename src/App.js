@@ -1911,32 +1911,35 @@ return (
         return (
           <div
             key={`${nftOption.nftAddress}-${nftOption.tokenId}`}
-            onClick={() => {
-              setNfts((prev) =>
-                prev.map((slot, idx) => {
-                  // if current slot is the one we clicked, assign NFT
-                  if (idx === i) {
-                    return {
-                      ...slot,
-                      tokenId: nftOption.tokenId,
-                      metadata: {
-                        name: nftOption.name,
-                        background: nftOption.background,
-                      },
-                      tokenURI: nftOption.tokenURI,
-                      address: nftOption.nftAddress,
-                    };
-                  } else {
-                    // remove NFT from other slots
-                    if (slot.tokenId === nftOption.tokenId) {
-                      return { ...slot, tokenId: null, metadata: {}, tokenURI: null, address: null };
-                    }
-                    return slot;
-                  }
-                })
-              );
-            }}
-            style={{
+onClick={() => {
+  setNfts((prev) =>
+    prev.map((slot, idx) => {
+      if (idx === i) {
+        // assign clicked NFT to current slot
+        return {
+          ...slot,
+          tokenId: nftOption.tokenId,
+          metadata: {
+            name: nftOption.name,
+            background: nftOption.background,
+          },
+          tokenURI: nftOption.tokenURI,
+          address: nftOption.nftAddress,
+        };
+      } else {
+        // remove the same NFT from other slots
+        if (
+          slot.tokenId === nftOption.tokenId &&
+          slot.address?.toLowerCase() === nftOption.nftAddress?.toLowerCase()
+        ) {
+          return { ...slot, tokenId: null, metadata: {}, tokenURI: null, address: null };
+        }
+        return slot;
+      }
+    })
+  );
+}}
+              style={{
               flex: "0 0 auto",
               width: 90,
               minWidth: 90,
