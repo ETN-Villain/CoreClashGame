@@ -1967,28 +1967,28 @@ onClick={() => {
                 display: "block",
               }}
             />
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: "bold",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              #{nftOption.tokenId}
-            </div>
-            <div
-              style={{
-                fontSize: 10,
-                opacity: 0.7,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {nftOption.background}
-            </div>
+<div
+  style={{
+    fontSize: 11,
+    fontWeight: "bold",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  }}
+>
+  {nftOption.name ? `${nftOption.name} (#${nftOption.tokenId})` : `#${nftOption.tokenId}`}
+</div>
+<div
+  style={{
+    fontSize: 10,
+    opacity: 0.7,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  }}
+>
+  {nftOption.background}
+</div>
           </div>
         );
       })}
