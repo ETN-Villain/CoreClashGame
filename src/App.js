@@ -82,18 +82,13 @@ useEffect(() => {
   }
 }, [unifiedProvider]);
 
-  /* ---------------- NFT STATE ---------------- */
-  const [ownedNFTs, setOwnedNFTs] = useState([]);
-
-// Initialize nfts with valid collection addresses from WHITELISTED_NFTS
-const [nfts, setNfts] = useState(
-  WHITELISTED_NFTS.slice(0, 3).map((w) => ({
-    address: w.address,
-    tokenId: null,
-    tokenURI: null,
-    metadata: null,
-  }))
-);
+/* ---------------- NFT STATE ---------------- */
+const [ownedNFTs, setOwnedNFTs] = useState([]);
+const [nfts, setNfts] = useState([
+  { address: "", tokenId: null, tokenURI: null, metadata: null },
+  { address: "", tokenId: null, tokenURI: null, metadata: null },
+  { address: "", tokenId: null, tokenURI: null, metadata: null },
+]);
 
   /* ---------- DEBUG NFTs------------*/
 useEffect(() => {
@@ -1787,104 +1782,59 @@ return (
 
     <h3>Your Clash Team (3)</h3>
 
-{nfts.map((n, i) => {
-  const collectionKey = WHITELISTED_NFTS.find(
-    (x) => x.address?.toLowerCase() === n.address?.toLowerCase()
-  )?.label === "Verdant Kin"
-    ? "VKIN"
-    : "VQLE";
-
-  let imageFile = null;
-  if (n.tokenId && collectionKey) {
-    const mapped = mapping[collectionKey]?.[String(n.tokenId)];
-    imageFile = mapped
-      ? mapped.image_file || mapped.token_uri?.replace(/\.json$/i, ".png") || `${n.tokenId}.png`
-      : `${n.tokenId}.png`;
-  }
-
+{nfts.map((slot, i) => {
   return (
-    <div
-      key={i}
-      style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}
-    >
-      {/* NFT GALLERY SELECTOR */}
-      <label
-        style={{
-          fontSize: 12,
-          color: "#aaa",
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-        }}
-      >
+    <div key={i} style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+      <label style={{ fontSize: 12, color: "#aaa", textTransform: "uppercase", letterSpacing: 0.5 }}>
         Select NFT
       </label>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          overflowX: "auto",
-          paddingBottom: 4,
-          maxWidth: "100%",
-          boxSizing: "border-box",
-        }}
-      >
+      <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4, maxWidth: "100%", boxSizing: "border-box" }}>
         {ownedNFTs
           .filter((nft) =>
             WHITELISTED_NFTS.some(
               (w) => w.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
             )
           )
+          // Exclude NFTs already selected in other slots
           .filter(
             (nft) =>
               !nfts.some(
-                (slot, idx) =>
+                (s, idx) =>
                   idx !== i &&
-                  slot.tokenId === nft.tokenId &&
-                  slot.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
+                  s.tokenId === nft.tokenId &&
+                  s.address?.toLowerCase() === nft.nftAddress?.toLowerCase()
               )
           )
           .map((nftOption) => {
-            const selected = n.tokenId === nftOption.tokenId;
-            const selectionLimitReached =
-              !selected && nfts.filter((slot) => slot.tokenId).length >= 3;
-
+            const selected = slot.tokenId === nftOption.tokenId;
             return (
               <div
                 key={nftOption.tokenId}
                 onClick={() => {
-                  if (selectionLimitReached) return;
-                  setNfts((prev) =>
-                    prev.map((slot, idx) =>
+                  setNfts(prev =>
+                    prev.map((s, idx) =>
                       idx === i
                         ? {
-                            ...slot,
+                            ...s,
                             tokenId: nftOption.tokenId,
-                            metadata: { name: nftOption.name, background: nftOption.background },
-                            tokenURI: nftOption.tokenURI,
                             address: nftOption.nftAddress,
+                            tokenURI: nftOption.tokenURI,
+                            metadata: { name: nftOption.name, background: nftOption.background },
                           }
-                        : slot
+                        : s
                     )
                   );
                 }}
                 style={{
                   flex: "0 0 auto",
                   width: 90,
-                  cursor: selectionLimitReached ? "not-allowed" : "pointer",
+                  cursor: "pointer",
                   borderRadius: 8,
-                  border: selected
-                    ? "2px solid #3ea6ff"
-                    : RARE_BACKGROUNDS.includes(nftOption.background)
-                    ? "2px solid #18bb1a"
-                    : "1px solid #333",
-                  boxShadow: RARE_BACKGROUNDS.includes(nftOption.background)
-                    ? "0 0 8px #18bb1a"
-                    : "none",
+                  border: selected ? "2px solid #3ea6ff" : "1px solid #333",
                   background: "#111",
                   padding: 6,
                   textAlign: "center",
-                  opacity: selectionLimitReached ? 0.5 : 1,
                 }}
               >
                 <img
