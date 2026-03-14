@@ -1699,9 +1699,9 @@ return (
     gap: 24,
     alignItems: "flex-start",
     flexWrap: isMobile ? "wrap" : "nowrap",
+    minWidth: 0, // ✅ allow children to shrink
   }}
 >
-
 {/* ---------------- TOTAL CORE BURNED ---------------- */}
 <div
   style={{
@@ -1805,21 +1805,22 @@ return (
         Select NFT
       </label>
 
-      {/* Scrollable NFT row */}
-      <div
-        style={{
-          overflowX: "auto",
-          overflowY: "hidden",
-          WebkitOverflowScrolling: "touch", // smooth scroll on iOS
-          display: "flex",
-          gap: 10,
-          flexWrap: "nowrap",
-          width: "100%",        // container stays within viewport
-          paddingBottom: 4,
-          scrollSnapType: "x mandatory", // optional: snapping
-        }}
-      >
-        {ownedNFTs.map((nftOption) => {
+{/* Scrollable NFT row */}
+<div
+  style={{
+    overflowX: "auto",
+    overflowY: "hidden",
+    WebkitOverflowScrolling: "touch", // smooth scroll on iOS
+    display: "flex",
+    gap: 10,
+    flexWrap: "nowrap",
+    width: "100%",        // container stays within viewport
+    minWidth: 0,          // ✅ allow it to shrink inside its parent
+    paddingBottom: 4,
+    scrollSnapType: "x mandatory", // optional: snapping
+  }}
+>
+          {ownedNFTs.map((nftOption) => {
           const selected = nfts[i]?.tokenId === nftOption.tokenId;
 
           const collectionKey =
