@@ -48,6 +48,11 @@ export default function App() {
   }
 }, [stakeToken]);
 
+const [showHowToPlay, setShowHowToPlay] = useState(false);
+const [showGameInfo, setShowGameInfo] = useState(false);
+const [helpModal, setHelpModal] = useState(null);
+const [showOwnershipWarning, setShowOwnershipWarning] = useState(false);
+
 /* ---------------- WALLET STATE ---------------- */
 const [provider, setProvider] = useState(null);  // Unified provider
 const [signer, setSigner] = useState(null);
@@ -1758,9 +1763,9 @@ return (
 {/* ---------------- CREATE GAME SECTION ---------------- */}
 <div
   style={{
-    width: isMobile ? "100%" : "100%", 
+    width: "100%",
     flex: 1,
-    background: "#111",           // matches other cards
+    background: "#111",
     border: "1px solid #333",
     borderRadius: 12,
     padding: isMobile ? "12px 10px" : "16px 16px",
@@ -1770,18 +1775,70 @@ return (
     gap: 10,
   }}
 >
-  <h2
+
+  {/* HEADER ROW */}
+  <div
     style={{
       display: "flex",
+      justifyContent: "space-between",
       alignItems: "center",
+      flexWrap: "wrap",
       gap: 8,
-      fontSize: isMobile ? 18 : 22,
-      color: "#18bb1a",
-      marginBottom: 12,
+      marginBottom: 6,
     }}
   >
-    Create Game
-  </h2>
+
+    <h2
+      style={{
+        fontSize: isMobile ? 18 : 22,
+        color: "#18bb1a",
+        margin: 0,
+      }}
+    >
+      Create Game
+    </h2>
+
+    {/* HELP BUTTONS */}
+    <div
+      style={{
+        display: "flex",
+        gap: 6,
+      }}
+    >
+      <button
+        onClick={() => setHelpModal("how")}
+        style={{
+          padding: "6px 10px",
+          borderRadius: 6,
+          border: "1px solid #333",
+          background: "#0f0f0f",
+          color: "#18bb1a",
+          fontSize: 12,
+          fontWeight: "bold",
+          cursor: "pointer",
+        }}
+      >
+        How To Play
+      </button>
+
+      <button
+        onClick={() => setHelpModal("info")}
+        style={{
+          padding: "6px 10px",
+          borderRadius: 6,
+          border: "1px solid #333",
+          background: "#0f0f0f",
+          color: "#18bb1a",
+          fontSize: 12,
+          fontWeight: "bold",
+          cursor: "pointer",
+        }}
+      >
+        Game Info
+      </button>
+    </div>
+
+  </div>
 
   {/* Stake Token */}
   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -2026,6 +2083,57 @@ onClick={() => {
     boxSizing: "border-box",
   }}
 >
+{/* NFT OWNERSHIP WARNING */}
+<div
+  style={{
+    border: "1px solid #6b4a00",
+    borderRadius: 8,
+    background: "#1a1200",
+    marginBottom: 8,
+    overflow: "hidden",
+  }}
+>
+
+  {/* Header */}
+  <div
+    onClick={() => setShowOwnershipWarning(!showOwnershipWarning)}
+    style={{
+      padding: "8px 10px",
+      fontSize: isMobile ? 12 : 13,
+      color: "#ffcc66",
+      fontWeight: "bold",
+      cursor: "pointer",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    }}
+  >
+    ⚠ NFT Ownership Warning
+    <span style={{ opacity: 0.7 }}>
+      {showOwnershipWarning ? "▲" : "▼"}
+    </span>
+  </div>
+
+  {/* Expandable Content */}
+  {showOwnershipWarning && (
+    <div
+      style={{
+        padding: "8px 10px",
+        fontSize: isMobile ? 11 : 12,
+        color: "#ffcc66",
+        lineHeight: 1.4,
+        borderTop: "1px solid #6b4a00",
+      }}
+    >
+      Remove all playing NFTs from marketplace listings. If you do not own the NFT
+      at <strong>Reveal</strong>, your reveal file will fail as you no longer own
+      the NFT. This will result in a <strong>forfeited game</strong> and you will
+      lose your stake.
+    </div>
+  )}
+
+</div>
+
   {/* Validate Team Button */}
   <button
 onClick={validateTeam} // <-- THIS IS REQUIRED
@@ -2092,41 +2200,6 @@ onClick={createGame} // <-- THIS IS REQUIRED
       <div style={{ marginBottom: 12 }} />
     )}
   </div>
-
-  {/* RIGHT: IMAGES */}
-<div
-  style={{
-    display: "flex",
-    flexDirection: isMobile ? "row" : "column", // row on mobile, column on desktop
-    gap: 8, // spacing between images
-    flexWrap: "wrap", // ensures images wrap if needed
-    paddingBottom: 12, // <-- small gap at the bottom  
-  }}
->
-  <img
-    src={HowToPlay}
-    alt="How to Play"
-    style={{
-      borderRadius: 8,
-      width: isMobile ? "48%" : "100%", // side by side on mobile
-      height: "auto",
-      boxShadow: "0 0 8px rgba(0,0,0,0.6)",
-      border: "1px solid #333",
-    }}
-  />
-  <img
-    src={GameInfo}
-    alt="Game Info"
-    style={{
-      borderRadius: 8,
-      width: isMobile ? "48%" : "100%",
-      height: "auto",
-      boxShadow: "0 0 8px rgba(0,0,0,0.6)",
-      border: "1px solid #333",
-    }}
-  />
-</div>
-</div>
 
 <div style={{ marginTop: 40, marginBottom: 10 }}>
   <h2
@@ -2455,6 +2528,152 @@ onClick={createGame} // <-- THIS IS REQUIRED
     No games to display.
   </div>
 )}
+    </div>
+  </div>
+)}
+</div>
+
+{helpModal && (
+  <div
+    onClick={() => setHelpModal(null)}
+    style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      background: "rgba(0,0,0,0.7)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 999,
+      padding: 16,
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        width: "100%",
+        maxWidth: 520,
+        maxHeight: "80vh",
+        overflowY: "auto",
+        background: "#111",
+        border: "1px solid #333",
+        borderRadius: 12,
+        padding: 20,
+        color: "#ddd",
+        boxShadow: "0 0 16px rgba(0,0,0,0.9)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 12,
+        }}
+      >
+        <h2 style={{ color: "#18bb1a", margin: 0 }}>
+          {helpModal === "how" ? "How To Play" : "Game Info"}
+        </h2>
+
+        <button
+          onClick={() => setHelpModal(null)}
+          style={{
+            background: "none",
+            border: "none",
+            color: "#aaa",
+            fontSize: 20,
+            cursor: "pointer",
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      {helpModal === "how" && (
+        <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+          <b>CORE CLASH</b>
+
+          <br /><br />
+
+          <b>Connect Wallet</b>
+
+          <br /><br />
+
+          <b>Create Game</b>
+          <br />1. Add stake amount
+          <br />2. Select your Clash Team
+          <br />3. Press <b>Validate Team</b>
+          <br />4. Press <b>Create Game</b>
+          <br />5. Approve wallet transactions
+          <br />6. Reveal file downloads automatically
+
+          <br /><br />
+
+          <b>Join Game</b>
+          <br />1. Select your Clash Team
+          <br />2. Press <b>Validate Team</b>
+          <br />3. Find game in Open
+          <br />4. Press Join Game
+          <br />5. Approve wallet transactions
+          <br />6. Reveal file downloads automatically
+
+          <br /><br />
+
+          <b>Reveal & Settle</b>
+          <br />Auto-reveal will request wallet confirmation.
+          <br />If it fails, upload your reveal file manually.
+          <br />Once both players reveal, the game settles automatically.
+        </div>
+      )}
+
+      {helpModal === "info" && (
+        <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+          <b>Your Clash Team</b>
+
+          <br /><br />
+
+          • 3 NFTs from approved collections  
+          • Only 1 rare background allowed (Gold, Verdant Green, Rose Gold, Silver)  
+          • Only 1 of each character  
+          • You must own the NFT  
+          • You cannot join your own game  
+
+          <br /><br />
+
+          <b>The Clash</b>
+
+          <br /><br />
+
+          Slot 1 vs Slot 1  
+          Slot 2 vs Slot 2  
+          Slot 3 vs Slot 3  
+
+          Each round results in a win or tie.  
+          Score difference breaks ties.
+
+          <br /><br />
+
+          <b>Fees</b>
+
+          <br /><br />
+
+          5% of the pot  
+          • 2% ETN_Villain  
+          • 2% dApp host  
+          • 1% CORE burn  
+
+          <br /><br />
+
+          <b>Payout</b>
+
+          <br /><br />
+
+          Winner receives 95% of the pot.  
+          If tied, 100% returned to players.
+        </div>
+      )}
     </div>
   </div>
 )}
