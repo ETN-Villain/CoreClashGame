@@ -2354,8 +2354,15 @@ onClick={createGame} // <-- THIS IS REQUIRED
 {/* ---------------- GAMES GRID ---------------- */}
 {/* ---------------- GAMES COLUMNS ---------------- */}
 {(!isMobile || activeTab === "open") && (
-  <div>
-        <h3>🟢 Open ({openGames.length})</h3>
+<div
+  style={{
+    display: "flex",
+    flexDirection: "column",   // ✅ STACK VERTICALLY
+    gap: 12,
+    minWidth: 0,               // ✅ prevents overflow bugs
+  }}
+>
+  <h3>🟢 Open ({openGames.length})</h3>
     {openGames.map((g) => (
       <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
     ))}
@@ -2363,8 +2370,15 @@ onClick={createGame} // <-- THIS IS REQUIRED
 )}
 
 {(!isMobile || activeTab === "active") && (
-  <div>
-        <h3>🟡 Active ({activeGames.length})</h3>
+<div
+  style={{
+    display: "flex",
+    flexDirection: "column",   // ✅ STACK VERTICALLY
+    gap: 12,
+    minWidth: 0,               // ✅ prevents overflow bugs
+  }}
+>
+  <h3>🟡 Active ({activeGames.length})</h3>
     {activeGames.map((g) => (
       <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
     ))}
@@ -2372,9 +2386,16 @@ onClick={createGame} // <-- THIS IS REQUIRED
 )}
 
 {(!isMobile || activeTab === "settled") && (
-  <div>
-        {/* Settled / Cancelled / Archive Column */}
-    <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+<div
+  style={{
+    display: "flex",
+    flexDirection: "column",   // ✅ STACK VERTICALLY
+    gap: 12,
+    minWidth: 0,               // ✅ prevents overflow bugs
+  }}
+>
+{/* Settled / Cancelled / Archive Column */}
+    <div style={{ display: "flex", gap: 12, marginBottom: 8, minWidth: 0 }}>
       <label>
         <input type="checkbox" checked={showResolved} onChange={() => setShowResolved(v => !v)} /> Settled (Winner)
       </label>
@@ -2403,7 +2424,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
     )}
 
     {showCancelled && cancelledGames.length > 0 && (
-      <div style={{ marginTop: 16 }}>
+      <div style={{ marginTop: 16, minWidth: 0 }}>
         <h3>❌ Cancelled ({cancelledGames.length})</h3>
         {cancelledGames.map((g) => (
           <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
@@ -2412,7 +2433,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
     )}
 
     {showArchive && archivedSettled.length > 0 && (
-      <div style={{ marginTop: 20, opacity: 0.7 }}>
+      <div style={{ marginTop: 20, opacity: 0.7, minWidth: 0 }}>
         <h3>📦 Archive ({archivedSettled.length})</h3>
         {archivedSettled.map((g) => (
           <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
