@@ -2304,8 +2304,9 @@ onClick={createGame} // <-- THIS IS REQUIRED
 )}
 
 {/* ---------------- GAMES GRID CONTAINER ---------------- */}
-<div style={{ width: "100%" }}>
-  {/* ---------------- TABS (MOBILE ONLY) ---------------- */}
+{(!isMobile || account) && ( // desktop always renders here; mobile uses tabs
+  <div style={{ width: "100%", marginTop: isMobile ? 0 : 40 }}>
+{/* ---------------- TABS (MOBILE ONLY) ---------------- */}
   {isMobile && (
     <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto" }}>
       {[
@@ -2469,7 +2470,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
               <span style={{ textAlign: "center" }}>{entry.wins}</span>
               <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
             </div>
-          )
+          );
         })}
 
         {(showWeekly ? (weeklyHistory.latest?.length===0) : leaderboard.length===0) && (
@@ -2479,7 +2480,9 @@ onClick={createGame} // <-- THIS IS REQUIRED
     </div>
   )}
 </div>
+)}
 
+{/* ---------------- HELP MODAL ---------------- */}
 {helpModal && (
   <div
     onClick={() => setHelpModal(null)}
@@ -2512,32 +2515,18 @@ onClick={createGame} // <-- THIS IS REQUIRED
         boxShadow: "0 0 16px rgba(0,0,0,0.9)",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12,
-        }}
-      >
+     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <h2 style={{ color: "#18bb1a", margin: 0 }}>
           {helpModal === "how" ? "How To Play" : "Game Info"}
         </h2>
-
         <button
           onClick={() => setHelpModal(null)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "#aaa",
-            fontSize: 20,
-            cursor: "pointer",
-          }}
+          style={{ background: "none", border: "none", color: "#aaa", fontSize: 20, cursor: "pointer" }}
         >
           ✕
         </button>
       </div>
-
+      
       {helpModal === "how" && (
         <div style={{ fontSize: 14, lineHeight: 1.6 }}>
           <b>CORE CLASH</b>
