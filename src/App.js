@@ -2337,16 +2337,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
   )}
 
     {/* DESKTOP GRID */}
-    <div
-      style={{
-        display: "grid",
-        gap: 20,
-        width: "100%",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "2fr 2fr 2fr 1.4fr", // 3 game columns + leaderboard column
-      }}
-    >
+<div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, flex: 3 }}>
     {/* OPEN */}
       {(!isMobile || activeTab === "open") && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -2415,7 +2406,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
       {/* ---------------- LEADERBOARD ---------------- */}
       {(!isMobile || activeTab === "leaderboard") && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ flex: 1.5, minWidth: 280 }}>
             <input type="checkbox" id="weeklyToggle" checked={showWeekly} onChange={e => setShowWeekly(e.target.checked)} />
             <label htmlFor="weeklyToggle" style={{ fontSize: isMobile ? 14 : 16, color: "#fff", fontWeight: 500 }}>
               Show Weekly Top 3
