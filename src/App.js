@@ -1913,6 +1913,7 @@ return (
       flexDirection: "column",
       gap: 8,
       marginBottom: 16,
+      minWidth: 0,
     }}
   >
     <label
@@ -2239,7 +2240,9 @@ onClick={createGame} // <-- THIS IS REQUIRED
   style={{
     display: isMobile ? "flex" : "grid",
     flexDirection: isMobile ? "column" : undefined,
-    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(2, minmax(0, 1fr))",
     gap: 20,
   }}
 >
