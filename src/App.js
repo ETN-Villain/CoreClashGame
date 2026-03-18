@@ -1905,154 +1905,141 @@ return (
   </h3>
 
 {/* ---------------- NFT GALLERY ---------------- */}
-{nfts.map((slot, i) => (
-  <div
-    key={i}
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: 8,
-      marginBottom: 16,
-      minWidth: 0,
-    }}
-  >
-    <label
-      style={{
-        fontSize: 12,
-        color: "#aaa",
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-      }}
-    >
-      Select NFT
-    </label>
-
-    {/* Scrollable NFT row */}
+<div style={{ marginBottom: 40 }}>
+  {nfts.map((slot, i) => (
     <div
+      key={i}
       style={{
         display: "flex",
-        gap: 10,
-        overflowX: "auto",
-        overflowY: "hidden",
-        WebkitOverflowScrolling: "touch",
-        flexWrap: "nowrap",
-        paddingBottom: 4,
-        scrollSnapType: "x mandatory",
-        maxWidth: "100%",
+        flexDirection: "column",
+        gap: 8,
+        marginBottom: 16,
+        minWidth: 0,
       }}
     >
-      {ownedNFTs.map((nftOption) => {
-        const selected = nfts[i]?.tokenId === nftOption.tokenId;
-        const collectionKey =
-          WHITELISTED_NFTS.find(
-            (x) =>
-              x.address?.toLowerCase() === nftOption.nftAddress?.toLowerCase()
-          )?.label === "Verdant Kin"
-            ? "VKIN"
-            : "VQLE";
+      <label
+        style={{
+          fontSize: 12,
+          color: "#aaa",
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+        }}
+      >
+        Select NFT
+      </label>
 
-        let imageFile = null;
-        if (nftOption.tokenId && collectionKey) {
-          const mapped = mapping[collectionKey]?.[String(nftOption.tokenId)];
-          imageFile = mapped
-            ? mapped.image_file ||
-              mapped.token_uri?.replace(/\.json$/i, ".png") ||
-              `${nftOption.tokenId}.png`
+      {/* Scrollable NFT row */}
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          overflowX: "auto",
+          overflowY: "hidden",
+          WebkitOverflowScrolling: "touch",
+          flexWrap: "nowrap",
+          paddingBottom: 4,
+          scrollSnapType: "x mandatory",
+          maxWidth: "100%",
+        }}
+      >
+        {ownedNFTs.map((nftOption) => {
+          const selected = nfts[i]?.tokenId === nftOption.tokenId;
+          const collectionKey =
+            WHITELISTED_NFTS.find(
+              (x) =>
+                x.address?.toLowerCase() === nftOption.nftAddress?.toLowerCase()
+            )?.label === "Verdant Kin"
+              ? "VKIN"
+              : "VQLE";
+
+          const mapped = nftOption.tokenId && collectionKey ? mapping[collectionKey]?.[String(nftOption.tokenId)] : null;
+          const imageFile = mapped
+            ? mapped.image_file || mapped.token_uri?.replace(/\.json$/i, ".png") || `${nftOption.tokenId}.png`
             : `${nftOption.tokenId}.png`;
-        }
 
-        const imageSrc =
-          imageFile && collectionKey
-            ? `${BACKEND_URL}/images/${collectionKey}/${imageFile}`
-            : "/placeholder.png";
+          const imageSrc = imageFile && collectionKey ? `${BACKEND_URL}/images/${collectionKey}/${imageFile}` : "/placeholder.png";
 
-        return (
-          <div
-            key={`${nftOption.nftAddress}-${nftOption.tokenId}`}
-onClick={() => {
-  setNfts((prev) =>
-    prev.map((slot, idx) => {
-      if (idx === i) {
-        // assign clicked NFT to current slot
-        return {
-          ...slot,
-          tokenId: nftOption.tokenId,
-          metadata: {
-            name: nftOption.name,
-            background: nftOption.background,
-          },
-          tokenURI: nftOption.tokenURI,
-          address: nftOption.nftAddress,
-        };
-      } else {
-        // remove the same NFT from other slots
-        if (
-          slot.tokenId === nftOption.tokenId &&
-          slot.address?.toLowerCase() === nftOption.nftAddress?.toLowerCase()
-        ) {
-          return { ...slot, tokenId: null, metadata: {}, tokenURI: null, address: null };
-        }
-        return slot;
-      }
-    })
-  );
-}}
-              style={{
-              flex: "0 0 auto",
-              width: 90,
-              minWidth: 90,
-              scrollSnapAlign: "start",
-              cursor: "pointer",
-              borderRadius: 8,
-              border: selected ? "2px solid #3ea6ff" : "1px solid #333",
-              background: "#111",
-              padding: 6,
-              textAlign: "center",
-              boxSizing: "border-box",
-              userSelect: "none",
-            }}
-          >
-            <img
-              src={imageSrc}
-              alt={`${collectionKey} #${nftOption.tokenId}`}
-              onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-              style={{
-                width: "100%",
-                height: 70,
-                objectFit: "cover",
-                borderRadius: 6,
-                marginBottom: 4,
-                display: "block",
+          return (
+            <div
+              key={`${nftOption.nftAddress}-${nftOption.tokenId}`}
+              onClick={() => {
+                setNfts((prev) =>
+                  prev.map((slot, idx) => {
+                    if (idx === i) {
+                      return {
+                        ...slot,
+                        tokenId: nftOption.tokenId,
+                        metadata: { name: nftOption.name, background: nftOption.background },
+                        tokenURI: nftOption.tokenURI,
+                        address: nftOption.nftAddress,
+                      };
+                    } else if (
+                      slot.tokenId === nftOption.tokenId &&
+                      slot.address?.toLowerCase() === nftOption.nftAddress?.toLowerCase()
+                    ) {
+                      return { ...slot, tokenId: null, metadata: {}, tokenURI: null, address: null };
+                    }
+                    return slot;
+                  })
+                );
               }}
-            />
-<div
-  style={{
-    fontSize: 11,
-    fontWeight: "bold",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  }}
->
-  {nftOption.name ? `${nftOption.name} (#${nftOption.tokenId})` : `#${nftOption.tokenId}`}
-</div>
-<div
-  style={{
-    fontSize: 10,
-    opacity: 0.7,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  }}
->
-  {nftOption.background}
-</div>
-          </div>
-        );
-      })}
+              style={{
+                flex: "0 0 auto",
+                width: 90,
+                minWidth: 90,
+                scrollSnapAlign: "start",
+                cursor: "pointer",
+                borderRadius: 8,
+                border: selected ? "2px solid #3ea6ff" : "1px solid #333",
+                background: "#111",
+                padding: 6,
+                textAlign: "center",
+                boxSizing: "border-box",
+                userSelect: "none",
+              }}
+            >
+              <img
+                src={imageSrc}
+                alt={`${collectionKey} #${nftOption.tokenId}`}
+                onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                style={{
+                  width: "100%",
+                  height: 70,
+                  objectFit: "cover",
+                  borderRadius: 6,
+                  marginBottom: 4,
+                  display: "block",
+                }}
+              />
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: "bold",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {nftOption.name ? `${nftOption.name} (#${nftOption.tokenId})` : `#${nftOption.tokenId}`}
+              </div>
+              <div
+                style={{
+                  fontSize: 10,
+                  opacity: 0.7,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {nftOption.background}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
-  </div>
-))}
+  ))}
+</div>
 
 {/* ---------------- STATUS ---------------- */}
 <div
@@ -2363,8 +2350,47 @@ onClick={createGame} // <-- THIS IS REQUIRED
     width: "100%",
   }}
 >
-  {/* ---------------- OPEN ---------------- */}
-  {(isMobile ? activeTab === "open" : true) && (
+{/* ---------------- TABS (MOBILE ONLY) ---------------- */}
+{isMobile && (
+  <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto" }}>
+    {[
+      { key: "open", label: `Open (${openGames.length})` },
+      { key: "active", label: `Active (${activeGames.length})` },
+      { key: "settled", label: `Settled (${latestSettled.length})` },
+      { key: "leaderboard", label: "Leaderboard" },
+    ].map((tab) => (
+      <button
+        key={tab.key}
+        onClick={() => setActiveTab(tab.key)}
+        style={{
+          padding: "8px 14px",
+          borderRadius: 8,
+          border: "1px solid #333",
+          background: activeTab === tab.key ? "#18bb1a" : "#111",
+          color: activeTab === tab.key ? "#000" : "#fff",
+          fontWeight: "bold",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
+)}
+
+{/* ---------------- CORE CLASHES / GAMES GRID ---------------- */}
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
+    gap: 20,
+    alignItems: "start",
+    width: "100%",
+  }}
+>
+  {/* OPEN */}
+  {(!isMobile || activeTab === "open") && (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <h3>🟢 Open ({openGames.length})</h3>
       {openGames.map((g) => (
@@ -2373,8 +2399,8 @@ onClick={createGame} // <-- THIS IS REQUIRED
     </div>
   )}
 
-  {/* ---------------- ACTIVE ---------------- */}
-  {(isMobile ? activeTab === "active" : true) && (
+  {/* ACTIVE */}
+  {(!isMobile || activeTab === "active") && (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <h3>🟡 Active ({activeGames.length})</h3>
       {activeGames.map((g) => (
@@ -2383,8 +2409,8 @@ onClick={createGame} // <-- THIS IS REQUIRED
     </div>
   )}
 
-  {/* ---------------- SETTLED ---------------- */}
-  {(isMobile ? activeTab === "settled" : true) && (
+  {/* SETTLED */}
+  {(!isMobile || activeTab === "settled") && (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
         <label>
@@ -2639,6 +2665,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
     </div>
   </div>
 )}
+</div>
 </div>
 </div>
 </div>
