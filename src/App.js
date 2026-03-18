@@ -2303,41 +2303,6 @@ onClick={createGame} // <-- THIS IS REQUIRED
   </div>
 )}
 
-{isMobile && (
-  <div
-    style={{
-      display: "flex",
-      gap: 8,
-      marginBottom: 16,
-      overflowX: "auto",
-    }}
-  >
-    {[
-      { key: "open", label: `Open (${openGames.length})` },
-      { key: "active", label: `Active (${activeGames.length})` },
-      { key: "settled", label: `Settled (${latestSettled.length})` },
-      { key: "leaderboard", label: "Leaderboard" },
-    ].map((tab) => (
-      <button
-        key={tab.key}
-        onClick={() => setActiveTab(tab.key)}
-        style={{
-          padding: "8px 14px",
-          borderRadius: 8,
-          border: "1px solid #333",
-          background: activeTab === tab.key ? "#18bb1a" : "#111",
-          color: activeTab === tab.key ? "#000" : "#fff",
-          fontWeight: "bold",
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {tab.label}
-      </button>
-    ))}
-  </div>
-)}
-
 {/* ---------------- GAMES GRID CONTAINER ---------------- */}
 <div style={{ width: "100%" }}>
   {/* ---------------- TABS (MOBILE ONLY) ---------------- */}
