@@ -2352,21 +2352,20 @@ onClick={createGame} // <-- THIS IS REQUIRED
 )}
 
 {/* ---------------- GAMES GRID ---------------- */}
-{/* ---------------- GAMES COLUMNS ---------------- */}
-{(!isMobile || activeTab === "open") && (
 <div
   style={{
-    display: "grid",
+    display: isMobile ? "flex" : "grid",
     gridTemplateColumns: isMobile
       ? "1fr"
-      : "repeat(4, minmax(0, 1fr))", // 4 columns: Open | Active | Settled | Leaderboard
+      : "repeat(4, minmax(0, 1fr))", // 4 columns on desktop
     gap: 20,
-    alignItems: "start", // prevents overlapping vertical content
+    alignItems: "start",
+    width: "100%",
   }}
 >
-  {/* Open */}
-  {(!isMobile || activeTab === "open") && (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+  {/* ---------------- OPEN ---------------- */}
+  {(isMobile ? activeTab === "open" : true) && (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <h3>🟢 Open ({openGames.length})</h3>
       {openGames.map((g) => (
         <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
@@ -2374,9 +2373,9 @@ onClick={createGame} // <-- THIS IS REQUIRED
     </div>
   )}
 
-  {/* Active */}
-  {(!isMobile || activeTab === "active") && (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+  {/* ---------------- ACTIVE ---------------- */}
+  {(isMobile ? activeTab === "active" : true) && (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <h3>🟡 Active ({activeGames.length})</h3>
       {activeGames.map((g) => (
         <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
@@ -2384,10 +2383,9 @@ onClick={createGame} // <-- THIS IS REQUIRED
     </div>
   )}
 
-  {/* Settled */}
-  {(!isMobile || activeTab === "settled") && (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
-      {/* Checkbox filters */}
+  {/* ---------------- SETTLED ---------------- */}
+  {(isMobile ? activeTab === "settled" : true) && (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
         <label>
           <input type="checkbox" checked={showResolved} onChange={() => setShowResolved(v => !v)} /> Settled
@@ -2403,8 +2401,8 @@ onClick={createGame} // <-- THIS IS REQUIRED
       {showResolved && latestSettled.length > 0 && (
         <div>
           <h3>🔵 Settled ({latestSettled.length})</h3>
-          {[...latestSettled].sort((a, b) => Number(b.settledAt) - Number(a.settledAt))
-            .map((g) => (
+          {[...latestSettled].sort((a,b)=>Number(b.settledAt)-Number(a.settledAt))
+            .map((g)=>(
               <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
             ))}
         </div>
@@ -2430,55 +2428,29 @@ onClick={createGame} // <-- THIS IS REQUIRED
     </div>
   )}
 
-  {/* Leaderboard */}
-  {(!isMobile || activeTab === "leaderboard") && (
+  {/* ---------------- LEADERBOARD ---------------- */}
+  {(isMobile ? activeTab === "leaderboard" : true) && (
     <div>
-      {/* ... leaderboard content */}
-    </div>
-  )}
-</div>
-)}
+      {/* Checkbox toggle */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <input type="checkbox" id="weeklyToggle" checked={showWeekly} onChange={e => setShowWeekly(e.target.checked)} />
+        <label htmlFor="weeklyToggle" style={{ fontSize: isMobile ? 14 : 16, color: "#fff", fontWeight: 500 }}>
+          Show Weekly Top 3
+        </label>
+      </div>
 
-{/* ---------------- LEADERBOARD ---------------- */}
-{(!isMobile || activeTab === "leaderboard") && (
-  <div style={{ gridColumn: isMobile ? "auto" : 4 }}>
-    {/* Checkbox toggle */}
-    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-      <input
-        type="checkbox"
-        id="weeklyToggle"
-        checked={showWeekly}
-        onChange={(e) => setShowWeekly(e.target.checked)}
-      />
-      <label
-        htmlFor="weeklyToggle"
-        style={{
-          fontSize: isMobile ? 14 : 16,
-          color: "#fff",
-          fontWeight: 500,
-        }}
-      >
-        Show Weekly Top 3
-      </label>
-    </div>
-
-    {/* Leaderboard heading */}
-    <h2
-      style={{
+      <h2 style={{
         color: "#18bb1a",
         fontWeight: "bold",
         fontSize: isMobile ? 26 : 30,
         textTransform: "uppercase",
         textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
         marginBottom: 12,
-      }}
-    >
-      {showWeekly ? "🏆 Weekly Top 3" : "🏆 All-Time Top 10"}
-    </h2>
+      }}>
+        {showWeekly ? "🏆 Weekly Top 3" : "🏆 All-Time Top 10"}
+      </h2>
 
-    {/* Leaderboard table */}
-    <div
-      style={{
+      <div style={{
         background: "#111",
         padding: isMobile ? 16 : 24,
         borderRadius: 12,
@@ -2486,71 +2458,41 @@ onClick={createGame} // <-- THIS IS REQUIRED
         display: "flex",
         flexDirection: "column",
         gap: 4,
-      }}
-    >
-      {/* Header row */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 1fr 1fr 1fr",
-          fontSize: isMobile ? 13 : 16,
-          opacity: 0.7,
-          borderBottom: "1px solid #333",
-          paddingBottom: 6,
-          marginBottom: 6,
-        }}
-      >
-        <span>Player</span>
-        <span>P</span>
-        <span>W</span>
-        <span>%</span>
+      }}>
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", fontSize: isMobile ? 13 : 16, opacity: 0.7, borderBottom: "1px solid #333", paddingBottom: 6, marginBottom: 6 }}>
+          <span>Player</span>
+          <span>P</span>
+          <span>W</span>
+          <span>%</span>
+        </div>
+
+        {(showWeekly ? weeklyHistory.latest || [] : leaderboard).map((entry,index)=>{
+          const medalColor = ["#FFD700","#C0C0C0","#CD7F32"][index] || "#fff";
+          const isCurrentUser = entry.address === account?.toLowerCase();
+          return (
+            <div key={entry.address+(showWeekly?"-weekly":"-alltime")} style={{
+              display:"grid",
+              gridTemplateColumns:"2fr 1fr 1fr 1fr",
+              padding:isMobile?"6px 0":"8px 0",
+              borderBottom:"1px solid #222",
+              fontSize:isMobile?14:16,
+              color:isCurrentUser?"#4da3ff":medalColor,
+              fontWeight:isCurrentUser?"bold":"normal"
+            }}>
+              <span>#{index+1} — {entry.address.slice(0,6)}…{entry.address.slice(-4)}</span>
+              <span style={{ textAlign: "center" }}>{entry.played}</span>
+              <span style={{ textAlign: "center" }}>{entry.wins}</span>
+              <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+            </div>
+          )
+        })}
+
+        {(showWeekly ? (weeklyHistory.latest?.length===0) : leaderboard.length===0) && (
+          <div style={{ opacity: 0.6, padding:isMobile?"8px 0":"12px 0", textAlign:"center" }}>No games to display.</div>
+        )}
       </div>
-
-{(showWeekly ? weeklyHistory.latest || [] : leaderboard).map(
-  (entry, index) => {
-    const medalColor = ["#FFD700", "#C0C0C0", "#CD7F32"][index] || "#fff";
-    const isCurrentUser = entry.address === account?.toLowerCase();
-
-    return (
-      <div
-        key={entry.address + (showWeekly ? "-weekly" : "-alltime")}
-        className={`leaderboard-row ${showWeekly && index === 0 ? "glow" : ""}`}
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 1fr 1fr 1fr",
-          padding: isMobile ? "6px 0" : "8px 0",
-          borderBottom: "1px solid #222",
-          fontSize: isMobile ? 14 : 16,
-          color: isCurrentUser ? "#4da3ff" : medalColor,
-          fontWeight: isCurrentUser ? "bold" : "normal"
-        }}
-      >
-        <span>
-          #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
-        </span>
-        <span style={{ textAlign: "center" }}>{entry.played}</span>
-        <span style={{ textAlign: "center" }}>{entry.wins}</span>
-        <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
-      </div>
-    );
-  }
-)}
-
-{/* No data fallback */}
-{(showWeekly ? (weeklyHistory.latest?.length === 0) : leaderboard.length === 0) && (
-  <div
-    style={{
-      opacity: 0.6,
-      padding: isMobile ? "8px 0" : "12px 0",
-      textAlign: "center",
-    }}
-  >
-    No games to display.
-  </div>
-)}
     </div>
-  </div>
-)}
+  )}
 </div>
 
 {helpModal && (
