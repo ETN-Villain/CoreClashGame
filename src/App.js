@@ -1593,6 +1593,7 @@ return (
 <div
   style={{
     marginTop: 16,
+    marginBottom: 24, // <-- gap before next block
     width: "100%",
     display: "grid",
     gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1.4fr 1fr",
@@ -1626,6 +1627,40 @@ return (
       <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 600, color: "#fff" }}>
         Buy CORE
       </span>
+    </div>
+  </a>
+
+  {/* Verdant Kin Banner */}
+  <a
+    href="https://app.electroswap.io/nfts/collection/0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      textDecoration: "none",
+      width: "100%",
+      maxWidth: isMobile ? "100%" : 280, // optional max width on desktop
+      gridColumn: isMobile ? "1 / span 2" : undefined, // span two columns on mobile
+    }}
+  >
+    <div
+      style={{
+        background: "#0f0f0f",
+        border: "1px solid #333",
+        borderRadius: 12,
+        width: "100%",
+        height: 60,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
+        transition: "all 0.2s ease",
+      }}
+    >
+      <img
+        src={VerdantKinBanner}
+        alt="Verdant Kin"
+        style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 8 }}
+      />
     </div>
   </a>
 
@@ -1663,45 +1698,12 @@ return (
       </span>
     </div>
   </a>
-
-  {/* Verdant Kin Banner */}
-  <a
-    href="https://app.electroswap.io/nfts/collection/0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
-    target="_blank"
-    rel="noopener noreferrer"
-    style={{
-      textDecoration: "none",
-      width: "100%",
-      gridColumn: isMobile ? "1 / span 2" : "2",
-    }}
-  >
-    <div
-      style={{
-        background: "#0f0f0f",
-        border: "1px solid #333",
-        borderRadius: 12,
-        width: "100%",
-        height: 60,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
-        transition: "all 0.2s ease",
-      }}
-    >
-      <img
-        src={VerdantKinBanner}
-        alt="Verdant Kin"
-        style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 8 }}
-      />
-    </div>
-  </a>
 </div>
 
 <div
   style={{
     display: "flex",
-    flexDirection: isMobile ? "column" : "row",
+    flexDirection: "column",
     gap: 24,
     alignItems: "flex-start",
     minWidth: 0, // allows children to shrink
@@ -2304,8 +2306,9 @@ onClick={createGame} // <-- THIS IS REQUIRED
 )}
 
 {/* ---------------- GAMES GRID CONTAINER ---------------- */}
-<div style={{ width: "100%" }}>
-  {/* ---------------- TABS (MOBILE ONLY) ---------------- */}
+{(!isMobile || account) && ( // desktop always renders here; mobile uses tabs
+  <div style={{ width: "100%", marginTop: isMobile ? 0 : 40 }}>
+{/* ---------------- TABS (MOBILE ONLY) ---------------- */}
   {isMobile && (
     <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto" }}>
       {[
@@ -2469,7 +2472,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
               <span style={{ textAlign: "center" }}>{entry.wins}</span>
               <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
             </div>
-          )
+          );
         })}
 
         {(showWeekly ? (weeklyHistory.latest?.length===0) : leaderboard.length===0) && (
@@ -2479,7 +2482,9 @@ onClick={createGame} // <-- THIS IS REQUIRED
     </div>
   )}
 </div>
+)}
 
+{/* ---------------- HELP MODAL ---------------- */}
 {helpModal && (
   <div
     onClick={() => setHelpModal(null)}
@@ -2512,32 +2517,18 @@ onClick={createGame} // <-- THIS IS REQUIRED
         boxShadow: "0 0 16px rgba(0,0,0,0.9)",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12,
-        }}
-      >
+     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <h2 style={{ color: "#18bb1a", margin: 0 }}>
           {helpModal === "how" ? "How To Play" : "Game Info"}
         </h2>
-
         <button
           onClick={() => setHelpModal(null)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "#aaa",
-            fontSize: 20,
-            cursor: "pointer",
-          }}
+          style={{ background: "none", border: "none", color: "#aaa", fontSize: 20, cursor: "pointer" }}
         >
           ✕
         </button>
       </div>
-
+      
       {helpModal === "how" && (
         <div style={{ fontSize: 14, lineHeight: 1.6 }}>
           <b>CORE CLASH</b>
