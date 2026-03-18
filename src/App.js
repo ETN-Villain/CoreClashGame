@@ -2338,126 +2338,118 @@ onClick={createGame} // <-- THIS IS REQUIRED
   </div>
 )}
 
-{/* ---------------- GAMES GRID ---------------- */}
-<div
-  style={{
-    display: isMobile ? "flex" : "grid",
-    gridTemplateColumns: isMobile
-      ? "1fr"
-      : "repeat(4, minmax(0, 1fr))", // 4 columns on desktop
-    gap: 20,
-    alignItems: "start",
-    width: "100%",
-  }}
->
-{/* ---------------- TABS (MOBILE ONLY) ---------------- */}
-{isMobile && (
-  <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto" }}>
-    {[
-      { key: "open", label: `Open (${openGames.length})` },
-      { key: "active", label: `Active (${activeGames.length})` },
-      { key: "settled", label: `Settled (${latestSettled.length})` },
-      { key: "leaderboard", label: "Leaderboard" },
-    ].map((tab) => (
-      <button
-        key={tab.key}
-        onClick={() => setActiveTab(tab.key)}
-        style={{
-          padding: "8px 14px",
-          borderRadius: 8,
-          border: "1px solid #333",
-          background: activeTab === tab.key ? "#18bb1a" : "#111",
-          color: activeTab === tab.key ? "#000" : "#fff",
-          fontWeight: "bold",
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {tab.label}
-      </button>
-    ))}
-  </div>
-)}
-
-{/* ---------------- CORE CLASHES / GAMES GRID ---------------- */}
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
-    gap: 20,
-    alignItems: "start",
-    width: "100%",
-  }}
->
-  {/* OPEN */}
-  {(!isMobile || activeTab === "open") && (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <h3>🟢 Open ({openGames.length})</h3>
-      {openGames.map((g) => (
-        <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+{/* ---------------- GAMES GRID CONTAINER ---------------- */}
+<div style={{ width: "100%" }}>
+  {/* ---------------- TABS (MOBILE ONLY) ---------------- */}
+  {isMobile && (
+    <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto" }}>
+      {[
+        { key: "open", label: `Open (${openGames.length})` },
+        { key: "active", label: `Active (${activeGames.length})` },
+        { key: "settled", label: `Settled (${latestSettled.length})` },
+        { key: "leaderboard", label: "Leaderboard" },
+      ].map((tab) => (
+        <button
+          key={tab.key}
+          onClick={() => setActiveTab(tab.key)}
+          style={{
+            padding: "8px 14px",
+            borderRadius: 8,
+            border: "1px solid #333",
+            background: activeTab === tab.key ? "#18bb1a" : "#111",
+            color: activeTab === tab.key ? "#000" : "#fff",
+            fontWeight: "bold",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {tab.label}
+        </button>
       ))}
     </div>
   )}
 
-  {/* ACTIVE */}
-  {(!isMobile || activeTab === "active") && (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <h3>🟡 Active ({activeGames.length})</h3>
-      {activeGames.map((g) => (
-        <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-      ))}
-    </div>
-  )}
-
-  {/* SETTLED */}
-  {(!isMobile || activeTab === "settled") && (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
-        <label>
-          <input type="checkbox" checked={showResolved} onChange={() => setShowResolved(v => !v)} /> Settled
-        </label>
-        <label>
-          <input type="checkbox" checked={showCancelled} onChange={() => setShowCancelled(v => !v)} /> Cancelled
-        </label>
-        <label>
-          <input type="checkbox" checked={showArchive} onChange={() => setShowArchive(v => !v)} /> Archive
-        </label>
-      </div>
-
-      {showResolved && latestSettled.length > 0 && (
-        <div>
-          <h3>🔵 Settled ({latestSettled.length})</h3>
-          {[...latestSettled].sort((a,b)=>Number(b.settledAt)-Number(a.settledAt))
-            .map((g)=>(
-              <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-            ))}
-        </div>
-      )}
-
-      {showCancelled && cancelledGames.length > 0 && (
-        <div style={{ marginTop: 16 }}>
-          <h3>❌ Cancelled ({cancelledGames.length})</h3>
-          {cancelledGames.map((g) => (
+  {/* ---------------- CORE GAMES GRID ---------------- */}
+  {( !isMobile || activeTab !== "leaderboard" ) && (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
+        gap: 20,
+        alignItems: "start",
+        width: "100%",
+      }}
+    >
+      {/* OPEN */}
+      {(!isMobile || activeTab === "open") && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <h3>🟢 Open ({openGames.length})</h3>
+          {openGames.map((g) => (
             <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
           ))}
         </div>
       )}
 
-      {showArchive && archivedSettled.length > 0 && (
-        <div style={{ marginTop: 20, opacity: 0.7 }}>
-          <h3>📦 Archive ({archivedSettled.length})</h3>
-          {archivedSettled.map((g) => (
+      {/* ACTIVE */}
+      {(!isMobile || activeTab === "active") && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <h3>🟡 Active ({activeGames.length})</h3>
+          {activeGames.map((g) => (
             <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
           ))}
+        </div>
+      )}
+
+      {/* SETTLED */}
+      {(!isMobile || activeTab === "settled") && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
+            <label>
+              <input type="checkbox" checked={showResolved} onChange={() => setShowResolved(v => !v)} /> Settled
+            </label>
+            <label>
+              <input type="checkbox" checked={showCancelled} onChange={() => setShowCancelled(v => !v)} /> Cancelled
+            </label>
+            <label>
+              <input type="checkbox" checked={showArchive} onChange={() => setShowArchive(v => !v)} /> Archive
+            </label>
+          </div>
+
+          {showResolved && latestSettled.length > 0 && (
+            <div>
+              <h3>🔵 Settled ({latestSettled.length})</h3>
+              {[...latestSettled].sort((a, b) => Number(b.settledAt) - Number(a.settledAt))
+                .map((g) => (
+                  <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+                ))}
+            </div>
+          )}
+
+          {showCancelled && cancelledGames.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <h3>❌ Cancelled ({cancelledGames.length})</h3>
+              {cancelledGames.map((g) => (
+                <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+              ))}
+            </div>
+          )}
+
+          {showArchive && archivedSettled.length > 0 && (
+            <div style={{ marginTop: 20, opacity: 0.7 }}>
+              <h3>📦 Archive ({archivedSettled.length})</h3>
+              {archivedSettled.map((g) => (
+                <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
   )}
 
-  {/* ---------------- LEADERBOARD ---------------- */}
-  {(isMobile ? activeTab === "leaderboard" : true) && (
-    <div>
-      {/* Checkbox toggle */}
+  {/* ---------------- LEADERBOARD (FULL WIDTH) ---------------- */}
+  {( !isMobile || activeTab === "leaderboard" ) && (
+    <div style={{ marginTop: 32 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
         <input type="checkbox" id="weeklyToggle" checked={showWeekly} onChange={e => setShowWeekly(e.target.checked)} />
         <label htmlFor="weeklyToggle" style={{ fontSize: isMobile ? 14 : 16, color: "#fff", fontWeight: 500 }}>
@@ -2485,6 +2477,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
         flexDirection: "column",
         gap: 4,
       }}>
+        {/* Header */}
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", fontSize: isMobile ? 13 : 16, opacity: 0.7, borderBottom: "1px solid #333", paddingBottom: 6, marginBottom: 6 }}>
           <span>Player</span>
           <span>P</span>
@@ -2492,6 +2485,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
           <span>%</span>
         </div>
 
+        {/* Entries */}
         {(showWeekly ? weeklyHistory.latest || [] : leaderboard).map((entry,index)=>{
           const medalColor = ["#FFD700","#C0C0C0","#CD7F32"][index] || "#fff";
           const isCurrentUser = entry.address === account?.toLowerCase();
@@ -2665,7 +2659,6 @@ onClick={createGame} // <-- THIS IS REQUIRED
     </div>
   </div>
 )}
-</div>
 </div>
 </div>
 </div>
