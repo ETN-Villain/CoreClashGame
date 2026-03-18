@@ -2642,5 +2642,6 @@ onClick={createGame} // <-- THIS IS REQUIRED
 </div>
 </div>
 </div>
+</div>
   );
 }
