@@ -2336,18 +2336,18 @@ onClick={createGame} // <-- THIS IS REQUIRED
     </div>
   )}
 
-  {/* ---------------- CORE GAMES GRID ---------------- */}
-  {( !isMobile || activeTab !== "leaderboard" ) && (
+    {/* DESKTOP GRID */}
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
         gap: 20,
-        alignItems: "start",
         width: "100%",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "2fr 2fr 2fr 1.4fr", // 3 game columns + leaderboard column
       }}
     >
-      {/* OPEN */}
+    {/* OPEN */}
       {(!isMobile || activeTab === "open") && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <h3>🟢 Open ({openGames.length})</h3>
@@ -2411,18 +2411,16 @@ onClick={createGame} // <-- THIS IS REQUIRED
           )}
         </div>
       )}
-    </div>
-  )}
 
-  {/* ---------------- LEADERBOARD (FULL WIDTH) ---------------- */}
-  {( !isMobile || activeTab === "leaderboard" ) && (
-    <div style={{ marginTop: 32 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-        <input type="checkbox" id="weeklyToggle" checked={showWeekly} onChange={e => setShowWeekly(e.target.checked)} />
-        <label htmlFor="weeklyToggle" style={{ fontSize: isMobile ? 14 : 16, color: "#fff", fontWeight: 500 }}>
-          Show Weekly Top 3
-        </label>
-      </div>
+      {/* ---------------- LEADERBOARD ---------------- */}
+      {(!isMobile || activeTab === "leaderboard") && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <input type="checkbox" id="weeklyToggle" checked={showWeekly} onChange={e => setShowWeekly(e.target.checked)} />
+            <label htmlFor="weeklyToggle" style={{ fontSize: isMobile ? 14 : 16, color: "#fff", fontWeight: 500 }}>
+              Show Weekly Top 3
+            </label>
+          </div>
 
       <h2 style={{
         color: "#18bb1a",
@@ -2480,6 +2478,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
       </div>
     </div>
   )}
+</div>
 </div>
 )}
 
