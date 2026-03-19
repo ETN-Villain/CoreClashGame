@@ -1710,16 +1710,17 @@ return (
 >
   {/* ---------------- TOTAL CORE BURNED ---------------- */}
 <div
-  style={{
-    marginTop: 20,
-    width: isMobile ? "100%" : undefined,
-    padding: "16px 12px",
-    background: "#111",
-    borderRadius: 12,
-    border: "1px solid #333",
-    textAlign: "center",
-    boxShadow: "0 0 12px rgba(24,187,26,0.15)",
-  }}
+style={{
+  marginTop: 20,
+  width: isMobile ? "100%" : undefined,
+  padding: "16px 12px",
+  background: "#111",
+  borderRadius: 12,
+  border: "1px solid #333",
+  textAlign: "center",
+  boxShadow: "0 0 12px rgba(24,187,26,0.15)",
+  boxSizing: "border-box", // ✅ THIS FIXES IT PROPERLY
+}}
 >
   {/* Label */}
   <div
@@ -1774,6 +1775,7 @@ return (
     display: "flex",
     flexDirection: "column",
     gap: 10,
+    boxSizing: "border-box",
   }}
 >
 
