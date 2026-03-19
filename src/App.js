@@ -2306,102 +2306,151 @@ onClick={createGame} // <-- THIS IS REQUIRED
 
 {/* ---------------- GAMES GRID CONTAINER ---------------- */}
 {(!isMobile || account) && ( // desktop always renders here; mobile uses tabs
-  <div style={{ width: "100%", marginTop: isMobile ? 0 : 40 }}>
+  <div style={{ width: "100%", minWidth: 0, marginTop: isMobile ? 0 : 40 }}>
 {/* ---------------- TABS (MOBILE ONLY) ---------------- */}
   {isMobile && (
-    <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto" }}>
-      {[
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: 6,
+    marginBottom: 16,
+  }}
+>      {[
         { key: "open", label: `Open (${openGames.length})` },
         { key: "active", label: `Active (${activeGames.length})` },
         { key: "settled", label: `Settled (${latestSettled.length})` },
         { key: "leaderboard", label: "Leaderboard" },
       ].map((tab) => (
-        <button
-          key={tab.key}
-          onClick={() => setActiveTab(tab.key)}
-          style={{
-            padding: "8px 14px",
-            borderRadius: 8,
-            border: "1px solid #333",
-            background: activeTab === tab.key ? "#18bb1a" : "#111",
-            color: activeTab === tab.key ? "#000" : "#fff",
-            fontWeight: "bold",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {tab.label}
+<button
+  key={tab.key}
+  onClick={() => setActiveTab(tab.key)}
+  style={{
+    padding: "8px 6px", // tighter padding
+    borderRadius: 8,
+    border: "1px solid #333",
+    background: activeTab === tab.key ? "#18bb1a" : "#111",
+    color: activeTab === tab.key ? "#000" : "#fff",
+    fontWeight: "bold",
+    cursor: "pointer",
+    fontSize: 12, // slightly smaller
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  }}
+>
+      {tab.label}
         </button>
       ))}
     </div>
   )}
 
     {/* DESKTOP GRID */}
-<div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, flex: 3 }}>
+<div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr 1.3fr", gap: 20, flex: 3 }}>
     {/* OPEN */}
       {(!isMobile || activeTab === "open") && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0, width: "100%" }}>
           <h3>🟢 Open ({openGames.length})</h3>
-          {openGames.map((g) => (
-            <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-          ))}
+{openGames.map((g) => (
+  <div style={{ width: "100%" }}>
+    <GameCard
+      key={g.id}
+      g={g}
+      {...gameCardProps}
+      roundResults={g.roundResults || []}
+    />
+  </div>
+))}
         </div>
       )}
 
       {/* ACTIVE */}
       {(!isMobile || activeTab === "active") && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0, width: "100%" }}>
           <h3>🟡 Active ({activeGames.length})</h3>
-          {activeGames.map((g) => (
-            <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+{activeGames.map((g) => (
+  <div style={{ width: "100%" }}>
+    <GameCard
+      key={g.id}
+      g={g}
+      {...gameCardProps}
+      roundResults={g.roundResults || []}
+    />
+  </div>
+))}        </div>
+      )}
+
+{/* SETTLED */}
+{(!isMobile || activeTab === "settled") && (
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: 12,
+      width: "100%",
+      minWidth: 0,
+    }}
+  >
+    <div style={{ display: "flex", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
+      <label>
+        <input type="checkbox" checked={showResolved} onChange={() => setShowResolved(v => !v)} /> Settled
+      </label>
+      <label>
+        <input type="checkbox" checked={showCancelled} onChange={() => setShowCancelled(v => !v)} /> Cancelled
+      </label>
+      <label>
+        <input type="checkbox" checked={showArchive} onChange={() => setShowArchive(v => !v)} /> Archive
+      </label>
+    </div>
+
+    {showResolved && latestSettled.length > 0 && (
+      <div style={{ width: "100%", minWidth: 0 }}>
+        <h3>🔵 Settled ({latestSettled.length})</h3>
+        {[...latestSettled]
+          .sort((a, b) => Number(b.settledAt) - Number(a.settledAt))
+          .map((g) => (
+            <div key={g.id} style={{ width: "100%" }}>
+              <GameCard
+                g={g}
+                {...gameCardProps}
+                roundResults={g.roundResults || []}
+              />
+            </div>
           ))}
-        </div>
-      )}
+      </div>
+    )}
 
-      {/* SETTLED */}
-      {(!isMobile || activeTab === "settled") && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", gap: 12, marginBottom: 8 }}>
-            <label>
-              <input type="checkbox" checked={showResolved} onChange={() => setShowResolved(v => !v)} /> Settled
-            </label>
-            <label>
-              <input type="checkbox" checked={showCancelled} onChange={() => setShowCancelled(v => !v)} /> Cancelled
-            </label>
-            <label>
-              <input type="checkbox" checked={showArchive} onChange={() => setShowArchive(v => !v)} /> Archive
-            </label>
+    {showCancelled && cancelledGames.length > 0 && (
+      <div style={{ marginTop: 16, width: "100%", minWidth: 0 }}>
+        <h3>❌ Cancelled ({cancelledGames.length})</h3>
+        {cancelledGames.map((g) => (
+          <div key={g.id} style={{ width: "100%" }}>
+            <GameCard
+              g={g}
+              {...gameCardProps}
+              roundResults={g.roundResults || []}
+            />
           </div>
+        ))}
+      </div>
+    )}
 
-          {showResolved && latestSettled.length > 0 && (
-            <div>
-              <h3>🔵 Settled ({latestSettled.length})</h3>
-              {[...latestSettled].sort((a, b) => Number(b.settledAt) - Number(a.settledAt))
-                .map((g) => (
-                  <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-                ))}
-            </div>
-          )}
-
-          {showCancelled && cancelledGames.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <h3>❌ Cancelled ({cancelledGames.length})</h3>
-              {cancelledGames.map((g) => (
-                <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-              ))}
-            </div>
-          )}
-
-          {showArchive && archivedSettled.length > 0 && (
-            <div style={{ marginTop: 20, opacity: 0.7 }}>
-              <h3>📦 Archive ({archivedSettled.length})</h3>
-              {archivedSettled.map((g) => (
-                <GameCard key={g.id} g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+    {showArchive && archivedSettled.length > 0 && (
+      <div style={{ marginTop: 20, opacity: 0.7, width: "100%", minWidth: 0 }}>
+        <h3>📦 Archive ({archivedSettled.length})</h3>
+        {archivedSettled.map((g) => (
+          <div key={g.id} style={{ width: "100%" }}>
+            <GameCard
+              g={g}
+              {...gameCardProps}
+              roundResults={g.roundResults || []}
+            />
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
       {/* ---------------- LEADERBOARD ---------------- */}
       {(!isMobile || activeTab === "leaderboard") && (
