@@ -2346,7 +2346,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
   )}
 
     {/* DESKTOP GRID */}
-<div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, flex: 3 }}>
+<div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr 1.3fr", gap: 20, flex: 3 }}>
     {/* OPEN */}
       {(!isMobile || activeTab === "open") && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0, width: "100%" }}>
