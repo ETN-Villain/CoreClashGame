@@ -2226,12 +2226,9 @@ onClick={createGame} // <-- THIS IS REQUIRED
 
 <div
   style={{
-    display: isMobile ? "flex" : "grid",
-    flexDirection: isMobile ? "column" : undefined,
-    gridTemplateColumns: isMobile
-      ? "1fr"
-      : "repeat(2, minmax(0, 1fr))",
-    gap: 20,
+display: "flex",
+flexDirection: "column",
+gap: 20,
   }}
 >
 
