@@ -2302,221 +2302,323 @@ gap: 20,
 )}
 
 {/* ---------------- GAMES GRID CONTAINER ---------------- */}
-{(!isMobile || account) && ( // desktop always renders here; mobile uses tabs
+{(!isMobile || account) && (
   <div style={{ width: "100%", minWidth: 0, marginTop: isMobile ? 0 : 40 }}>
-{/* ---------------- TABS (MOBILE ONLY) ---------------- */}
-  {isMobile && (
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: 6,
-    marginBottom: 16,
-  }}
->      {[
-        { key: "open", label: `Open (${openGames.length})` },
-        { key: "active", label: `Active (${activeGames.length})` },
-        { key: "settled", label: `Settled (${latestSettled.length})` },
-        { key: "leaderboard", label: "Leaderboard" },
-      ].map((tab) => (
-<button
-  key={tab.key}
-  onClick={() => setActiveTab(tab.key)}
-  style={{
-    padding: "8px 6px", // tighter padding
-    borderRadius: 8,
-    border: "1px solid #333",
-    background: activeTab === tab.key ? "#18bb1a" : "#111",
-    color: activeTab === tab.key ? "#000" : "#fff",
-    fontWeight: "bold",
-    cursor: "pointer",
-    fontSize: 12, // slightly smaller
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  }}
->
-      {tab.label}
-        </button>
-      ))}
-    </div>
-  )}
 
-    {/* DESKTOP GRID */}
-<div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr 1.4fr 1.4fr 1.4fr", gap: 20, flex: 3 }}>
-    {/* OPEN */}
-      {(!isMobile || activeTab === "open") && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0, width: "100%" }}>
-          <h3>🟢 Open ({openGames.length})</h3>
-{openGames.map((g) => (
-  <div style={{ width: "100%" }}>
-    <GameCard
-      key={g.id}
-      g={g}
-      {...gameCardProps}
-      roundResults={g.roundResults || []}
-    />
-  </div>
-))}
+    {/* ---------------- TABS (MOBILE ONLY) ---------------- */}
+    {isMobile && (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 6,
+          marginBottom: 16,
+        }}
+      >
+        {[
+          { key: "open", label: `Open (${openGames.length})` },
+          { key: "active", label: `Active (${activeGames.length})` },
+          { key: "settled", label: `Settled (${latestSettled.length})` },
+          { key: "leaderboard", label: "Leaderboard" },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              padding: "8px 6px",
+              borderRadius: 8,
+              border: "1px solid #333",
+              background: activeTab === tab.key ? "#18bb1a" : "#111",
+              color: activeTab === tab.key ? "#000" : "#fff",
+              fontWeight: "bold",
+              cursor: "pointer",
+              fontSize: 12,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    )}
+
+    {/* ---------------- LEADERBOARD (DESKTOP ONLY) ---------------- */}
+    {!isMobile && (
+      <div style={{ marginBottom: 30 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <input
+            type="checkbox"
+            id="weeklyToggle"
+            checked={showWeekly}
+            onChange={e => setShowWeekly(e.target.checked)}
+          />
+          <label
+            htmlFor="weeklyToggle"
+            style={{ fontSize: 16, color: "#fff", fontWeight: 500 }}
+          >
+            Show Weekly Top 3
+          </label>
         </div>
-      )}
 
-      {/* ACTIVE */}
-      {(!isMobile || activeTab === "active") && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0, width: "100%" }}>
-          <h3>🟡 Active ({activeGames.length})</h3>
-{activeGames.map((g) => (
-  <div style={{ width: "100%" }}>
-    <GameCard
-      key={g.id}
-      g={g}
-      {...gameCardProps}
-      roundResults={g.roundResults || []}
-    />
-  </div>
-))}        </div>
-      )}
+        <h2 style={{
+          color: "#18bb1a",
+          fontWeight: "bold",
+          fontSize: 30,
+          textTransform: "uppercase",
+          textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
+          marginBottom: 12,
+        }}>
+          {showWeekly ? "🏆 Weekly Top 3" : "🏆 All-Time Top 10"}
+        </h2>
 
-{/* SETTLED */}
-{(!isMobile || activeTab === "settled") && (
-  <div
-    style={{
+        <div style={{
+          background: "#111",
+          padding: 24,
+          borderRadius: 12,
+          border: "1px solid #333",
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}>
+          {/* Header */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr 1fr 1fr",
+            fontSize: 16,
+            opacity: 0.7,
+            borderBottom: "1px solid #333",
+            paddingBottom: 6,
+            marginBottom: 6
+          }}>
+            <span>Player</span>
+            <span>P</span>
+            <span>W</span>
+            <span>%</span>
+          </div>
+
+          {/* Entries */}
+          {(showWeekly ? weeklyHistory.latest || [] : leaderboard).map((entry, index) => {
+            const medalColor = ["#FFD700", "#C0C0C0", "#CD7F32"][index] || "#fff";
+            const isCurrentUser = entry.address === account?.toLowerCase();
+
+            return (
+              <div
+                key={entry.address + (showWeekly ? "-weekly" : "-alltime")}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "2fr 1fr 1fr 1fr",
+                  padding: "8px 0",
+                  borderBottom: "1px solid #222",
+                  fontSize: 16,
+                  color: isCurrentUser ? "#4da3ff" : medalColor,
+                  fontWeight: isCurrentUser ? "bold" : "normal"
+                }}
+              >
+                <span>#{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}</span>
+                <span style={{ textAlign: "center" }}>{entry.played}</span>
+                <span style={{ textAlign: "center" }}>{entry.wins}</span>
+                <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+              </div>
+            );
+          })}
+
+          {(showWeekly
+            ? (weeklyHistory.latest?.length === 0)
+            : leaderboard.length === 0) && (
+            <div style={{ opacity: 0.6, padding: "12px 0", textAlign: "center" }}>
+              No games to display.
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* ---------------- GAMES GRID ---------------- */}
+    {( !isMobile || activeTab !== "leaderboard" ) && (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+          gap: 20,
+        }}
+      >
+
+        {/* OPEN */}
+        {(!isMobile || activeTab === "open") && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <h3>🟢 Open ({openGames.length})</h3>
+            {openGames.map((g) => (
+              <div key={g.id} style={{ width: "100%" }}>
+                <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ACTIVE */}
+        {(!isMobile || activeTab === "active") && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <h3>🟡 Active ({activeGames.length})</h3>
+            {activeGames.map((g) => (
+              <div key={g.id} style={{ width: "100%" }}>
+                <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* SETTLED */}
+        {(!isMobile || activeTab === "settled") && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <label>
+                <input type="checkbox" checked={showResolved} onChange={() => setShowResolved(v => !v)} /> Settled
+              </label>
+              <label>
+                <input type="checkbox" checked={showCancelled} onChange={() => setShowCancelled(v => !v)} /> Cancelled
+              </label>
+              <label>
+                <input type="checkbox" checked={showArchive} onChange={() => setShowArchive(v => !v)} /> Archive
+              </label>
+            </div>
+
+            {showResolved && latestSettled.length > 0 && (
+              <>
+                <h3>🔵 Settled ({latestSettled.length})</h3>
+                {[...latestSettled]
+                  .sort((a, b) => Number(b.settledAt) - Number(a.settledAt))
+                  .map((g) => (
+                    <div key={g.id} style={{ width: "100%" }}>
+                      <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+                    </div>
+                  ))}
+              </>
+            )}
+
+            {showCancelled && cancelledGames.length > 0 && (
+              <>
+                <h3>❌ Cancelled ({cancelledGames.length})</h3>
+                {cancelledGames.map((g) => (
+                  <div key={g.id} style={{ width: "100%" }}>
+                    <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+                  </div>
+                ))}
+              </>
+            )}
+
+            {showArchive && archivedSettled.length > 0 && (
+              <>
+                <h3>📦 Archive ({archivedSettled.length})</h3>
+                {archivedSettled.map((g) => (
+                  <div key={g.id} style={{ width: "100%" }}>
+                    <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+
+      </div>
+    )}
+
+{/* ---------------- LEADERBOARD (MOBILE TAB) ---------------- */}
+{isMobile && activeTab === "leaderboard" && (
+  <div style={{ marginTop: 20 }}>
+
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+      <input
+        type="checkbox"
+        id="weeklyToggle"
+        checked={showWeekly}
+        onChange={e => setShowWeekly(e.target.checked)}
+      />
+      <label
+        htmlFor="weeklyToggle"
+        style={{ fontSize: 14, color: "#fff", fontWeight: 500 }}
+      >
+        Show Weekly Top 3
+      </label>
+    </div>
+
+    <h2 style={{
+      color: "#18bb1a",
+      fontWeight: "bold",
+      fontSize: 24, // 👈 slightly smaller for mobile
+      textTransform: "uppercase",
+      textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
+      marginBottom: 12,
+    }}>
+      {showWeekly ? "🏆 Weekly Top 3" : "🏆 All-Time Top 10"}
+    </h2>
+
+    <div style={{
+      background: "#111",
+      padding: 16,
+      borderRadius: 12,
+      border: "1px solid #333",
       display: "flex",
       flexDirection: "column",
-      gap: 12,
-      width: "100%",
-      minWidth: 0,
-    }}
-  >
-    <div style={{ display: "flex", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
-      <label>
-        <input type="checkbox" checked={showResolved} onChange={() => setShowResolved(v => !v)} /> Settled
-      </label>
-      <label>
-        <input type="checkbox" checked={showCancelled} onChange={() => setShowCancelled(v => !v)} /> Cancelled
-      </label>
-      <label>
-        <input type="checkbox" checked={showArchive} onChange={() => setShowArchive(v => !v)} /> Archive
-      </label>
+      gap: 4,
+    }}>
+      {/* Header */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "2fr 1fr 1fr 1fr",
+        fontSize: 13,
+        opacity: 0.7,
+        borderBottom: "1px solid #333",
+        paddingBottom: 6,
+        marginBottom: 6
+      }}>
+        <span>Player</span>
+        <span>P</span>
+        <span>W</span>
+        <span>%</span>
+      </div>
+
+      {/* Entries */}
+      {(showWeekly ? weeklyHistory.latest || [] : leaderboard).map((entry, index) => {
+        const medalColor = ["#FFD700", "#C0C0C0", "#CD7F32"][index] || "#fff";
+        const isCurrentUser = entry.address === account?.toLowerCase();
+
+        return (
+          <div
+            key={entry.address + (showWeekly ? "-weekly" : "-alltime")}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "2fr 1fr 1fr 1fr",
+              padding: "6px 0",
+              borderBottom: "1px solid #222",
+              fontSize: 14,
+              color: isCurrentUser ? "#4da3ff" : medalColor,
+              fontWeight: isCurrentUser ? "bold" : "normal"
+            }}
+          >
+            <span>
+              #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
+            </span>
+            <span style={{ textAlign: "center" }}>{entry.played}</span>
+            <span style={{ textAlign: "center" }}>{entry.wins}</span>
+            <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+          </div>
+        );
+      })}
+
+      {(showWeekly
+        ? (weeklyHistory.latest?.length === 0)
+        : leaderboard.length === 0) && (
+        <div style={{ opacity: 0.6, padding: "10px 0", textAlign: "center" }}>
+          No games to display.
+        </div>
+      )}
     </div>
 
-    {showResolved && latestSettled.length > 0 && (
-      <div style={{ width: "100%", minWidth: 0 }}>
-        <h3>🔵 Settled ({latestSettled.length})</h3>
-        {[...latestSettled]
-          .sort((a, b) => Number(b.settledAt) - Number(a.settledAt))
-          .map((g) => (
-            <div key={g.id} style={{ width: "100%" }}>
-              <GameCard
-                g={g}
-                {...gameCardProps}
-                roundResults={g.roundResults || []}
-              />
-            </div>
-          ))}
-      </div>
-    )}
-
-    {showCancelled && cancelledGames.length > 0 && (
-      <div style={{ marginTop: 16, width: "100%", minWidth: 0 }}>
-        <h3>❌ Cancelled ({cancelledGames.length})</h3>
-        {cancelledGames.map((g) => (
-          <div key={g.id} style={{ width: "100%" }}>
-            <GameCard
-              g={g}
-              {...gameCardProps}
-              roundResults={g.roundResults || []}
-            />
-          </div>
-        ))}
-      </div>
-    )}
-
-    {showArchive && archivedSettled.length > 0 && (
-      <div style={{ marginTop: 20, opacity: 0.7, width: "100%", minWidth: 0 }}>
-        <h3>📦 Archive ({archivedSettled.length})</h3>
-        {archivedSettled.map((g) => (
-          <div key={g.id} style={{ width: "100%" }}>
-            <GameCard
-              g={g}
-              {...gameCardProps}
-              roundResults={g.roundResults || []}
-            />
-          </div>
-        ))}
-      </div>
-    )}
   </div>
 )}
-
-      {/* ---------------- LEADERBOARD ---------------- */}
-      {(!isMobile || activeTab === "leaderboard") && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ flex: 1.5, minWidth: 280 }}>
-            <input type="checkbox" id="weeklyToggle" checked={showWeekly} onChange={e => setShowWeekly(e.target.checked)} />
-            <label htmlFor="weeklyToggle" style={{ fontSize: isMobile ? 14 : 16, color: "#fff", fontWeight: 500 }}>
-              Show Weekly Top 3
-            </label>
-          </div>
-
-      <h2 style={{
-        color: "#18bb1a",
-        fontWeight: "bold",
-        fontSize: isMobile ? 26 : 30,
-        textTransform: "uppercase",
-        textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
-        marginBottom: 12,
-      }}>
-        {showWeekly ? "🏆 Weekly Top 3" : "🏆 All-Time Top 10"}
-      </h2>
-
-      <div style={{
-        background: "#111",
-        padding: isMobile ? 16 : 24,
-        borderRadius: 12,
-        border: "1px solid #333",
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-      }}>
-        {/* Header */}
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", fontSize: isMobile ? 13 : 16, opacity: 0.7, borderBottom: "1px solid #333", paddingBottom: 6, marginBottom: 6 }}>
-          <span>Player</span>
-          <span>P</span>
-          <span>W</span>
-          <span>%</span>
-        </div>
-
-        {/* Entries */}
-        {(showWeekly ? weeklyHistory.latest || [] : leaderboard).map((entry,index)=>{
-          const medalColor = ["#FFD700","#C0C0C0","#CD7F32"][index] || "#fff";
-          const isCurrentUser = entry.address === account?.toLowerCase();
-          return (
-            <div key={entry.address+(showWeekly?"-weekly":"-alltime")} style={{
-              display:"grid",
-              gridTemplateColumns:"2fr 1fr 1fr 1fr",
-              padding:isMobile?"6px 0":"8px 0",
-              borderBottom:"1px solid #222",
-              fontSize:isMobile?14:16,
-              color:isCurrentUser?"#4da3ff":medalColor,
-              fontWeight:isCurrentUser?"bold":"normal"
-            }}>
-              <span>#{index+1} — {entry.address.slice(0,6)}…{entry.address.slice(-4)}</span>
-              <span style={{ textAlign: "center" }}>{entry.played}</span>
-              <span style={{ textAlign: "center" }}>{entry.wins}</span>
-              <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
-            </div>
-          );
-        })}
-
-        {(showWeekly ? (weeklyHistory.latest?.length===0) : leaderboard.length===0) && (
-          <div style={{ opacity: 0.6, padding:isMobile?"8px 0":"12px 0", textAlign:"center" }}>No games to display.</div>
-        )}
-      </div>
-    </div>
-  )}
-</div>
-</div>
+  </div>
 )}
 
 {/* ---------------- HELP MODAL ---------------- */}
