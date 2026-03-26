@@ -26,12 +26,23 @@ const weeklyFilePath = path.join(__dirname, "store", "weeklyLeaderboards.json");
 // ---------------- MIDDLEWARE ----------------
 app.use(cors({
   origin: [
-    "https://coreclashgame.vercel.app",
+    "https://coreclash.planetzephyros.xyz",   // ← your main production domain
+    "https://planetzephyros.xyz",             // ← add root domain if you use it
+    "https://coreclashgame.vercel.app",       // ← you can keep this temporarily
     "http://localhost:3000",
     "http://localhost:5173",
   ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,     // ensures proper handling
+  optionsSuccessStatus: 204     // some browsers prefer 204 for OPTIONS
 }));
 
+// Handle preflight OPTIONS requests (this is good to keep)
+app.options('*', cors());
+
+// Other middleware
 app.use(express.json());
 
 // ---------------- ROUTES ----------------
