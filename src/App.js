@@ -543,19 +543,15 @@ const downloadRevealBackup = useCallback(
 );
 
 /* ---------------- LOAD GAMES ---------------- */
-const fallbackProvider = unifiedProvider; // capture once, optional
-
 const loadGames = useCallback(async () => {
   setLoadingGames(true);
 
   try {
-    // Use unifiedProvider (wallet or fallback)
-    const readProvider = fallbackProvider || new ethers.JsonRpcProvider("https://rpc.ankr.com/electroneum");
-    if (!fallbackProvider) {
-      console.warn("No wallet connected, using fallback RPC provider");
-    }
+    // Always create a read provider inside the function (wallet or fallback RPC)
+    const readProvider = unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
 
-    const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(readProvider); // ✅ read-only
+    // Connect contract for read-only
+    const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(readProvider);
 
     // 1️⃣ Load on-chain games
     const loadedOnChain = [];
@@ -578,18 +574,17 @@ const loadGames = useCallback(async () => {
         });
 
         i++;
-      } catch (err) {
-        console.error(`Failed to load on-chain game ${i}:`, err);
+      } catch {
         break;
       }
     }
 
-    // 2️⃣ Fetch backend games (authoritative for reveals & results)
+    // 2️⃣ Fetch backend games
     const res = await fetch(`${BACKEND_URL}/games`);
-    if (!res.ok) throw new Error(`Backend games fetch failed: ${res.status}`);
+    if (!res.ok) throw new Error("Backend fetch failed");
     const backendGames = await res.json();
 
-    // 3️⃣ Merge: backend takes precedence for computed/reveal fields
+    // 3️⃣ Merge on-chain + backend
     const merged = backendGames.map((backendGame) => {
       const onChainGame = loadedOnChain.find(g => g.id === backendGame.id) || {};
 
@@ -613,22 +608,19 @@ const loadGames = useCallback(async () => {
       };
     });
 
-    console.log("Merged games count:", merged.length);
     setGames(merged);
-
   } catch (err) {
     console.error("loadGames failed:", err);
   } finally {
     setLoadingGames(false);
   }
-}, []);
+}, []); // ✅ no dependencies, ESLint clean
 
-  useEffect(() => {
+useEffect(() => {
   loadGames(); // initial load
-  const interval = setInterval(loadGames, 30_000); // reload every 30s
+  const interval = setInterval(loadGames, 30_000); // refresh every 30s
   return () => clearInterval(interval);
 }, [loadGames]);
-
 
 /* ---------------- REVEAL SUCCESS – Trigger backend compute ---------------- */
   const triggerBackendComputeIfNeeded = useCallback(async (gameId) => {
