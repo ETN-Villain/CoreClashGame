@@ -180,6 +180,19 @@ const ensureCorrectNetwork = useCallback(
   [] // <- empty dependency array: stable across renders
 );
 
+/* ---------------- DISCONNECT WALLET ---------------- */
+const disconnectWallet = useCallback(async () => {
+  setAccount(null);
+  setSigner(null);
+  setProvider(null);
+  setWalletError(null);
+
+  if (wcProvider) {
+    try { await wcProvider.disconnect(); } catch { /* ignore */ }
+    setWcProvider(null);
+  }
+}, [wcProvider]);
+
 /* ---------------- UNIFIED WALLET CONNECT ---------------- */
 const connectWallet = useCallback(async (type = "metamask") => {
   setWalletError(null);
@@ -267,19 +280,6 @@ const connectWallet = useCallback(async (type = "metamask") => {
     setWalletError(err.message || "Wallet connection failed");
   }
 }, [ensureCorrectNetwork, disconnectWallet]);
-
-/* ---------------- DISCONNECT WALLET ---------------- */
-const disconnectWallet = useCallback(async () => {
-  setAccount(null);
-  setSigner(null);
-  setProvider(null);
-  setWalletError(null);
-
-  if (wcProvider) {
-    try { await wcProvider.disconnect(); } catch { /* ignore */ }
-    setWcProvider(null);
-  }
-}, [wcProvider]);
 
 /* ---------------- RESTORE WALLET ---------------- */
 useEffect(() => {
