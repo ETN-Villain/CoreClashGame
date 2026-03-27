@@ -215,7 +215,7 @@ const chainId = Number(network.chainId);
           try {
             await wcProviderInstance.request({
               method: "wallet_switchEthereumChain",
-              params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+              params: [{ chainId: hexChainId }],
             });
           } catch (wcErr) {
             console.warn("WalletConnect chain switch failed:", wcErr);
@@ -223,14 +223,13 @@ const chainId = Number(network.chainId);
           }
         }
 
-        // Re-check chainId (mobile safe)
-        chainId = "request" in provOrSigner
-          ? parseInt(await provOrSigner.request({ method: "eth_chainId" }), 16)
-          : parseInt(await provOrSigner.send("eth_chainId", []), 16);
+// Re-check using ethers (safe for all providers)
+const newNetwork = await provider.getNetwork();
+const newChainId = Number(newNetwork.chainId);
 
-        if (chainId !== ELECTRONEUM_CHAIN_ID) {
-          throw new Error("Failed to switch to Electroneum network");
-        }
+if (newChainId !== ELECTRONEUM_CHAIN_ID) {
+  throw new Error("Failed to switch to Electroneum network");
+}
       }
     } catch (err) {
       console.warn("Network check failed:", err);
