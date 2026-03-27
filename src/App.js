@@ -152,47 +152,69 @@ useEffect(() => {
 
 /* ---------------- WALLET CONNECT + METAMASK FLOW ---------------- */
 
-// 🔹 Ensure the provider/signers are on the correct network
+// 🔹 Ensure provider/signer is on Electroneum network
 const ensureCorrectNetwork = useCallback(
   async (provOrSigner, wcProviderInstance = null) => {
     try {
-      const chainId = await provOrSigner.send("eth_chainId", []);
+      // 1️⃣ Get current chain
+      let chainId = await provOrSigner.send("eth_chainId", []);
+
+      // Convert to number if needed
+      if (typeof chainId === "string") chainId = parseInt(chainId, 16);
+
       if (chainId !== ELECTRONEUM_CHAIN_ID) {
         console.log(`Switching network from ${chainId} → ${ELECTRONEUM_CHAIN_ID}`);
 
-        if (window.ethereum) {
+        // 2️⃣ MetaMask injected (desktop or mobile)
+        if (window.ethereum && !wcProviderInstance) {
           try {
             await window.ethereum.request({
               method: "wallet_switchEthereumChain",
               params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
             });
-          } catch (switchError) {
-            // If chain not added, add it
-            if (switchError.code === 4902) {
+          } catch (switchErr) {
+            // Chain not added → add it
+            if (switchErr.code === 4902) {
               await window.ethereum.request({
                 method: "wallet_addEthereumChain",
-                params: [{
-                  chainId: ELECTRONEUM_CHAIN_ID,
-                  chainName: "Electroneum Mainnet",
-                  nativeCurrency: { name: "Electroneum", symbol: "ETN", decimals: 18 },
-                  rpcUrls: ["https://rpc.ankr.com/electroneum"],
-                  blockExplorerUrls: ["https://blockexplorer.electroneum.com"],
-                }],
+                params: [
+                  {
+                    chainId: ELECTRONEUM_CHAIN_ID,
+                    chainName: "Electroneum Mainnet",
+                    nativeCurrency: { name: "Electroneum", symbol: "ETN", decimals: 18 },
+                    rpcUrls: ["https://rpc.ankr.com/electroneum"],
+                    blockExplorerUrls: ["https://blockexplorer.electroneum.com"],
+                  },
+                ],
               });
             } else {
-              throw switchError;
+              throw switchErr;
             }
           }
-        } else if (wcProviderInstance) {
-          await wcProviderInstance.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
-          });
+        }
+
+        // 3️⃣ WalletConnect
+        if (wcProviderInstance) {
+          try {
+            await wcProviderInstance.request({
+              method: "wallet_switchEthereumChain",
+              params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+            });
+          } catch (wcErr) {
+            console.warn("WalletConnect chain switch failed:", wcErr);
+            throw new Error("Switch your mobile wallet network to Electroneum");
+          }
+        }
+
+        // 4️⃣ Re-check chain
+        const newChainId = parseInt(await provOrSigner.send("eth_chainId", []), 16);
+        if (newChainId !== ELECTRONEUM_CHAIN_ID) {
+          throw new Error("Failed to switch to Electroneum network");
         }
       }
     } catch (err) {
-      console.warn("Network switch failed:", err);
-      throw new Error("Please switch to Electroneum");
+      console.warn("Network check failed:", err);
+      throw new Error(err.message || "Please switch to Electroneum network");
     }
   },
   []
