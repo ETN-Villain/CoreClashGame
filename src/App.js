@@ -938,7 +938,7 @@ setPendingAutoRevealGameId(numericGameId);
 
 /* -------- CANCEL UNJOINED GAME -----------*/
 const cancelUnjoinedGame = async (gameId) => {
-  if (!signer || !gameContract) {
+  if (!signer) {
     alert("Wallet not connected");
     return;
   }
@@ -948,8 +948,10 @@ await ensureCorrectNetwork(signer, wcProvider || null);
 
   try {
     // 1️⃣ Cancel on-chain (creator signs)
-    const tx = await gameContract.cancelUnjoinedGame(gameId);
-    await tx.wait();
+const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+
+    const tx = await contract.cancelUnjoinedGame(gameId);
+        await tx.wait();
 
     await loadGames();
     alert(`Game #${gameId} cancelled successfully`);
@@ -962,14 +964,23 @@ await ensureCorrectNetwork(signer, wcProvider || null);
 /* ---------------- AUTO REVEAL (CHAIN AUTHORITATIVE) ---------------- */
 const autoRevealIfPossible = useCallback(
   async (g) => {
-    if (!signer || !account || !gameContract) return;
+    if (!signer || !account ) return;
 
   // 🔹 Ensure signer is on Electroneum network
 await ensureCorrectNetwork(signer, wcProvider || null);
 
     try {
       // 1️⃣ Always fetch fresh on-chain state
-      const chainGame = await gameContract.games(BigInt(g.id));
+const readProvider = unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
+
+// READ contract
+const contractRead = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
+
+// WRITE contract
+const contractWrite = contractRead.connect(signer);
+
+// 1️⃣ fresh chain state
+const chainGame = await contractRead.games(BigInt(g.id));
 
       const accountLower = account.toLowerCase();
       const zeroLower = ethers.ZeroAddress.toLowerCase();
@@ -1036,13 +1047,13 @@ await ensureCorrectNetwork(signer, wcProvider || null);
       }
 
       // 5️⃣ On-chain reveal
-      const tx = await gameContract.reveal(
-        BigInt(g.id),
-        BigInt(preData.savedReveal.salt),
-        preData.savedReveal.nftContracts,
-        preData.savedReveal.tokenIds.map(BigInt),
-        preData.savedReveal.backgrounds
-      );
+const tx = await contractWrite.reveal(
+  BigInt(g.id),
+  BigInt(preData.savedReveal.salt),
+  preData.savedReveal.nftContracts,
+  preData.savedReveal.tokenIds.map(BigInt),
+  preData.savedReveal.backgrounds
+);
 
       await tx.wait();
 
@@ -1059,7 +1070,7 @@ await ensureCorrectNetwork(signer, wcProvider || null);
       console.error("Auto-reveal failed:", err);
     }
   },
-  [signer, wcProvider, account, gameContract, loadGames, triggerBackendComputeIfNeeded, ensureCorrectNetwork]
+  [signer, wcProvider, account, unifiedProvider, loadGames, triggerBackendComputeIfNeeded, ensureCorrectNetwork]
 );
 
 useEffect(() => {
