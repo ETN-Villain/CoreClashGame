@@ -69,8 +69,9 @@ const unifiedProvider = useMemo(() => {
 
 /* ---------------- CONTRACTS ---------------- */
 const gameContract = useMemo(() => {
-  if (!unifiedProvider) return null;
-  return new ethers.Contract(GAME_ADDRESS, GameABI, signer ?? unifiedProvider);
+  if (!signer && !unifiedProvider) return null;
+  const c = new ethers.Contract(GAME_ADDRESS, GameABI);
+  return signer ? c.connect(signer) : c.connect(unifiedProvider); // read-only if no signer
 }, [unifiedProvider, signer]);
 
 const erc20 = useMemo(() => {
@@ -685,7 +686,7 @@ await ensureCorrectNetwork(signer, wcProvider || null);
 
   try {
     // ✅ Contract instance for writes
-    const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+    const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
 
     /* ---------- Prepare ERC20 read provider ---------- */
     const readProvider = unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
@@ -815,7 +816,7 @@ if (!signer) {
   // 🔹 Ensure signer is on Electroneum network
 await ensureCorrectNetwork(signer, wcProvider || null);
 
-const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
 
   try {
     const numericGameId = Number(gameId);
@@ -1071,7 +1072,7 @@ await ensureCorrectNetwork(signer, wcProvider || null);
     const { savedReveal } = backendData;
 
     // Call on-chain reveal
-    const game = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+    const game = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
 
     const tx = await game.reveal(
       BigInt(gameId),
