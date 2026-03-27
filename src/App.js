@@ -152,31 +152,33 @@ useEffect(() => {
 
 /* ---------------- WALLET CONNECT + METAMASK FLOW ---------------- */
 
-// Ensure the provider/signers are on the correct network
-const ensureCorrectNetwork = async (provOrSigner, wcProviderInstance = null) => {
-  try {
-    const chainId = await provOrSigner.send("eth_chainId", []);
-    if (chainId !== ELECTRONEUM_CHAIN_ID) {
-      console.log(`Switching network from ${chainId} → ${ELECTRONEUM_CHAIN_ID}`);
+// 🔹 Ensure the provider/signers are on the correct network
+const ensureCorrectNetwork = useCallback(
+  async (provOrSigner, wcProviderInstance = null) => {
+    try {
+      const chainId = await provOrSigner.send("eth_chainId", []);
+      if (chainId !== ELECTRONEUM_CHAIN_ID) {
+        console.log(`Switching network from ${chainId} → ${ELECTRONEUM_CHAIN_ID}`);
 
-      if (window.ethereum) {
-        await window.ethereum.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
-        });
-      } else if (wcProviderInstance) {
-        await wcProviderInstance.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
-        });
+        if (window.ethereum) {
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+          });
+        } else if (wcProviderInstance) {
+          await wcProviderInstance.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+          });
+        }
       }
+    } catch (err) {
+      console.warn("Network switch failed:", err);
+      throw new Error("Please switch to Electroneum network");
     }
-  } catch (err) {
-    console.warn("Network switch failed:", err);
-    throw new Error("Please switch to Electroneum network");
-  }
-};
-
+  },
+  [] // <- empty dependency array: stable across renders
+);
 /* ---------------- CONNECT METAMASK ---------------- */
 const connectMetamask = useCallback(async () => {
   if (!window.ethereum) {
