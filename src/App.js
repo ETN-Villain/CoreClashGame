@@ -1477,7 +1477,7 @@ return (
             <h3 style={{ color: "#fff", margin: 0 }}>Choose Wallet</h3>
             <button
               onClick={() => {
-                connectMetamask();
+                connectWallet();
                 setShowWalletModal(false);
               }}
               style={{
@@ -1492,7 +1492,7 @@ return (
             </button>
             <button
               onClick={() => {
-                connectWalletConnect();
+                connectWallet();
                 setShowWalletModal(false);
               }}
               style={{
