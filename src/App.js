@@ -145,22 +145,40 @@ useEffect(() => {
   return () => clearInterval(timer);
 }, [loading]);
 
-/* ---------------- WALLET CONNECT + METAMASK FLOW ---------------- */
+/* ---------------- UTILITY: CREATE ETHERS PROVIDER ---------------- */
+const getEthersProvider = (provOrSigner) => {
+  if (!provOrSigner) return null;
 
-// 🔹 Ensure provider/signer is on Electroneum network
+  // If it's a Signer, use its provider
+  if (provOrSigner.provider) return new ethers.BrowserProvider(provOrSigner.provider);
+
+  // If it's an injected provider or WalletConnect, wrap it
+  if (provOrSigner.request) return new ethers.BrowserProvider(provOrSigner);
+
+  // Fallback read-only
+  return new ethers.JsonRpcProvider(RPC_URL);
+};
+
+/* ---------------- ENSURE CORRECT NETWORK ---------------- */
 const ensureCorrectNetwork = useCallback(
   async (provOrSigner, wcProviderInstance = null) => {
     try {
-      // 1️⃣ Get current chain
-      let chainId = await provOrSigner.send("eth_chainId", []);
+      // Determine chainId
+      let chainId;
+      if ("request" in provOrSigner) {
+        chainId = await provOrSigner.request({ method: "eth_chainId" });
+      } else if ("send" in provOrSigner) {
+        chainId = await provOrSigner.send("eth_chainId", []);
+      } else {
+        throw new Error("Unsupported provider type");
+      }
 
-      // Convert to number if needed
       if (typeof chainId === "string") chainId = parseInt(chainId, 16);
 
       if (chainId !== ELECTRONEUM_CHAIN_ID) {
         console.log(`Switching network from ${chainId} → ${ELECTRONEUM_CHAIN_ID}`);
 
-        // 2️⃣ MetaMask injected (desktop or mobile)
+        // MetaMask injected
         if (window.ethereum && !wcProviderInstance) {
           try {
             await window.ethereum.request({
@@ -168,7 +186,6 @@ const ensureCorrectNetwork = useCallback(
               params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
             });
           } catch (switchErr) {
-            // Chain not added → add it
             if (switchErr.code === 4902) {
               await window.ethereum.request({
                 method: "wallet_addEthereumChain",
@@ -188,7 +205,7 @@ const ensureCorrectNetwork = useCallback(
           }
         }
 
-        // 3️⃣ WalletConnect
+        // WalletConnect
         if (wcProviderInstance) {
           try {
             await wcProviderInstance.request({
@@ -201,9 +218,12 @@ const ensureCorrectNetwork = useCallback(
           }
         }
 
-        // 4️⃣ Re-check chain
-        const newChainId = parseInt(await provOrSigner.send("eth_chainId", []), 16);
-        if (newChainId !== ELECTRONEUM_CHAIN_ID) {
+        // Re-check chainId (mobile safe)
+        chainId = "request" in provOrSigner
+          ? parseInt(await provOrSigner.request({ method: "eth_chainId" }), 16)
+          : parseInt(await provOrSigner.send("eth_chainId", []), 16);
+
+        if (chainId !== ELECTRONEUM_CHAIN_ID) {
           throw new Error("Failed to switch to Electroneum network");
         }
       }
@@ -223,7 +243,10 @@ const disconnectWallet = useCallback(async () => {
   setWalletError(null);
 
   if (wcProvider) {
-    try { await wcProvider.disconnect(); } catch { /* ignore */ }
+    try {
+      wcProvider.removeAllListeners();
+      await wcProvider.disconnect();
+    } catch { /* ignore */ }
     setWcProvider(null);
   }
 }, [wcProvider]);
@@ -241,34 +264,13 @@ const connectWallet = useCallback(async (type = "metamask") => {
     if (type === "metamask") {
       if (!window.ethereum) throw new Error("MetaMask not installed");
 
-      // Force switch/add Electroneum network
-      try {
-        await window.ethereum.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
-        });
-      } catch (err) {
-        if (err.code === 4902) {
-          await window.ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [{
-              chainId: ELECTRONEUM_CHAIN_ID,
-              chainName: "Electroneum Mainnet",
-              nativeCurrency: { name: "Electroneum", symbol: "ETN", decimals: 18 },
-              rpcUrls: ["https://rpc.ankr.com/electroneum"],
-              blockExplorerUrls: ["https://blockexplorer.electroneum.com"],
-            }],
-          });
-        } else throw err;
-      }
-
       prov = new ethers.BrowserProvider(window.ethereum);
-      await ensureCorrectNetwork(prov); // <- network first
+      await ensureCorrectNetwork(prov); // network first
       signer = await prov.getSigner();
       addr = await signer.getAddress();
 
     } else if (type === "walletconnect") {
-      // clear old session
+      // Clear previous sessions
       localStorage.removeItem("walletconnect");
       localStorage.removeItem("WALLETCONNECT_DEEPLINK_CHOICE");
 
@@ -298,13 +300,12 @@ const connectWallet = useCallback(async (type = "metamask") => {
     setSigner(signer);
     setAccount(addr);
     setWcProvider(wcProvInstance);
-    setWalletError(null);
 
-    // Event listeners (WalletConnect only)
+    // WalletConnect event listeners
     if (wcProvInstance) {
-      wcProvInstance.on("accountsChanged", async (accounts) => setAccount(accounts[0] || null));
-      wcProvInstance.on("chainChanged", async (chainId) => {
-        if (chainId !== ELECTRONEUM_CHAIN_ID) setWalletError("Switch network to Electroneum");
+      wcProvInstance.on("accountsChanged", (accounts) => setAccount(accounts[0] || null));
+      wcProvInstance.on("chainChanged", (chainId) => {
+        if (parseInt(chainId, 16) !== ELECTRONEUM_CHAIN_ID) setWalletError("Switch network to Electroneum");
         else setWalletError(null);
       });
       wcProvInstance.on("disconnect", disconnectWallet);
@@ -323,29 +324,23 @@ useEffect(() => {
   const restoreWallet = async () => {
     if (!isMounted) return;
 
-    // 1. Injected
-    if (window.ethereum) {
-      try {
+    try {
+      // 1. Injected
+      if (window.ethereum) {
         const prov = new ethers.BrowserProvider(window.ethereum);
         const accounts = await prov.send("eth_accounts", []);
         if (accounts.length > 0) {
-          const chainId = await prov.send("eth_chainId", []);
-          if (chainId !== ELECTRONEUM_CHAIN_ID) {
-            await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ELECTRONEUM_CHAIN_ID }] });
-          }
+          await ensureCorrectNetwork(prov);
           const signer = await prov.getSigner();
           if (!isMounted) return;
           setProvider(prov);
           setSigner(signer);
           setAccount(await signer.getAddress());
-          setWalletError(null);
           return;
         }
-      } catch { /* ignore */ }
-    }
+      }
 
-    // 2. WalletConnect
-    try {
+      // 2. WalletConnect
       const wc = await EthereumProvider.init({
         projectId: "146ee334d324044083b6427d4bbf9202",
         chains: [52014],
@@ -362,13 +357,16 @@ useEffect(() => {
         setSigner(signer);
         setAccount(await signer.getAddress());
         setWcProvider(wc);
-        setWalletError(null);
         return;
       }
-    } catch { /* ignore */ }
 
-    // 3. fallback read-only
-    const readOnly = new ethers.JsonRpcProvider("https://rpc.ankr.com/electroneum");
+    } catch (err) {
+      console.warn("Wallet restore failed:", err);
+    }
+
+    // 3. Fallback read-only
+    if (!isMounted) return;
+    const readOnly = new ethers.JsonRpcProvider(RPC_URL);
     setProvider(readOnly);
     setSigner(null);
     setAccount(null);
@@ -377,7 +375,7 @@ useEffect(() => {
 
   restoreWallet();
   return () => { isMounted = false; };
-}, []);
+}, [ensureCorrectNetwork]);
 
   /* ---------------- OWNED NFT FETCH ---------------- */
 useEffect(() => {
@@ -681,7 +679,7 @@ const createGame = useCallback(async () => {
 
   try {
     // ✅ WRITE contract (always signer)
-    const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+    const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
 
     // ✅ READ provider (always RPC, wallet-independent)
     const readProvider = new ethers.JsonRpcProvider(RPC_URL);
