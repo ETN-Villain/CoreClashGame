@@ -866,6 +866,21 @@ const joinGame = async (gameId) => {
       tokenIds: tokenIds.map(t => t.toString()),
     });
 
+    // After saving reveal backup
+downloadRevealBackup({
+  gameId: numericGameId,
+  player: liveAccount.toLowerCase(),
+  salt: salt.toString(),
+  nftContracts,
+  tokenIds: tokenIds.map(t => t.toString()),
+});
+
+// ✅ Trigger auto-reveal immediately
+await autoRevealIfPossible({
+  ...gameData,       // your backend game data
+  id: numericGameId, // ensure it has an "id" property
+});
+
     alert(`Joined game #${numericGameId} successfully!`);
 
     await loadGames();
@@ -920,9 +935,13 @@ const autoRevealIfPossible = useCallback(
       // READ contract
       const contractRead = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
 
-      // WRITE contract: derive signer on the fly
-      const liveSigner = provider.getSigner();
-      const contractWrite = contractRead.connect(liveSigner);
+// WRITE contract: derive signer on the fly
+if (!provider || !account) {
+  console.log("No wallet connected for reveal");
+  return;
+}
+const signer = provider.getSigner();
+const contractWrite = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
       // 1️⃣ fresh chain state
       const chainGame = await contractRead.games(BigInt(g.id));
@@ -1061,19 +1080,20 @@ const handleRevealFile = useCallback(async (e) => {
 
     const { savedReveal } = backendData;
 
-    // Call on-chain reveal using live signer
-    const liveSigner = provider.getSigner();
-    const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(liveSigner);
+// Call on-chain reveal using proper signer
+if (!signer) throw new Error("Wallet not connected with a signer");
 
-    const tx = await gameContract.reveal(
-      BigInt(gameId),
-      BigInt(savedReveal.salt),
-      savedReveal.nftContracts,
-      savedReveal.tokenIds.map((id) => BigInt(id)),
-      savedReveal.backgrounds
-    );
+const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
 
-    await tx.wait();
+const tx = await gameContract.reveal(
+  BigInt(gameId),
+  BigInt(savedReveal.salt),
+  savedReveal.nftContracts,
+  savedReveal.tokenIds.map((id) => BigInt(id)),
+  savedReveal.backgrounds
+);
+
+await tx.wait();
 
     alert("Reveal successful!");
     await triggerBackendComputeIfNeeded(gameId);
