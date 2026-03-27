@@ -915,7 +915,7 @@ const autoRevealIfPossible = useCallback(
 
     try {
       // 1️⃣ Always fetch fresh on-chain state
-      const readProvider = unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
+      const readProvider = provider || new ethers.JsonRpcProvider(RPC_URL);
 
       // READ contract
       const contractRead = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
@@ -1014,7 +1014,7 @@ const autoRevealIfPossible = useCallback(
       console.error("Auto-reveal failed:", err);
     }
   },
-  [wcProvider, account, provider, unifiedProvider, loadGames, triggerBackendComputeIfNeeded, ensureCorrectNetwork]
+  [wcProvider, account, provider, loadGames, triggerBackendComputeIfNeeded, ensureCorrectNetwork]
 );
 
 /* ---------------- REVEAL FILE UPLOAD ---------------- */
@@ -2049,7 +2049,7 @@ style={{
     marginTop: 12,
   }}
 >
-  <span>signer: {signer ? "✅" : "❌"}</span>
+  <span>signer: {provider ? "✅" : "❌"}</span>
   <span>validated: {validated ? "✅" : "❌"}</span>
   <span>stakeToken: {stakeToken || "❌"}</span>
   <span>stakeAmount: {stakeAmount || "❌"}</span>
