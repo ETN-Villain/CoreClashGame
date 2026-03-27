@@ -270,32 +270,27 @@ const connectWallet = useCallback(async (type = "metamask") => {
     let addr;
     let wcProvInstance = null;
 
-// BEFORE creating provider
-if (type === "metamask") {
-  if (!window.ethereum) throw new Error("MetaMask not installed");
+    if (type === "metamask") {
+      if (!window.ethereum) throw new Error("MetaMask not installed");
 
-  // 🔥 force fresh connection
-  await window.ethereum.request({ method: "eth_requestAccounts" });
+      // 🔹 Force fresh connection
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+      if (!accounts.length) throw new Error("No accounts found");
 
-  const prov = new ethers.BrowserProvider(window.ethereum);
+      // 🔹 Create fresh BrowserProvider
+      prov = new ethers.BrowserProvider(window.ethereum);
 
-    await ensureCorrectNetwork(prov); // network first
+      // 🔹 Ensure correct network
+      await ensureCorrectNetwork(prov);
+
+      // 🔹 Get signer and address
       signer = await prov.getSigner();
       addr = await signer.getAddress();
 
     } else if (type === "walletconnect") {
-      // Clear previous sessions
+      // 🔹 Clear stale sessions
       localStorage.removeItem("walletconnect");
       localStorage.removeItem("WALLETCONNECT_DEEPLINK_CHOICE");
-
-await EthereumProvider.init({
-  projectId: "...",
-  chains: [52014],
-}).then(async (wc) => {
-  try {
-    await wc.disconnect(); // 🔥 force kill stale session
-  } catch {}
-});
 
       wcProvInstance = await EthereumProvider.init({
         projectId: "146ee334d324044083b6427d4bbf9202",
@@ -311,20 +306,30 @@ await EthereumProvider.init({
         },
       });
 
+      // 🔹 Enable fresh session
       await wcProvInstance.enable();
+
+      // 🔹 Create ethers provider
       prov = new ethers.BrowserProvider(wcProvInstance);
+
+      // 🔹 Ensure network
       await ensureCorrectNetwork(prov, wcProvInstance);
+
+      // 🔹 Get signer and address
       signer = await prov.getSigner();
       addr = await signer.getAddress();
     }
 
-    // Set state
+    // 🔹 Validate signer before updating state
+    if (!signer || !addr) throw new Error("Wallet connection failed");
+
+    // 🔹 Set state
     setProvider(prov);
     setSigner(signer);
     setAccount(addr);
     setWcProvider(wcProvInstance);
 
-    // WalletConnect event listeners
+    // 🔹 WalletConnect event listeners
     if (wcProvInstance) {
       wcProvInstance.on("accountsChanged", (accounts) => setAccount(accounts[0] || null));
       wcProvInstance.on("chainChanged", (chainId) => {
@@ -348,54 +353,70 @@ useEffect(() => {
     if (!isMounted) return;
 
     try {
-      // 1. Injected
+      // 1️⃣ Injected (MetaMask / other wallets)
       if (window.ethereum) {
-        const prov = new ethers.BrowserProvider(window.ethereum);
-        const accounts = await prov.send("eth_accounts", []);
-if (accounts.length > 0) {
-  try {
-    await prov.send("eth_chainId", []); // 🔥 test provider health
+        try {
+          const prov = new ethers.BrowserProvider(window.ethereum);
+          const accounts = await prov.send("eth_accounts", []);
+          if (accounts.length > 0) {
+            // 🔹 Test provider health
+            await prov.send("eth_chainId", []);
+            const signer = await prov.getSigner();
+            const addr = await signer.getAddress();
 
-    const signer = await prov.getSigner();
-    const addr = await signer.getAddress();
-
-    setProvider(prov);
-    setSigner(signer);
-    setAccount(addr);
-  } catch {
-    // ❌ provider is stale → force disconnect
-    setAccount(null);
-    setSigner(null);
-    setProvider(null);
-  }
-}
+            if (!isMounted) return;
+            setProvider(prov);
+            setSigner(signer);
+            setAccount(addr);
+            setWalletError(null);
+            return; // early return if successful
+          }
+        } catch {
+          // ❌ Stale provider → reset state
+          setAccount(null);
+          setSigner(null);
+          setProvider(null);
+        }
       }
 
-      // 2. WalletConnect
-      const wc = await EthereumProvider.init({
-        projectId: "146ee334d324044083b6427d4bbf9202",
-        chains: [52014],
-        optionalChains: [52014],
-        rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
-      });
+      // 2️⃣ WalletConnect
+      try {
+        const wc = await EthereumProvider.init({
+          projectId: "146ee334d324044083b6427d4bbf9202",
+          chains: [52014],
+          optionalChains: [52014],
+          rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
+        });
 
-      if ((wc.connected || wc.session) && wc.session?.namespaces?.eip155) {
-        await wc.enable();
-        const prov = new ethers.BrowserProvider(wc);
-        const signer = await prov.getSigner();
-        if (!isMounted) return;
-        setProvider(prov);
-        setSigner(signer);
-        setAccount(await signer.getAddress());
-        setWcProvider(wc);
-        return;
+        // Only restore valid sessions
+        if ((wc.connected || wc.session) && wc.session?.namespaces?.eip155) {
+          try {
+            await wc.disconnect(); // 🔹 force clean session
+          } catch {}
+
+          await wc.enable();
+
+          const prov = new ethers.BrowserProvider(wc);
+          const signer = await prov.getSigner();
+          const addr = await signer.getAddress();
+
+          if (!isMounted) return;
+          setProvider(prov);
+          setSigner(signer);
+          setAccount(addr);
+          setWcProvider(wc);
+          setWalletError(null);
+          return;
+        }
+      } catch {
+        // ignore WalletConnect restore errors
       }
 
     } catch (err) {
       console.warn("Wallet restore failed:", err);
     }
 
-    // 3. Fallback read-only
+    // 3️⃣ Fallback read-only
     if (!isMounted) return;
     const readOnly = new ethers.JsonRpcProvider(RPC_URL);
     setProvider(readOnly);
@@ -408,7 +429,7 @@ if (accounts.length > 0) {
   return () => { isMounted = false; };
 }, [ensureCorrectNetwork]);
 
-  /* ---------------- OWNED NFT FETCH ---------------- */
+/* ---------------- OWNED NFT FETCH ---------------- */
 useEffect(() => {
   if (!account) return setOwnedNFTs([]);
 
@@ -1041,7 +1062,7 @@ useEffect(() => {
   }
 }, [games, pendingAutoRevealGameId, autoRevealIfPossible]);
 
-/* ---------------- REVEAL FILE UPLOAD ---------------- */
+/* ---------------- REVEAL FILE UPLOAD (SAFE) ---------------- */
 const handleRevealFile = useCallback(async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -1062,17 +1083,32 @@ const handleRevealFile = useCallback(async (e) => {
       throw new Error("Invalid reveal file");
     }
 
-    if (!account || !signer) {
-      throw new Error("Wallet not connected");
-    }
-
     const numericGameId = Number(gameId);
     if (!Number.isInteger(numericGameId)) {
       throw new Error("Invalid game ID");
     }
 
+    /* ---------------- PROVIDER & SIGNER ---------------- */
+    if (!provider) throw new Error("No provider available");
+
+    // 🔹 Safe signer getter: returns a valid signer or throws
+    const getSignerSafe = async () => {
+      try {
+        if (provider instanceof ethers.BrowserProvider) {
+          const s = await provider.getSigner();
+          await s.getAddress(); // test
+          return s;
+        }
+        throw new Error("Unsupported provider type");
+      } catch (err) {
+        throw new Error("Provider is stale or unsupported. Please reconnect your wallet.");
+      }
+    };
+
+    const safeSigner = signer || (await getSignerSafe());
+
     /* ---------------- NETWORK CHECK ---------------- */
-    await ensureCorrectNetwork(signer, wcProvider || null);
+    await ensureCorrectNetwork(safeSigner, wcProvider || null);
 
     /* ---------------- BACKEND PRE-REVEAL ---------------- */
     const preRes = await fetch(`${BACKEND_URL}/games/${numericGameId}/reveal`, {
@@ -1097,8 +1133,7 @@ const handleRevealFile = useCallback(async (e) => {
     const saved = backendData.savedReveal;
 
     /* ---------------- CONTRACT WRITE ---------------- */
-    // Always use signer from ethers.BrowserProvider.getSigner()
-    const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+    const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI, safeSigner);
 
     /* ---------------- ON-CHAIN REVEAL ---------------- */
     const tx = await gameContract.reveal(
@@ -1122,6 +1157,7 @@ const handleRevealFile = useCallback(async (e) => {
   }
 }, [
   account,
+  provider,
   signer,
   wcProvider,
   loadGames,
