@@ -546,12 +546,6 @@ const downloadRevealBackup = useCallback(
 const loadGames = useCallback(async () => {
   setLoadingGames(true);
 
-  useEffect(() => {
-  loadGames(); // initial load
-  const interval = setInterval(loadGames, 30_000); // reload every 30s
-  return () => clearInterval(interval);
-}, [loadGames]);
-
   try {
     // Use unifiedProvider (wallet or fallback)
     const readProvider = unifiedProvider || new ethers.JsonRpcProvider("https://rpc.ankr.com/electroneum");
@@ -626,6 +620,13 @@ const loadGames = useCallback(async () => {
     setLoadingGames(false);
   }
 }, []);
+
+  useEffect(() => {
+  loadGames(); // initial load
+  const interval = setInterval(loadGames, 30_000); // reload every 30s
+  return () => clearInterval(interval);
+}, [loadGames]);
+
 
 /* ---------------- REVEAL SUCCESS – Trigger backend compute ---------------- */
   const triggerBackendComputeIfNeeded = useCallback(async (gameId) => {
@@ -896,7 +897,7 @@ if (allowance < stakeWei) {
 /* ---------------- AUTO REVEAL (CHAIN AUTHORITATIVE) ---------------- */
 const autoRevealIfPossible = useCallback(
   async (g) => {
-    if (!signer || !account || !gameContract) return;
+    if (!signer || !account ) return;
 
   // 🔹 Ensure signer is on Electroneum network
 await ensureCorrectNetwork(signer, wcProvider || null);
