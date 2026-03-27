@@ -829,101 +829,96 @@ const createGame = useCallback(async () => {
   ensureCorrectNetwork,
 ]);
 
-/* -------- CANCEL UNJOINED GAME -----------*/
-const cancelUnjoinedGame = async (gameId) => {
-  if (!signer) {
-    alert("Wallet not connected");
-    return;
-  }
-
-  await ensureCorrectNetwork(signer, wcProvider || null);
-
-  try {
-    const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
-
-    const tx = await contract.cancelUnjoinedGame(gameId);
-    await tx.wait();
-
-    await loadGames();
-    alert(`Game #${gameId} cancelled successfully`);
-  } catch (err) {
-    console.error("Cancel failed:", err);
-    alert(err.reason || err.message || "Cancel failed");
-  }
-};
-
-// JOIN GAME (COMMIT + APPROVE + BACKEND UPDATE)
+/* ---------------- JOIN GAME ---------------- */
 const joinGame = async (gameId) => {
-  if (!signer) {
-    alert("Wallet not connected");
-    return;
-  }
-
-  if (!nfts || nfts.some(n => !n.address || !n.tokenId)) {
-  alert("Invalid NFT selection");
+if (!signer) {
+  alert("Wallet not connected");
   return;
 }
 
-  try {
-    // Ensure signer is on Electroneum network
-    await ensureCorrectNetwork(signer, wcProvider || null);
+  // 🔹 Ensure signer is on Electroneum network
+await ensureCorrectNetwork(signer, wcProvider || null);
 
+const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
+
+  try {
     const numericGameId = Number(gameId);
 
-    // Use the same signer for all write actions
-    const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+ // 🔒 Derive wallet live from provider
+  const liveSigner = await provider.getSigner();
+  const liveAccount = await liveSigner.getAddress();
 
-    // 1️⃣ Fetch game details from backend
+  if (!liveAccount || liveAccount === ethers.ZeroAddress) {
+    throw new Error("Invalid wallet address");
+  }
+    
+    // 1. Fetch game details from backend to get stakeToken & stakeAmount
     const gameRes = await fetch(`${BACKEND_URL}/games/${numericGameId}`);
     if (!gameRes.ok) throw new Error("Failed to fetch game details");
     const gameData = await gameRes.json();
-    const { stakeToken, stakeAmount } = gameData;
-    if (!stakeToken || !stakeAmount) throw new Error("Missing stake info");
 
-    // 2️⃣ Prepare commit
+    const stakeToken = gameData.stakeToken;
+    const stakeAmount = gameData.stakeAmount; // already in string/decimal form
+
+    if (!stakeToken || !stakeAmount) {
+      throw new Error("Missing stake information from game");
+    }
+
+    console.log(`Joining game ${numericGameId} with stake: ${stakeAmount} of token ${stakeToken}`);
+
+    // 2. Prepare commit (unchanged)
     const salt = ethers.toBigInt(ethers.randomBytes(32));
     const nftContracts = nfts.map(n => n.address);
     const tokenIds = nfts.map(n => BigInt(n.tokenId));
+
     const commit = ethers.solidityPackedKeccak256(
       ["uint256", "address", "address", "address", "uint256", "uint256", "uint256"],
       [salt, ...nftContracts, ...tokenIds]
     );
 
-    // 3️⃣ Approve tokens
-const readProvider = unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
-    const stakeWei = ethers.parseUnits(stakeAmount, 18);
-const erc20Read = new ethers.Contract(stakeToken, ERC20ABI, readProvider);
-const signerSafe = await getSignerSafe(signer);
-const erc20Write = erc20Read.connect(signerSafe);
+    // 3. Approve tokens using fetched stakeAmount
+const erc20 = new ethers.Contract(stakeToken, ERC20ABI, liveSigner);
+    const stakeWei = ethers.parseUnits(stakeAmount, 18); // assuming 18 decimals
 
-const allowance = await erc20Read.allowance(account, GAME_ADDRESS);
+    const allowance = await erc20.allowance(liveAccount, GAME_ADDRESS);
+    if (allowance < stakeWei) {
+      console.log("Approving tokens...");
+      const approveTx = await erc20.approve(GAME_ADDRESS, stakeWei);
+      await approveTx.wait();
+      alert("Tokens approved!");
+    }
 
-if (allowance < stakeWei) {
-  const approveTx = await erc20Write.approve(GAME_ADDRESS, stakeWei);
-  await approveTx.wait();
-  alert("Tokens approved!");
-}
-
-    // 4️⃣ Join on-chain
+    // 4. Join on-chain
+    console.log("Joining on-chain...");
     const tx = await contract.joinGame(numericGameId, commit);
     await tx.wait();
 
-    // 5️⃣ Backend update
-    await fetch(`${BACKEND_URL}/games/${numericGameId}/join`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ player2: account }),
-    });
+const gameOnChain = await contract.games(numericGameId);
 
-    // 6️⃣ Save reveal backup
-    const prefix = `${account.toLowerCase()}_${numericGameId}`;
+if (gameOnChain.player2.toLowerCase() !== liveAccount.toLowerCase()) {
+  throw new Error("On-chain player mismatch");
+}
+
+await fetch(`${BACKEND_URL}/games/${numericGameId}/join`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    player2: gameOnChain.player2
+  }),
+});
+
+    // 6. Save reveal backup (unchanged)
+    const prefix = `${liveAccount.toLowerCase()}_${numericGameId}`;
     localStorage.setItem(`${prefix}_salt`, salt.toString());
     localStorage.setItem(`${prefix}_nftContracts`, JSON.stringify(nftContracts));
-    localStorage.setItem(`${prefix}_tokenIds`, JSON.stringify(tokenIds.map(t => t.toString())));
+    localStorage.setItem(
+      `${prefix}_tokenIds`,
+      JSON.stringify(tokenIds.map(t => t.toString()))
+    );
 
     downloadRevealBackup({
       gameId: numericGameId,
-      player: account.toLowerCase(),
+      player: liveAccount.toLowerCase(),
       salt: salt.toString(),
       nftContracts,
       tokenIds: tokenIds.map(t => t.toString()),
@@ -931,12 +926,38 @@ if (allowance < stakeWei) {
 
     alert(`Joined game #${numericGameId} successfully!`);
 
-    await loadGames();
-    setPendingAutoRevealGameId(numericGameId);
+// At the end of joinGame
+await loadGames();
+setPendingAutoRevealGameId(numericGameId);
 
   } catch (err) {
     console.error("Join game failed:", err);
     alert(err.reason || err.message || "Join failed");
+  }
+};
+
+/* -------- CANCEL UNJOINED GAME -----------*/
+const cancelUnjoinedGame = async (gameId) => {
+  if (!signer) {
+    alert("Wallet not connected");
+    return;
+  }
+
+  // 🔹 Ensure signer is on Electroneum network
+await ensureCorrectNetwork(signer, wcProvider || null);
+
+  try {
+    // 1️⃣ Cancel on-chain (creator signs)
+const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+
+    const tx = await contract.cancelUnjoinedGame(gameId);
+        await tx.wait();
+
+    await loadGames();
+    alert(`Game #${gameId} cancelled successfully`);
+  } catch (err) {
+    console.error("Cancel failed:", err);
+    alert(err.reason || err.message || "Cancel failed");
   }
 };
 
@@ -956,8 +977,7 @@ const readProvider = unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
 const contractRead = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
 
 // WRITE contract
-const signerSafe = await getSignerSafe(signer);
-const contractWrite = contractRead.connect(signerSafe);
+const contractWrite = contractRead.connect(signer);
 
 // 1️⃣ fresh chain state
 const chainGame = await contractRead.games(BigInt(g.id));
@@ -1034,6 +1054,7 @@ const tx = await contractWrite.reveal(
   preData.savedReveal.tokenIds.map(BigInt),
   preData.savedReveal.backgrounds
 );
+
       await tx.wait();
 
       console.log("Auto-reveal completed for game", g.id);
@@ -1062,13 +1083,13 @@ useEffect(() => {
   }
 }, [games, pendingAutoRevealGameId, autoRevealIfPossible]);
 
-/* ---------------- REVEAL FILE UPLOAD (SAFE) ---------------- */
+
+/* ---------------- REVEAL FILE UPLOAD ---------------- */
 const handleRevealFile = useCallback(async (e) => {
-  const file = e.target.files?.[0];
+  const file = e.target.files[0];
   if (!file) return;
 
   try {
-    /* ---------------- PARSE FILE ---------------- */
     const text = await file.text();
     const data = JSON.parse(text);
 
@@ -1083,35 +1104,15 @@ const handleRevealFile = useCallback(async (e) => {
       throw new Error("Invalid reveal file");
     }
 
-    const numericGameId = Number(gameId);
-    if (!Number.isInteger(numericGameId)) {
-      throw new Error("Invalid game ID");
+    if (!account || !signer) {
+      throw new Error("Wallet not connected");
     }
 
-    /* ---------------- PROVIDER & SIGNER ---------------- */
-    if (!provider) throw new Error("No provider available");
+// 🔥 Ensure the signer is on Electroneum network
+await ensureCorrectNetwork(signer, wcProvider || null);
 
-    // 🔹 Safe signer getter: returns a valid signer or throws
-    const getSignerSafe = async () => {
-      try {
-        if (provider instanceof ethers.BrowserProvider) {
-          const s = await provider.getSigner();
-          await s.getAddress(); // test
-          return s;
-        }
-        throw new Error("Unsupported provider type");
-      } catch (err) {
-        throw new Error("Provider is stale or unsupported. Please reconnect your wallet.");
-      }
-    };
-
-    const safeSigner = signer || (await getSignerSafe());
-
-    /* ---------------- NETWORK CHECK ---------------- */
-    await ensureCorrectNetwork(safeSigner, wcProvider || null);
-
-    /* ---------------- BACKEND PRE-REVEAL ---------------- */
-    const preRes = await fetch(`${BACKEND_URL}/games/${numericGameId}/reveal`, {
+    // POST to backend (no need for contract constants here)
+    const res = await fetch(`${BACKEND_URL}/games/${gameId}/reveal`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1122,48 +1123,34 @@ const handleRevealFile = useCallback(async (e) => {
       }),
     });
 
-    const backendData = await preRes.json();
-    if (!preRes.ok) {
-      throw new Error(backendData?.error || "Backend reveal failed");
-    }
-    if (!backendData?.savedReveal) {
-      throw new Error("Invalid backend response");
-    }
+    const backendData = await res.json();
+    if (!res.ok) throw new Error(backendData.error || "Backend reveal failed");
 
-    const saved = backendData.savedReveal;
+    const { savedReveal } = backendData;
 
-    /* ---------------- CONTRACT WRITE ---------------- */
-    const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI, safeSigner);
+    // Call on-chain reveal
+    const game = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
 
-    /* ---------------- ON-CHAIN REVEAL ---------------- */
-    const tx = await gameContract.reveal(
-      BigInt(numericGameId),
-      BigInt(saved.salt),
-      saved.nftContracts,
-      saved.tokenIds.map(BigInt),
-      saved.backgrounds
+    const tx = await game.reveal(
+      BigInt(gameId),
+      BigInt(savedReveal.salt),
+      savedReveal.nftContracts,
+      savedReveal.tokenIds.map((id) => BigInt(id)),
+      savedReveal.backgrounds
     );
+
+    // After successful upload + on-chain reveal
     await tx.wait();
 
-    /* ---------------- POST-REVEAL ---------------- */
-    alert(`✅ Reveal successful for game #${numericGameId}`);
-
-    await triggerBackendComputeIfNeeded(numericGameId);
+    alert("Reveal successful!");
+    await triggerBackendComputeIfNeeded(gameId);
     await loadGames();
 
   } catch (err) {
     console.error("Reveal failed:", err);
     alert(`Reveal failed: ${err.message}`);
   }
-}, [
-  account,
-  provider,
-  signer,
-  wcProvider,
-  loadGames,
-  ensureCorrectNetwork,
-  triggerBackendComputeIfNeeded
-]);
+}, [account, signer, wcProvider, loadGames, ensureCorrectNetwork, triggerBackendComputeIfNeeded]);
 
 /* ------ MANUAL SETTLE GAME -------- */
 const manualSettleGame = useCallback(
@@ -1174,71 +1161,59 @@ const manualSettleGame = useCallback(
         return;
       }
 
-      const numericGameId = Number(gameId);
-      if (!Number.isInteger(numericGameId)) {
-        alert("Invalid game ID");
-        return;
-      }
+  // 🔹 Ensure signer is on Electroneum network
+await ensureCorrectNetwork(signer, wcProvider || null);
 
-      await ensureCorrectNetwork(signer, wcProvider || null);
-
-      /* ---------- STEP 1: COMPUTE ---------- */
-      const computeResRaw = await fetch(`${BACKEND_URL}/games/${numericGameId}/compute-results`, {
+      // Step 1: Compute results on backend
+      const computeRes = await fetch(`${BACKEND_URL}/games/${gameId}/compute-results`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-      });
+      }).then(r => r.json());
 
-      const computeRes = await computeResRaw.json();
-
-      if (!computeResRaw.ok || !computeRes.success) {
-        throw new Error(computeRes.error || "Failed to compute results");
+      if (!computeRes.success) {
+        alert(`Failed to compute results: ${computeRes.error || "Unknown error"}`);
+        return;
       }
 
       console.log("Computed results:", computeRes);
 
-      /* ---------- STEP 2: POST WINNER ---------- */
-      const postWinnerRaw = await fetch(`${BACKEND_URL}/games/${numericGameId}/post-winner`, {
+      // Step 2: Post winner on-chain
+      const postWinnerRes = await fetch(`${BACKEND_URL}/games/${gameId}/post-winner`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-      });
+      }).then(r => r.json());
 
-      const postWinnerRes = await postWinnerRaw.json();
-
-      if (!postWinnerRaw.ok || !postWinnerRes.success) {
-        if (postWinnerRes.alreadyPosted) {
-          console.log("Winner already posted");
-        } else {
-          throw new Error(postWinnerRes.error || "Failed to post winner");
-        }
-      }
+if (!postWinnerRes.success || postWinnerRes.alreadyPosted) {
+  if (!postWinnerRes.success) {
+    alert(`Failed to post winner: ${postWinnerRes.error}`);
+    return;
+  }
+}
 
       console.log("Winner posted:", postWinnerRes);
 
-      /* ---------- STEP 3: SETTLE ---------- */
-      const settleRaw = await fetch(`${BACKEND_URL}/games/${numericGameId}/settle-game`, {
+      // Step 3: Settle game on-chain only if not already settled
+      const settleRes = await fetch(`${BACKEND_URL}/games/${gameId}/settle-game`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-      });
+      }).then(r => r.json());
 
-      const settleRes = await settleRaw.json();
-
-      if (!settleRaw.ok || !settleRes.success) {
+      if (!settleRes.success) {
         if (settleRes.alreadySettled) {
-          console.log(`Game ${numericGameId} already settled`);
+          console.log(`Game ${gameId} already settled on-chain`);
         } else {
-          throw new Error(settleRes.error || "Failed to settle game");
+          alert(`Failed to settle game: ${settleRes.error || "Unknown error"}`);
+          return;
         }
       } else {
-        console.log(`Game ${numericGameId} settled:`, settleRes.txHash);
+        console.log(`Game ${gameId} settled successfully:`, settleRes.txHash);
       }
 
-      /* ---------- UX FEEDBACK ---------- */
-      if (!postWinnerRes.txHash) {
-        alert("⏳ Transactions pending. Please wait ~2 minutes and refresh.");
-      } else {
-        alert(`✅ Game #${numericGameId} settled successfully`);
-      }
+if (!postWinnerRes.txHash) {
+  throw new Error("Awaiting on-chain postWinner and settleGame transaction. Reconcile also needs to run... please wait (~2mins). Hit refresh games");
+}
 
+      // Refresh local state
       await loadGames();
 
     } catch (err) {
