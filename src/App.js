@@ -150,7 +150,8 @@ useEffect(() => {
   return () => clearInterval(timer);
 }, [loading]);
 
-  /* ---------------- CONNECT WALLET ---------------- */
+/* ---------------- WALLET CONNECT + METAMASK FLOW ---------------- */
+
 const connectMetamask = useCallback(async () => {
   if (!window.ethereum) {
     alert("MetaMask not installed");
@@ -158,62 +159,105 @@ const connectMetamask = useCallback(async () => {
   }
 
   try {
-    // 🔥 Force switch to Electroneum
+    // force switch to Electroneum
     try {
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
       });
     } catch (switchError) {
-      // If chain not added → add it
       if (switchError.code === 4902) {
         await window.ethereum.request({
           method: "wallet_addEthereumChain",
           params: [{
             chainId: ELECTRONEUM_CHAIN_ID,
             chainName: "Electroneum Mainnet",
-            nativeCurrency: {
-              name: "Electroneum",
-              symbol: "ETN",
-              decimals: 18,
-            },
+            nativeCurrency: { name: "Electroneum", symbol: "ETN", decimals: 18 },
             rpcUrls: ["https://rpc.ankr.com/electroneum"],
-            blockExplorerUrls: ["https://blockexplorer.electroneum.com"], // optional
+            blockExplorerUrls: ["https://blockexplorer.electroneum.com"],
           }],
         });
-      } else {
-        throw switchError;
-      }
+      } else throw switchError;
     }
 
-    // 👇 NOW create provider AFTER switching
     const prov = new ethers.BrowserProvider(window.ethereum);
-
-    const accounts = await window.ethereum.request({
-      method: "eth_requestAccounts",
-    });
-
+    const accounts = await prov.send("eth_requestAccounts", []);
     if (!accounts || accounts.length === 0) {
       setWalletError("Wallet connection rejected.");
       return;
     }
 
     const signer = await prov.getSigner();
-    const addr = await signer.getAddress();
-
     setProvider(prov);
     setSigner(signer);
-    setAccount(addr);
+    setAccount(await signer.getAddress());
     setWalletError(null);
 
   } catch (err) {
-    if (err?.code === 4001 || err?.code === "ACTION_REJECTED") {
-      setWalletError("Connect wallet to play");
+    console.error("MetaMask connect failed:", err);
+    setWalletError("MetaMask connection failed");
+  }
+}, []);
+
+const connectWalletConnect = useCallback(async () => {
+  setWalletError(null);
+
+  try {
+    const projectId = "146ee334d324044083b6427d4bbf9202";
+
+    // Clear old session to prevent stale issues
+    localStorage.removeItem("walletconnect");
+    localStorage.removeItem("WALLETCONNECT_DEEPLINK_CHOICE");
+
+    const wcProvider = await EthereumProvider.init({
+      projectId,
+      chains: [52014],
+      optionalChains: [52014],
+      showQrModal: true,
+      rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
+      metadata: {
+        name: "Core Clash",
+        description: "Core Clash Game",
+        url: window.location.origin,
+        icons: [`${window.location.origin}/CoreClashLogo.png`], // copy PNG to /public
+      },
+    });
+
+    // ✅ Correct way: enable WalletConnect session
+    await wcProvider.enable();
+
+    const accounts = await wcProvider.request({ method: "eth_accounts" });
+    if (!accounts || accounts.length === 0) {
+      setWalletError("No accounts found via WalletConnect");
       return;
     }
 
-    console.error("Wallet connection failed:", err);
-    setWalletError("Wallet connection failed");
+    const chainId = await wcProvider.request({ method: "eth_chainId" });
+    if (chainId !== ELECTRONEUM_CHAIN_ID) {
+      try {
+        await wcProvider.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+        });
+      } catch (err) {
+        console.warn("WalletConnect chain switch refused:", err);
+        setWalletError("Please switch to Electroneum network");
+        return;
+      }
+    }
+
+    const prov = new ethers.BrowserProvider(wcProvider);
+    const signer = await prov.getSigner();
+
+    setProvider(prov);
+    setSigner(signer);
+    setAccount(await signer.getAddress());
+    setWcProvider(wcProvider);
+    setWalletError(null);
+
+  } catch (err) {
+    console.error("WalletConnect failed:", err);
+    setWalletError("WalletConnect connection failed");
   }
 }, []);
 
@@ -224,95 +268,10 @@ const disconnectWallet = useCallback(async () => {
   setWalletError(null);
 
   if (wcProvider) {
-    try {
-      await wcProvider.disconnect();  // ← Simple, no reason/topic needed
-    } catch (e) {
-      console.warn('WC disconnect error (harmless):', e);
-    }
+    try { await wcProvider.disconnect(); } catch { /* ignore */ }
     setWcProvider(null);
   }
 }, [wcProvider]);
-
-/* ------- WALLET CONNECT ----------- */
-const connectWalletConnect = useCallback(async () => {
-  setWalletError(null); // Clear previous errors
-
-  if (wcProvider) {
-    // Disconnect existing session before starting a new one
-    await disconnectWallet();
-  }
-
-  try {
-    const projectId = "146ee334d324044083b6427d4bbf9202";
-
-    // Init WalletConnect provider with custom RPC
-    const ethereumProvider = await EthereumProvider.init({
-      projectId,
-      chains: [52014],
-      optionalChains: [52014],
-      rpcMap: {
-        52014: "https://rpc.ankr.com/electroneum" // Your RPC URL
-      },
-      showQrModal: true,
-      metadata: {
-        name: "Core Clash Trading Card Game",
-        description: "Core Clash — A strategic NFT battle game powered by Electroneum 2.0",
-        url: window.location.origin,
-        icons: [`${window.location.origin}/CoreClashLogo.png`]
-      },
-  qrcodeModalOptions: {
-    top: "10px",           // move modal from bottom to top
-    left: "50%",           // center horizontally
-    transform: "translateX(-50%)",
-    width: "300px",
-    height: "300px",
-  }
-    });
-
-// 🔥 FORCE reset session
-await ethereumProvider.enable();
-
-const REQUIRED_CHAIN_ID = "0xcb4e"; // 52014 hex
-
-const currentChainId = await ethereumProvider.request({
-  method: "eth_chainId",
-});
-
-if (currentChainId !== REQUIRED_CHAIN_ID) {
-  try {
-    await ethereumProvider.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: REQUIRED_CHAIN_ID }],
-    });
-  } catch (err) {
-    console.warn("User refused to switch network or wallet doesn't support it");
-    setWalletError("Please switch to Electroneum network");
-    return;
-  }
-}
-
-    // Wrap as ethers v6 BrowserProvider
-    const newProv = new ethers.BrowserProvider(ethereumProvider);
-    const newSigner = await newProv.getSigner();
-    const addr = await newSigner.getAddress();
-
-    // Save to state
-    setProvider(newProv);
-    setSigner(newSigner);
-    setAccount(addr);
-    setWalletError(null);
-    setWcProvider(ethereumProvider); // For cleanup
-
-  } catch (err) {
-    console.error("WalletConnect connection failed:", err);
-
-    if (err?.code === 4001 || err?.message?.includes("reject") || err?.message?.includes("user rejected")) {
-      setWalletError("Connection rejected by user");
-    } else {
-      setWalletError("Failed to connect via WalletConnect – please try again");
-    }
-  }
-}, [wcProvider, disconnectWallet, setWalletError, setProvider, setSigner, setAccount]);
 
 /* ---------------- RESTORE WALLET ---------------- */
 useEffect(() => {
@@ -321,126 +280,60 @@ useEffect(() => {
   const restoreWallet = async () => {
     if (!isMounted) return;
 
-    // =========================
-    // 1. Try MetaMask / Injected
-    // =========================
+    // 1. Injected
     if (window.ethereum) {
       try {
         const prov = new ethers.BrowserProvider(window.ethereum);
         const accounts = await prov.send("eth_accounts", []);
-
-        if (accounts?.length > 0) {
+        if (accounts.length > 0) {
           const chainId = await prov.send("eth_chainId", []);
-
           if (chainId !== ELECTRONEUM_CHAIN_ID) {
-            try {
-              await window.ethereum.request({
-                method: "wallet_switchEthereumChain",
-                params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
-              });
-            } catch (err) {
-              setWalletError("Please switch to Electroneum network");
-              return;
-            }
+            await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ELECTRONEUM_CHAIN_ID }] });
           }
-
           const signer = await prov.getSigner();
-
           if (!isMounted) return;
-
           setProvider(prov);
           setSigner(signer);
           setAccount(await signer.getAddress());
           setWalletError(null);
-
-          return; // ✅ STOP if MetaMask works
+          return;
         }
-      } catch (err) {
-        console.warn("Injected restore failed:", err);
-      }
+      } catch { /* ignore */ }
     }
 
-    // =========================
-    // 2. Try WalletConnect Restore
-    // =========================
+    // 2. WalletConnect
     try {
-      const projectId = "146ee334d324044083b6427d4bbf9202";
-
       const wc = await EthereumProvider.init({
-        projectId,
+        projectId: "146ee334d324044083b6427d4bbf9202",
         chains: [52014],
         optionalChains: [52014],
-        rpcMap: {
-          52014: "https://rpc.ankr.com/electroneum",
-        },
+        rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
       });
 
-      // 🔥 IMPORTANT: rehydrate session
-      if (wc.session) {
+      if ((wc.connected || wc.session) && wc.session?.namespaces?.eip155) {
         await wc.enable();
-
-        const accounts = await wc.request({
-          method: "eth_accounts",
-        });
-
-        if (accounts?.length > 0) {
-          const chainId = await wc.request({
-            method: "eth_chainId",
-          });
-
-          if (chainId !== ELECTRONEUM_CHAIN_ID) {
-            try {
-              await wc.request({
-                method: "wallet_switchEthereumChain",
-                params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
-              });
-            } catch (err) {
-              setWalletError("Please switch to Electroneum network");
-              return;
-            }
-          }
-
-          const prov = new ethers.BrowserProvider(wc);
-          const signer = await prov.getSigner();
-
-          if (!isMounted) return;
-
-          setProvider(prov);
-          setSigner(signer);
-          setAccount(await signer.getAddress());
-          setWalletError(null);
-          setWcProvider(wc);
-
-          return; // ✅ STOP if WC works
-        } else {
-          // Clean stale session
-          await wc.disconnect().catch(() => {});
-        }
+        const prov = new ethers.BrowserProvider(wc);
+        const signer = await prov.getSigner();
+        if (!isMounted) return;
+        setProvider(prov);
+        setSigner(signer);
+        setAccount(await signer.getAddress());
+        setWcProvider(wc);
+        setWalletError(null);
+        return;
       }
-    } catch (err) {
-      console.warn("WalletConnect restore failed:", err);
-    }
+    } catch { /* ignore */ }
 
-    // =========================
-    // 3. Read-only fallback
-    // =========================
-    if (isMounted) {
-      const readOnlyProvider = new ethers.JsonRpcProvider(
-        "https://rpc.ankr.com/electroneum"
-      );
-
-      setProvider(readOnlyProvider);
-      setSigner(null);
-      setAccount(null);
-      setWalletError(null);
-    }
+    // 3. fallback read-only
+    const readOnly = new ethers.JsonRpcProvider("https://rpc.ankr.com/electroneum");
+    setProvider(readOnly);
+    setSigner(null);
+    setAccount(null);
+    setWalletError(null);
   };
 
   restoreWallet();
-
-  return () => {
-    isMounted = false;
-  };
+  return () => { isMounted = false; };
 }, []);
 
   /* ---------------- OWNED NFT FETCH ---------------- */
@@ -608,7 +501,11 @@ const loadGames = useCallback(async () => {
   setLoadingGames(true);
 
   try {
-const readProvider = unifiedProvider || new ethers.JsonRpcProvider("https://rpc.ankr.com/electroneum");
+    const readProvider = provider || new ethers.JsonRpcProvider("https://rpc.ankr.com/electroneum");
+    if (!provider) {
+      console.warn("No wallet connected, using fallback RPC provider");
+    }
+
     const contract = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
 
     const loadedOnChain = [];
@@ -638,63 +535,44 @@ const readProvider = unifiedProvider || new ethers.JsonRpcProvider("https://rpc.
       }
     }
 
-    // 2. Fetch backend games (authoritative for reveals & results)
+    // Fetch backend games
     const res = await fetch(`${BACKEND_URL}/games`);
     if (!res.ok) throw new Error(`Backend games fetch failed: ${res.status}`);
     const backendGames = await res.json();
 
-    // 3. Merge: backend takes precedence for computed/reveal fields
-const merged = backendGames.map((backendGame) => {
-  const onChainGame =
-    loadedOnChain.find(g => g.id === backendGame.id) || {};
+    // Merge backend + on-chain
+    const merged = backendGames.map((backendGame) => {
+      const onChainGame = loadedOnChain.find(g => g.id === backendGame.id) || {};
 
-  return {
-    id: backendGame.id,
-
-    // players
-    player1: onChainGame.player1 || backendGame.player1 || ethers.ZeroAddress,
-    player2: onChainGame.player2 || backendGame.player2 || ethers.ZeroAddress,
-
-    // stake
-    stakeAmount:
-      onChainGame.stakeAmount || backendGame.stakeAmount || "0",
-    stakeToken:
-      backendGame.stakeToken || onChainGame.stakeToken,
-
-    // reveals
-    player1Revealed: !!backendGame.player1Revealed,
-    player2Revealed: !!backendGame.player2Revealed,
-    player1Reveal: backendGame.player1Reveal || null,
-    player2Reveal: backendGame.player2Reveal || null,
-
-    // results
-    roundResults: backendGame.roundResults || [],
-    winner:
-      backendGame.winner ||
-      onChainGame.winner ||
-      ethers.ZeroAddress,
-    tie: !!backendGame.tie,
-
-// settlement
-settled:
-  backendGame.settled === true ||
-  onChainGame.settled === true,
-settledAt: backendGame.settledAt || null,
-settleTxHash: backendGame.settleTxHash || null,
-
-    // cancellation
-    cancelled: backendGame.cancelled === true,
-  };
-});
+      return {
+        id: backendGame.id,
+        player1: onChainGame.player1 || backendGame.player1 || ethers.ZeroAddress,
+        player2: onChainGame.player2 || backendGame.player2 || ethers.ZeroAddress,
+        stakeAmount: onChainGame.stakeAmount || backendGame.stakeAmount || "0",
+        stakeToken: backendGame.stakeToken || onChainGame.stakeToken,
+        player1Revealed: !!backendGame.player1Revealed,
+        player2Revealed: !!backendGame.player2Revealed,
+        player1Reveal: backendGame.player1Reveal || null,
+        player2Reveal: backendGame.player2Reveal || null,
+        roundResults: backendGame.roundResults || [],
+        winner: backendGame.winner || onChainGame.winner || ethers.ZeroAddress,
+        tie: !!backendGame.tie,
+        settled: backendGame.settled === true || onChainGame.settled === true,
+        settledAt: backendGame.settledAt || null,
+        settleTxHash: backendGame.settleTxHash || null,
+        cancelled: backendGame.cancelled === true,
+      };
+    });
 
     console.log("Merged games count:", merged.length);
     setGames(merged);
+
   } catch (err) {
     console.error("loadGames failed:", err);
   } finally {
     setLoadingGames(false);
   }
-}, [unifiedProvider]);
+}, [provider]);
 
 // 🔥 Auto-load games when provider becomes available
 useEffect(() => {
