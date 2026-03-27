@@ -547,9 +547,12 @@ const loadGames = useCallback(async () => {
   setLoadingGames(true);
 
   try {
-    // Always create a read provider inside the function (wallet or fallback RPC)
-    const readProvider = unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
-
+    // Always create provider inside the function
+    const readProvider = (() => {
+      // Use unifiedProvider if it exists; else fallback RPC
+      return unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
+    })();
+    
     // Connect contract for read-only
     const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(readProvider);
 
