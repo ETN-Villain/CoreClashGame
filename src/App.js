@@ -676,7 +676,7 @@ const createGame = useCallback(async () => {
   }
 
     // 🔹 Ensure signer is on Electroneum network
-  await ensureCorrectNetwork(signer, wcProvider);
+await ensureCorrectNetwork(signer, wcProvider || null);
 
   if (!stakeToken || !stakeAmount || nfts.some(n => !n.address || !n.tokenId)) {
     alert("All fields must be completed before creating a game");
@@ -790,7 +790,7 @@ const cancelUnjoinedGame = async (gameId) => {
   }
 
   // 🔹 Ensure signer is on Electroneum network
-  await ensureCorrectNetwork(signer, wcProvider);
+await ensureCorrectNetwork(signer, wcProvider || null);
 
   try {
     // 1️⃣ Cancel on-chain (creator signs)
@@ -813,7 +813,7 @@ if (!signer) {
 }
 
   // 🔹 Ensure signer is on Electroneum network
-  await ensureCorrectNetwork(signer, wcProvider);
+await ensureCorrectNetwork(signer, wcProvider || null);
 
 const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
@@ -918,7 +918,7 @@ const autoRevealIfPossible = useCallback(
     if (!signer || !account || !gameContract) return;
 
   // 🔹 Ensure signer is on Electroneum network
-  await ensureCorrectNetwork(signer, wcProvider);
+await ensureCorrectNetwork(signer, wcProvider || null);
 
     try {
       // 1️⃣ Always fetch fresh on-chain state
@@ -1050,8 +1050,8 @@ const handleRevealFile = useCallback(async (e) => {
       throw new Error("Wallet not connected");
     }
 
-    // 🔥 Ensure the signer is on Electroneum network
-    await ensureCorrectNetwork(signer);
+// 🔥 Ensure the signer is on Electroneum network
+await ensureCorrectNetwork(signer, wcProvider || null);
 
     // POST to backend (no need for contract constants here)
     const res = await fetch(`${BACKEND_URL}/games/${gameId}/reveal`, {
@@ -1092,7 +1092,7 @@ const handleRevealFile = useCallback(async (e) => {
     console.error("Reveal failed:", err);
     alert(`Reveal failed: ${err.message}`);
   }
-}, [account, signer, loadGames, ensureCorrectNetwork, triggerBackendComputeIfNeeded]);
+}, [account, signer, wcProvider, loadGames, ensureCorrectNetwork, triggerBackendComputeIfNeeded]);
 
 /* ------ MANUAL SETTLE GAME -------- */
 const manualSettleGame = useCallback(
@@ -1104,7 +1104,7 @@ const manualSettleGame = useCallback(
       }
 
   // 🔹 Ensure signer is on Electroneum network
-  await ensureCorrectNetwork(signer, wcProvider);
+await ensureCorrectNetwork(signer, wcProvider || null);
 
       // Step 1: Compute results on backend
       const computeRes = await fetch(`${BACKEND_URL}/games/${gameId}/compute-results`, {
