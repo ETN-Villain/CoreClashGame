@@ -543,13 +543,15 @@ const downloadRevealBackup = useCallback(
 );
 
 /* ---------------- LOAD GAMES ---------------- */
+const fallbackProvider = unifiedProvider; // capture once, optional
+
 const loadGames = useCallback(async () => {
   setLoadingGames(true);
 
   try {
     // Use unifiedProvider (wallet or fallback)
-    const readProvider = unifiedProvider || new ethers.JsonRpcProvider("https://rpc.ankr.com/electroneum");
-    if (!unifiedProvider) {
+    const readProvider = fallbackProvider || new ethers.JsonRpcProvider("https://rpc.ankr.com/electroneum");
+    if (!fallbackProvider) {
       console.warn("No wallet connected, using fallback RPC provider");
     }
 
