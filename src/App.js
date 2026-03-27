@@ -166,29 +166,29 @@ const getSignerSafe = async (provOrSigner) => {
 
 /* ---------------- ENSURE CORRECT NETWORK ---------------- */
 const ensureCorrectNetwork = useCallback(
-  async (provOrSigner, wcProviderInstance = null) => {
+  async (provider, wcProviderInstance = null) => {
     try {
       // Determine chainId
-      let chainId;
-      if ("request" in provOrSigner) {
-        chainId = await provOrSigner.request({ method: "eth_chainId" });
-      } else if ("send" in provOrSigner) {
-        chainId = await provOrSigner.send("eth_chainId", []);
-      } else {
-        throw new Error("Unsupported provider type");
-      }
+if (!(provider instanceof ethers.BrowserProvider)) {
+  throw new Error("Unsupported provider type");
+}
+
+const network = await provider.getNetwork();
+const chainId = Number(network.chainId);
 
       if (typeof chainId === "string") chainId = parseInt(chainId, 16);
 
       if (chainId !== ELECTRONEUM_CHAIN_ID) {
         console.log(`Switching network from ${chainId} → ${ELECTRONEUM_CHAIN_ID}`);
 
+    const hexChainId = "0x" + ELECTRONEUM_CHAIN_ID.toString(16);
+
         // MetaMask injected
         if (window.ethereum && !wcProviderInstance) {
           try {
             await window.ethereum.request({
               method: "wallet_switchEthereumChain",
-              params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+              params: [{ chainId: hexChainId }],
             });
           } catch (switchErr) {
             if (switchErr.code === 4902) {
@@ -281,7 +281,7 @@ const connectWallet = useCallback(async (type = "metamask") => {
       prov = new ethers.BrowserProvider(window.ethereum);
 
       // 🔹 Ensure correct network
-      await ensureCorrectNetwork(prov);
+      await ensureCorrectNetwork(provider, wcProvider);
 
       // 🔹 Get signer and address
       signer = await prov.getSigner();
@@ -313,7 +313,7 @@ const connectWallet = useCallback(async (type = "metamask") => {
       prov = new ethers.BrowserProvider(wcProvInstance);
 
       // 🔹 Ensure network
-      await ensureCorrectNetwork(prov, wcProvInstance);
+      await ensureCorrectNetwork(provider, wcProvider);
 
       // 🔹 Get signer and address
       signer = await prov.getSigner();
@@ -534,7 +534,7 @@ if (RARE_BACKGROUNDS.includes(background)) {
   }
 
     // 🔹 Ensure signer is on Electroneum network
-  await ensureCorrectNetwork(signer, wcProvider);
+  await ensureCorrectNetwork(provider, wcProvider);
 
   try {
     const stakeWei = ethers.parseUnits(stakeAmount, 18);
@@ -722,7 +722,7 @@ const createGame = useCallback(async () => {
   }
 
   // 🔹 Ensure signer is on Electroneum network
-  await ensureCorrectNetwork(signer, wcProvider || null);
+  await ensureCorrectNetwork(provider, wcProvider);
 
   if (!stakeToken || !stakeAmount || nfts.some(n => !n.address || !n.tokenId)) {
     alert("All fields must be completed before creating a game");
@@ -837,7 +837,7 @@ if (!signer) {
 }
 
   // 🔹 Ensure signer is on Electroneum network
-await ensureCorrectNetwork(signer, wcProvider || null);
+await ensureCorrectNetwork(provider, wcProvider);
 
 const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
 
@@ -944,7 +944,7 @@ const cancelUnjoinedGame = async (gameId) => {
   }
 
   // 🔹 Ensure signer is on Electroneum network
-await ensureCorrectNetwork(signer, wcProvider || null);
+await ensureCorrectNetwork(provider, wcProvider);
 
   try {
     // 1️⃣ Cancel on-chain (creator signs)
@@ -967,7 +967,7 @@ const autoRevealIfPossible = useCallback(
     if (!signer || !account ) return;
 
   // 🔹 Ensure signer is on Electroneum network
-await ensureCorrectNetwork(signer, wcProvider || null);
+await ensureCorrectNetwork(provider, wcProvider);
 
     try {
       // 1️⃣ Always fetch fresh on-chain state
@@ -1109,7 +1109,7 @@ const handleRevealFile = useCallback(async (e) => {
     }
 
 // 🔥 Ensure the signer is on Electroneum network
-await ensureCorrectNetwork(signer, wcProvider || null);
+await ensureCorrectNetwork(provider, wcProvider);
 
     // POST to backend (no need for contract constants here)
     const res = await fetch(`${BACKEND_URL}/games/${gameId}/reveal`, {
@@ -1162,7 +1162,7 @@ const manualSettleGame = useCallback(
       }
 
   // 🔹 Ensure signer is on Electroneum network
-await ensureCorrectNetwork(signer, wcProvider || null);
+await ensureCorrectNetwork(provider, wcProvider);
 
       // Step 1: Compute results on backend
       const computeRes = await fetch(`${BACKEND_URL}/games/${gameId}/compute-results`, {
