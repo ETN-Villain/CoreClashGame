@@ -749,6 +749,7 @@ const createGame = useCallback(async () => {
 }, [
   validated,
   signer,
+  wcProvider,
   unifiedProvider,
   stakeToken,
   stakeAmount,
@@ -756,6 +757,7 @@ const createGame = useCallback(async () => {
   account,
   loadGames,
   downloadRevealBackup,
+  ensureCorrectNetwork,
 ]);
 
 /* -------- CANCEL UNJOINED GAME -----------*/
@@ -988,7 +990,7 @@ const autoRevealIfPossible = useCallback(
       console.error("Auto-reveal failed:", err);
     }
   },
-  [signer, account, gameContract, loadGames, triggerBackendComputeIfNeeded]
+  [signer, wcProvider, account, gameContract, loadGames, triggerBackendComputeIfNeeded, ensureCorrectNetwork]
 );
 
 useEffect(() => {
@@ -1139,7 +1141,7 @@ if (!postWinnerRes.txHash) {
       alert(err.message || "Manual settle failed");
     }
   },
-  [signer, account, loadGames]
+  [signer, wcProvider, account, loadGames, ensureCorrectNetwork]
 );
 
 /// ---------------- MODAL STYLES ----------------
