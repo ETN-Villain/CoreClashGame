@@ -57,7 +57,6 @@ const ELECTRONEUM_CHAIN_ID = "0xcb4e"; // 52014 in hex
 
 /* ---------------- WALLET STATE ---------------- */
 const [provider, setProvider] = useState(null);  // Unified provider
-const [signer, setSigner] = useState(null);
 const [account, setAccount] = useState(null);
 const [walletError, setWalletError] = useState(null);
 const [wcProvider, setWcProvider] = useState(null);
@@ -176,8 +175,6 @@ if (!(provider instanceof ethers.BrowserProvider)) {
 const network = await provider.getNetwork();
 const chainId = Number(network.chainId);
 
-      if (typeof chainId === "string") chainId = parseInt(chainId, 16);
-
       if (chainId !== ELECTRONEUM_CHAIN_ID) {
         console.log(`Switching network from ${chainId} → ${ELECTRONEUM_CHAIN_ID}`);
 
@@ -284,7 +281,12 @@ const connectWallet = useCallback(async (type = "metamask") => {
 
       // 🔹 Get signer and address
       signer = await prov.getSigner();
-      addr = await signer.getAddress();
+if (!(provider instanceof ethers.BrowserProvider)) {
+  throw new Error("Wallet not connected");
+}
+
+const signer = await provider.getSigner();
+const addr = await signer.getAddress();
 
     } else if (type === "walletconnect") {
       // 🔹 Clear stale sessions
@@ -316,7 +318,12 @@ const connectWallet = useCallback(async (type = "metamask") => {
 
       // 🔹 Get signer and address
       signer = await prov.getSigner();
-      addr = await signer.getAddress();
+if (!(provider instanceof ethers.BrowserProvider)) {
+  throw new Error("Wallet not connected");
+}
+
+const signer = await provider.getSigner();
+const addr = await signer.getAddress();
     }
 
     // 🔹 Validate signer before updating state
@@ -324,7 +331,6 @@ const connectWallet = useCallback(async (type = "metamask") => {
 
     // 🔹 Set state
     setProvider(prov);
-    setSigner(signer);
     setAccount(addr);
     setWcProvider(wcProvInstance);
 
@@ -344,7 +350,7 @@ const connectWallet = useCallback(async (type = "metamask") => {
   }
 }, [ensureCorrectNetwork, disconnectWallet]);
 
-/* ---------------- RESTORE WALLET ---------------- */
+/* ---------------- RESTORE WALLET (FIXED) ---------------- */
 useEffect(() => {
   let isMounted = true;
 
@@ -352,33 +358,37 @@ useEffect(() => {
     if (!isMounted) return;
 
     try {
-      // 1️⃣ Injected (MetaMask / other wallets)
+      /* ---------- 1️⃣ Injected (MetaMask) ---------- */
       if (window.ethereum) {
         try {
           const prov = new ethers.BrowserProvider(window.ethereum);
-          const accounts = await prov.send("eth_accounts", []);
-          if (accounts.length > 0) {
-            // 🔹 Test provider health
-            await prov.send("eth_chainId", []);
-            const signer = await prov.getSigner();
-            const addr = await signer.getAddress();
 
+          const accounts = await prov.listAccounts();
+          if (accounts.length > 0) {
+            // 🔹 Validate provider properly
+            await prov.getNetwork();
+
+if (!(provider instanceof ethers.BrowserProvider)) {
+  throw new Error("Wallet not connected");
+}
+
+const signer = await provider.getSigner();
+const addr = await signer.getAddress();
             if (!isMounted) return;
+
             setProvider(prov);
-            setSigner(signer);
             setAccount(addr);
+            setWcProvider(null);
             setWalletError(null);
-            return; // early return if successful
+
+            return;
           }
-        } catch {
-          // ❌ Stale provider → reset state
-          setAccount(null);
-          setSigner(null);
-          setProvider(null);
+        } catch (err) {
+          console.warn("Injected provider stale:", err);
         }
       }
 
-      // 2️⃣ WalletConnect
+      /* ---------- 2️⃣ WalletConnect ---------- */
       try {
         const wc = await EthereumProvider.init({
           projectId: "146ee334d324044083b6427d4bbf9202",
@@ -387,46 +397,57 @@ useEffect(() => {
           rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
         });
 
-        // Only restore valid sessions
         if ((wc.connected || wc.session) && wc.session?.namespaces?.eip155) {
           try {
-            await wc.disconnect(); // 🔹 force clean session
-          } catch {}
-
-          await wc.enable();
+            await wc.enable();
+          } catch (err) {
+            console.warn("WC enable failed:", err);
+            throw err;
+          }
 
           const prov = new ethers.BrowserProvider(wc);
-          const signer = await prov.getSigner();
-          const addr = await signer.getAddress();
 
+          // 🔹 Validate provider
+          await prov.getNetwork();
+
+if (!(provider instanceof ethers.BrowserProvider)) {
+  throw new Error("Wallet not connected");
+}
+
+const signer = await provider.getSigner();
+const addr = await signer.getAddress();
           if (!isMounted) return;
+
           setProvider(prov);
-          setSigner(signer);
           setAccount(addr);
           setWcProvider(wc);
           setWalletError(null);
+
           return;
         }
-      } catch {
-        // ignore WalletConnect restore errors
+      } catch (err) {
+        console.warn("WalletConnect restore failed:", err);
       }
 
     } catch (err) {
       console.warn("Wallet restore failed:", err);
     }
 
-    // 3️⃣ Fallback read-only
+    /* ---------- 3️⃣ Fallback read-only ---------- */
     if (!isMounted) return;
+
     const readOnly = new ethers.JsonRpcProvider(RPC_URL);
+
     setProvider(readOnly);
-    setSigner(null);
     setAccount(null);
+    setWcProvider(null);
     setWalletError(null);
   };
 
   restoreWallet();
+
   return () => { isMounted = false; };
-}, [ensureCorrectNetwork]);
+}, []);
 
 /* ---------------- OWNED NFT FETCH ---------------- */
 useEffect(() => {
