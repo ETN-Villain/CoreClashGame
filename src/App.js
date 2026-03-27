@@ -161,10 +161,28 @@ const ensureCorrectNetwork = useCallback(
         console.log(`Switching network from ${chainId} → ${ELECTRONEUM_CHAIN_ID}`);
 
         if (window.ethereum) {
-          await window.ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
-          });
+          try {
+            await window.ethereum.request({
+              method: "wallet_switchEthereumChain",
+              params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+            });
+          } catch (switchError) {
+            // If chain not added, add it
+            if (switchError.code === 4902) {
+              await window.ethereum.request({
+                method: "wallet_addEthereumChain",
+                params: [{
+                  chainId: ELECTRONEUM_CHAIN_ID,
+                  chainName: "Electroneum Mainnet",
+                  nativeCurrency: { name: "Electroneum", symbol: "ETN", decimals: 18 },
+                  rpcUrls: ["https://rpc.ankr.com/electroneum"],
+                  blockExplorerUrls: ["https://blockexplorer.electroneum.com"],
+                }],
+              });
+            } else {
+              throw switchError;
+            }
+          }
         } else if (wcProviderInstance) {
           await wcProviderInstance.request({
             method: "wallet_switchEthereumChain",
@@ -174,10 +192,10 @@ const ensureCorrectNetwork = useCallback(
       }
     } catch (err) {
       console.warn("Network switch failed:", err);
-      throw new Error("Please switch to Electroneum network");
+      throw new Error("Please switch to Electroneum");
     }
   },
-  [] // <- empty dependency array: stable across renders
+  []
 );
 
 /* ---------------- DISCONNECT WALLET ---------------- */
@@ -448,6 +466,9 @@ if (RARE_BACKGROUNDS.includes(background)) {
     return;
   }
 
+    // 🔹 Ensure signer is on Electroneum network
+  await ensureCorrectNetwork(signer, wcProvider);
+
   try {
     const stakeWei = ethers.parseUnits(stakeAmount, 18);
 
@@ -632,6 +653,9 @@ const createGame = useCallback(async () => {
     return;
   }
 
+    // 🔹 Ensure signer is on Electroneum network
+  await ensureCorrectNetwork(signer, wcProvider);
+
   if (!stakeToken || !stakeAmount || nfts.some(n => !n.address || !n.tokenId)) {
     alert("All fields must be completed before creating a game");
     return;
@@ -725,6 +749,7 @@ const createGame = useCallback(async () => {
 }, [
   validated,
   signer,
+  wcProvider,
   unifiedProvider,
   stakeToken,
   stakeAmount,
@@ -732,6 +757,7 @@ const createGame = useCallback(async () => {
   account,
   loadGames,
   downloadRevealBackup,
+  ensureCorrectNetwork,
 ]);
 
 /* -------- CANCEL UNJOINED GAME -----------*/
@@ -740,6 +766,9 @@ const cancelUnjoinedGame = async (gameId) => {
     alert("Wallet not connected");
     return;
   }
+
+  // 🔹 Ensure signer is on Electroneum network
+  await ensureCorrectNetwork(signer, wcProvider);
 
   try {
     // 1️⃣ Cancel on-chain (creator signs)
@@ -760,6 +789,9 @@ if (!signer) {
   alert("Wallet not connected");
   return;
 }
+
+  // 🔹 Ensure signer is on Electroneum network
+  await ensureCorrectNetwork(signer, wcProvider);
 
 const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
@@ -863,6 +895,9 @@ const autoRevealIfPossible = useCallback(
   async (g) => {
     if (!signer || !account || !gameContract) return;
 
+  // 🔹 Ensure signer is on Electroneum network
+  await ensureCorrectNetwork(signer, wcProvider);
+
     try {
       // 1️⃣ Always fetch fresh on-chain state
       const chainGame = await gameContract.games(BigInt(g.id));
@@ -955,7 +990,7 @@ const autoRevealIfPossible = useCallback(
       console.error("Auto-reveal failed:", err);
     }
   },
-  [signer, account, gameContract, loadGames, triggerBackendComputeIfNeeded]
+  [signer, wcProvider, account, gameContract, loadGames, triggerBackendComputeIfNeeded, ensureCorrectNetwork]
 );
 
 useEffect(() => {
@@ -1046,6 +1081,9 @@ const manualSettleGame = useCallback(
         return;
       }
 
+  // 🔹 Ensure signer is on Electroneum network
+  await ensureCorrectNetwork(signer, wcProvider);
+
       // Step 1: Compute results on backend
       const computeRes = await fetch(`${BACKEND_URL}/games/${gameId}/compute-results`, {
         method: "POST",
@@ -1103,7 +1141,7 @@ if (!postWinnerRes.txHash) {
       alert(err.message || "Manual settle failed");
     }
   },
-  [signer, account, loadGames]
+  [signer, wcProvider, account, loadGames, ensureCorrectNetwork]
 );
 
 /// ---------------- MODAL STYLES ----------------
