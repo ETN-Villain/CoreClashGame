@@ -152,24 +152,32 @@ useEffect(() => {
 
 /* ---------------- WALLET CONNECT + METAMASK FLOW ---------------- */
 
-const ensureCorrectNetwork = async (provOrSigner) => {
-  const chainId = await provOrSigner.send("eth_chainId", []);
-  if (chainId !== ELECTRONEUM_CHAIN_ID) {
-    console.log(`Switching network from ${chainId} → ${ELECTRONEUM_CHAIN_ID}`);
-    if (window.ethereum) {
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
-      });
-    } else if (wcProvider) {
-      await wcProvider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
-      });
+// Ensure the provider/signers are on the correct network
+const ensureCorrectNetwork = async (provOrSigner, wcProviderInstance = null) => {
+  try {
+    const chainId = await provOrSigner.send("eth_chainId", []);
+    if (chainId !== ELECTRONEUM_CHAIN_ID) {
+      console.log(`Switching network from ${chainId} → ${ELECTRONEUM_CHAIN_ID}`);
+
+      if (window.ethereum) {
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+        });
+      } else if (wcProviderInstance) {
+        await wcProviderInstance.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+        });
+      }
     }
+  } catch (err) {
+    console.warn("Network switch failed:", err);
+    throw new Error("Please switch to Electroneum network");
   }
 };
 
+/* ---------------- CONNECT METAMASK ---------------- */
 const connectMetamask = useCallback(async () => {
   if (!window.ethereum) {
     alert("MetaMask not installed");
@@ -177,28 +185,9 @@ const connectMetamask = useCallback(async () => {
   }
 
   try {
-    // force switch to Electroneum
-    try {
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
-      });
-    } catch (switchError) {
-      if (switchError.code === 4902) {
-        await window.ethereum.request({
-          method: "wallet_addEthereumChain",
-          params: [{
-            chainId: ELECTRONEUM_CHAIN_ID,
-            chainName: "Electroneum Mainnet",
-            nativeCurrency: { name: "Electroneum", symbol: "ETN", decimals: 18 },
-            rpcUrls: ["https://rpc.ankr.com/electroneum"],
-            blockExplorerUrls: ["https://blockexplorer.electroneum.com"],
-          }],
-        });
-      } else throw switchError;
-    }
-
     const prov = new ethers.BrowserProvider(window.ethereum);
+
+    // Request accounts
     const accounts = await prov.send("eth_requestAccounts", []);
     if (!accounts || accounts.length === 0) {
       setWalletError("Wallet connection rejected.");
@@ -206,6 +195,11 @@ const connectMetamask = useCallback(async () => {
     }
 
     const signer = await prov.getSigner();
+
+    // Ensure network
+    await ensureCorrectNetwork(prov);
+
+    // Save state
     setProvider(prov);
     setSigner(signer);
     setAccount(await signer.getAddress());
@@ -213,10 +207,11 @@ const connectMetamask = useCallback(async () => {
 
   } catch (err) {
     console.error("MetaMask connect failed:", err);
-    setWalletError("MetaMask connection failed");
+    setWalletError(err.message || "MetaMask connection failed");
   }
 }, []);
 
+/* ---------------- CONNECT WALLETCONNECT ---------------- */
 const connectWalletConnect = useCallback(async () => {
   setWalletError(null);
 
@@ -237,11 +232,11 @@ const connectWalletConnect = useCallback(async () => {
         name: "Core Clash",
         description: "Core Clash Game",
         url: window.location.origin,
-        icons: [`${window.location.origin}/CoreClashLogo.png`], // copy PNG to /public
+        icons: [`${window.location.origin}/CoreClashLogo.png`],
       },
     });
 
-    // ✅ Correct way: enable WalletConnect session
+    // Enable WalletConnect session
     await wcProvider.enable();
 
     const accounts = await wcProvider.request({ method: "eth_accounts" });
@@ -250,23 +245,13 @@ const connectWalletConnect = useCallback(async () => {
       return;
     }
 
-    const chainId = await wcProvider.request({ method: "eth_chainId" });
-    if (chainId !== ELECTRONEUM_CHAIN_ID) {
-      try {
-        await wcProvider.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
-        });
-      } catch (err) {
-        console.warn("WalletConnect chain switch refused:", err);
-        setWalletError("Please switch to Electroneum network");
-        return;
-      }
-    }
-
     const prov = new ethers.BrowserProvider(wcProvider);
     const signer = await prov.getSigner();
 
+    // Ensure network
+    await ensureCorrectNetwork(prov, wcProvider);
+
+    // Save state
     setProvider(prov);
     setSigner(signer);
     setAccount(await signer.getAddress());
@@ -275,10 +260,11 @@ const connectWalletConnect = useCallback(async () => {
 
   } catch (err) {
     console.error("WalletConnect failed:", err);
-    setWalletError("WalletConnect connection failed");
+    setWalletError(err.message || "WalletConnect connection failed");
   }
 }, []);
 
+/* ---------------- DISCONNECT WALLET ---------------- */
 const disconnectWallet = useCallback(async () => {
   setAccount(null);
   setSigner(null);
