@@ -1092,7 +1092,7 @@ await ensureCorrectNetwork(signer, wcProvider || null);
     console.error("Reveal failed:", err);
     alert(`Reveal failed: ${err.message}`);
   }
-}, [account, signer, loadGames, ensureCorrectNetwork, triggerBackendComputeIfNeeded]);
+}, [account, signer, wcProvider, loadGames, ensureCorrectNetwork, triggerBackendComputeIfNeeded]);
 
 /* ------ MANUAL SETTLE GAME -------- */
 const manualSettleGame = useCallback(
