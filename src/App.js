@@ -69,13 +69,13 @@ const unifiedProvider = useMemo(() => {
 /* ---------------- GAME CONTRACT (memoized) ---------------- */
 const erc20 = useMemo(() => {
   if (!provider || !stakeToken) return null;
-  return new ethers.Contract(stakeToken, ERC20ABI, signer ?? provider);
-}, [provider, signer, stakeToken]);
+  return new ethers.Contract(stakeToken, ERC20ABI, provider);
+}, [provider, stakeToken]);
 
 const coreContract = useMemo(() => {
   if (!provider) return null;
-  return new ethers.Contract(CORE_TOKEN, ERC20ABI, signer ?? provider);
-}, [provider, signer]);
+  return new ethers.Contract(CORE_TOKEN, ERC20ABI, provider);
+}, [provider]);
 
 useEffect(() => {
   if (!unifiedProvider) {
@@ -158,9 +158,6 @@ const getSignerSafe = async (provOrSigner) => {
   } else {
     throw new Error("Unsupported provider type");
   }
-
-  const signer = await provider.getSigner();
-  return signer;
 };
 
 /* ---------------- ENSURE CORRECT NETWORK ---------------- */
@@ -548,7 +545,7 @@ if (RARE_BACKGROUNDS.includes(background)) {
 
   /* -------- APPROVE TOKENS ----------*/
   const approveTokens = async () => {
-  if (!signer || !stakeToken || !stakeAmount) {
+  if (!stakeToken || !stakeAmount) {
     alert("Missing stake token or amount");
     return;
   }
@@ -773,7 +770,7 @@ const createGame = useCallback(async () => {
 
     // 2️⃣ Approve if needed (write)
     if (allowance < stakeWei) {
-      const erc20Write = new ethers.Contract(stakeToken, ERC20ABI, signer);
+      const erc20Write = new ethers.Contract(stakeToken, ERC20ABI).connect(signerSafe);
       const approveTx = await erc20Write.approve(GAME_ADDRESS, stakeWei);
       await approveTx.wait();
     }
@@ -838,7 +835,6 @@ const createGame = useCallback(async () => {
   }
 }, [
   validated,
-  signer,
   wcProvider,
   stakeToken,
   stakeAmount,
@@ -859,7 +855,7 @@ if (!signer) {
   // 🔹 Ensure signer is on Electroneum network
 await ensureCorrectNetwork(provider, wcProvider);
 
-const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
+const contract = new ethers.Contract(GAME_ADDRESS, GameABI);
 
   try {
     const numericGameId = Number(gameId);
@@ -968,7 +964,7 @@ await ensureCorrectNetwork(provider, wcProvider);
 
   try {
     // 1️⃣ Cancel on-chain (creator signs)
-const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+const contract = new ethers.Contract(GAME_ADDRESS, GameABI);
 
     const tx = await contract.cancelUnjoinedGame(gameId);
         await tx.wait();
@@ -984,7 +980,7 @@ const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 /* ---------------- AUTO REVEAL (CHAIN AUTHORITATIVE) ---------------- */
 const autoRevealIfPossible = useCallback(
   async (g) => {
-    if (!signer || !account ) return;
+    if ( !account ) return;
 
   // 🔹 Ensure signer is on Electroneum network
 await ensureCorrectNetwork(provider, wcProvider);
