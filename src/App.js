@@ -179,92 +179,6 @@ const ensureCorrectNetwork = useCallback(
   },
   [] // <- empty dependency array: stable across renders
 );
-/* ---------------- CONNECT METAMASK ---------------- */
-const connectMetamask = useCallback(async () => {
-  if (!window.ethereum) {
-    alert("MetaMask not installed");
-    return;
-  }
-
-  try {
-    const prov = new ethers.BrowserProvider(window.ethereum);
-
-    // Request accounts
-    const accounts = await prov.send("eth_requestAccounts", []);
-    if (!accounts || accounts.length === 0) {
-      setWalletError("Wallet connection rejected.");
-      return;
-    }
-
-    const signer = await prov.getSigner();
-
-    // Ensure network
-    await ensureCorrectNetwork(prov);
-
-    // Save state
-    setProvider(prov);
-    setSigner(signer);
-    setAccount(await signer.getAddress());
-    setWalletError(null);
-
-  } catch (err) {
-    console.error("MetaMask connect failed:", err);
-    setWalletError(err.message || "MetaMask connection failed");
-  }
-}, [ensureCorrectNetwork]);
-
-/* ---------------- CONNECT WALLETCONNECT ---------------- */
-const connectWalletConnect = useCallback(async () => {
-  setWalletError(null);
-
-  try {
-    const projectId = "146ee334d324044083b6427d4bbf9202";
-
-    // Clear old session to prevent stale issues
-    localStorage.removeItem("walletconnect");
-    localStorage.removeItem("WALLETCONNECT_DEEPLINK_CHOICE");
-
-    const wcProvider = await EthereumProvider.init({
-      projectId,
-      chains: [52014],
-      optionalChains: [52014],
-      showQrModal: true,
-      rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
-      metadata: {
-        name: "Core Clash",
-        description: "Core Clash Game",
-        url: window.location.origin,
-        icons: [`${window.location.origin}/CoreClashLogo.png`],
-      },
-    });
-
-    // Enable WalletConnect session
-    await wcProvider.enable();
-
-    const accounts = await wcProvider.request({ method: "eth_accounts" });
-    if (!accounts || accounts.length === 0) {
-      setWalletError("No accounts found via WalletConnect");
-      return;
-    }
-
-    const prov = new ethers.BrowserProvider(wcProvider);
-    const signer = await prov.getSigner();
-
-    // Ensure network
-    await ensureCorrectNetwork(prov, wcProvider);
-
-    // Save state
-    setProvider(prov);
-    setSigner(signer);
-    setAccount(await signer.getAddress());
-    setWcProvider(wcProvider);
-    setWalletError(null);
-
-  } catch (err) {
-    console.error("WalletConnect failed:", err);
-    setWalletError(err.message || "WalletConnect connection failed");
-  }
-}, [ensureCorrectNetwork]);
 
 /* ---------------- DISCONNECT WALLET ---------------- */
 const disconnectWallet = useCallback(async () => {
@@ -278,6 +192,94 @@ const disconnectWallet = useCallback(async () => {
     setWcProvider(null);
   }
 }, [wcProvider]);
+
+/* ---------------- UNIFIED WALLET CONNECT ---------------- */
+const connectWallet = useCallback(async (type = "metamask") => {
+  setWalletError(null);
+
+  try {
+    let prov;
+    let signer;
+    let addr;
+    let wcProvInstance = null;
+
+    if (type === "metamask") {
+      if (!window.ethereum) throw new Error("MetaMask not installed");
+
+      // Force switch/add Electroneum network
+      try {
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+        });
+      } catch (err) {
+        if (err.code === 4902) {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: ELECTRONEUM_CHAIN_ID,
+              chainName: "Electroneum Mainnet",
+              nativeCurrency: { name: "Electroneum", symbol: "ETN", decimals: 18 },
+              rpcUrls: ["https://rpc.ankr.com/electroneum"],
+              blockExplorerUrls: ["https://blockexplorer.electroneum.com"],
+            }],
+          });
+        } else throw err;
+      }
+
+      prov = new ethers.BrowserProvider(window.ethereum);
+      await ensureCorrectNetwork(prov); // <- network first
+      signer = await prov.getSigner();
+      addr = await signer.getAddress();
+
+    } else if (type === "walletconnect") {
+      // clear old session
+      localStorage.removeItem("walletconnect");
+      localStorage.removeItem("WALLETCONNECT_DEEPLINK_CHOICE");
+
+      wcProvInstance = await EthereumProvider.init({
+        projectId: "146ee334d324044083b6427d4bbf9202",
+        chains: [52014],
+        optionalChains: [52014],
+        showQrModal: true,
+        rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
+        metadata: {
+          name: "Core Clash",
+          description: "Core Clash Game",
+          url: window.location.origin,
+          icons: [`${window.location.origin}/CoreClashLogo.png`],
+        },
+      });
+
+      await wcProvInstance.enable();
+      prov = new ethers.BrowserProvider(wcProvInstance);
+      await ensureCorrectNetwork(prov, wcProvInstance);
+      signer = await prov.getSigner();
+      addr = await signer.getAddress();
+    }
+
+    // Set state
+    setProvider(prov);
+    setSigner(signer);
+    setAccount(addr);
+    setWcProvider(wcProvInstance);
+    setWalletError(null);
+
+    // Event listeners (WalletConnect only)
+    if (wcProvInstance) {
+      wcProvInstance.on("accountsChanged", async (accounts) => setAccount(accounts[0] || null));
+      wcProvInstance.on("chainChanged", async (chainId) => {
+        if (chainId !== ELECTRONEUM_CHAIN_ID) setWalletError("Switch network to Electroneum");
+        else setWalletError(null);
+      });
+      wcProvInstance.on("disconnect", disconnectWallet);
+    }
+
+  } catch (err) {
+    console.error("Wallet connection failed:", err);
+    setWalletError(err.message || "Wallet connection failed");
+  }
+}, [ensureCorrectNetwork, disconnectWallet]);
 
 /* ---------------- RESTORE WALLET ---------------- */
 useEffect(() => {
@@ -1283,6 +1285,9 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, []);
 
+//SINGLE WALLET MODAL
+const [showWalletModal, setShowWalletModal] = useState(false);
+
 /* ---------------- UI ---------------- */
 const isMobile = window.innerWidth < 768;
 
@@ -1411,21 +1416,20 @@ return (
     }}
   />
 
-  {/* RIGHT: Wallet Section */}
+{/* ---------------- WALLET BUTTONS ---------------- */}
+<div
+  style={{
+    display: "flex",
+    flexDirection: isMobile ? "column" : "row",
+    alignItems: "center",
+    gap: isMobile ? 10 : 16,
+  }}
+>
   {!account ? (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: isMobile ? "column" : "row",
-        alignItems: "center",
-        gap: isMobile ? 10 : 16,
-      }}
-    >
+    <>
+      {/* Connect MetaMask */}
       <button
-        onClick={() => {
-          setWalletError(null);
-          connectMetamask();
-        }}
+        onClick={() => connectWallet("metamask")}
         style={{
           backgroundColor: "#18bb1a",
           color: "#fff",
@@ -1439,21 +1443,15 @@ return (
           transition: "all 0.2s ease",
           whiteSpace: "nowrap",
         }}
-        onMouseEnter={(e) =>
-          (e.currentTarget.style.boxShadow = "0 0 20px rgba(24,187,26,0.9)")
-        }
-        onMouseLeave={(e) =>
-          (e.currentTarget.style.boxShadow = "0 0 10px rgba(24,187,26,0.6)")
-        }
+        onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 20px rgba(24,187,26,0.9)")}
+        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 10px rgba(24,187,26,0.6)")}
       >
         Connect MetaMask
       </button>
 
+      {/* Connect WalletConnect */}
       <button
-        onClick={() => {
-          setWalletError(null);
-          connectWalletConnect();
-        }}
+        onClick={() => connectWallet("walletconnect")}
         style={{
           backgroundColor: "#1a75ff",
           color: "#fff",
@@ -1467,17 +1465,14 @@ return (
           transition: "all 0.2s ease",
           whiteSpace: "nowrap",
         }}
-        onMouseEnter={(e) =>
-          (e.currentTarget.style.boxShadow = "0 0 20px rgba(26,117,255,0.9)")
-        }
-        onMouseLeave={(e) =>
-          (e.currentTarget.style.boxShadow = "0 0 10px rgba(26,117,255,0.6)")
-        }
+        onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 20px rgba(26,117,255,0.9)")}
+        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 10px rgba(26,117,255,0.6)")}
       >
-        Connect Mobile (WalletConnect)
+        Connect Mobile
       </button>
-    </div>
+    </>
   ) : (
+    // Wallet connected view
     <div
       style={{
         display: "flex",
@@ -1508,13 +1503,7 @@ return (
           {account?.slice(0, 6)}...{account?.slice(-4)}
         </span>
 
-        <div
-          style={{
-            width: 1,
-            height: 16,
-            background: "#333",
-          }}
-        />
+        <div style={{ width: 1, height: 16, background: "#333" }} />
 
         <button
           onClick={disconnectWallet}
@@ -1536,6 +1525,7 @@ return (
       </div>
     </div>
   )}
+</div>
 </div>
 
 {/* ---------------- ECOSYSTEM BLOCK ---------------- */}
