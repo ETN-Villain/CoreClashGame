@@ -1045,7 +1045,7 @@ const handleRevealFile = useCallback(async (e) => {
     console.error("Reveal failed:", err);
     alert(`Reveal failed: ${err.message}`);
   }
-}, [account, signer, loadGames, triggerBackendComputeIfNeeded]);
+}, [account, signer, loadGames, ensureCorrectNetwork, triggerBackendComputeIfNeeded]);
 
 /* ------ MANUAL SETTLE GAME -------- */
 const manualSettleGame = useCallback(
