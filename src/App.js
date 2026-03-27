@@ -245,6 +245,9 @@ const connectWalletConnect = useCallback(async () => {
   try {
     const projectId = "146ee334d324044083b6427d4bbf9202";
 
+    localStorage.removeItem("walletconnect");
+localStorage.removeItem("WALLETCONNECT_DEEPLINK_CHOICE");
+
     // Init WalletConnect provider with custom RPC
     const ethereumProvider = await EthereumProvider.init({
       projectId,
@@ -258,7 +261,7 @@ const connectWalletConnect = useCallback(async () => {
         name: "Core Clash Trading Card Game",
         description: "Core Clash — A strategic NFT battle game powered by Electroneum 2.0",
         url: window.location.origin,
-        icons: [CoreClashLogo], // must be full URL
+        icons: [`${window.location.origin}/CoreClashLogo.png`]
       },
   qrcodeModalOptions: {
     top: "10px",           // move modal from bottom to top
@@ -269,8 +272,10 @@ const connectWalletConnect = useCallback(async () => {
   }
     });
 
-    // ✅ Enable WalletConnect session
-    await ethereumProvider.enable();
+// 🔥 FORCE reset session
+await ethereumProvider.disconnect().catch(() => {});
+
+await ethereumProvider.enable();
 
 const REQUIRED_CHAIN_ID = "0xcb4e"; // 52014 hex
 
