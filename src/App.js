@@ -53,36 +53,32 @@ const [showGameInfo, setShowGameInfo] = useState(false);
 const [helpModal, setHelpModal] = useState(null);
 const [showOwnershipWarning, setShowOwnershipWarning] = useState(false);
 
-const ELECTRONEUM_CHAIN_ID = "0xcb4e"; // 52014 in hex
+const ELECTRONEUM_CHAIN_ID = 52014;
+const ELECTRONEUM_CHAIN_HEX = "0xcb4e";
 
 /* ---------------- WALLET STATE ---------------- */
-const [provider, setProvider] = useState(null);  // Unified provider
-const [signer, setSigner] = useState(null);
+const [provider, setProvider] = useState(null);
 const [account, setAccount] = useState(null);
 const [walletError, setWalletError] = useState(null);
 const [wcProvider, setWcProvider] = useState(null);
 
-/* ---------------- PROVIDER MEMO ---------------- */
-const unifiedProvider = useMemo(() => {
-  return new ethers.JsonRpcProvider(RPC_URL);
-}, []);
+/* ---------------- DEFAULT PROVIDER ---------------- */
+useEffect(() => {
+  if (!provider) {
+    setProvider(new ethers.JsonRpcProvider(RPC_URL));
+  }
+}, [provider]);
 
-/* ---------------- GAME CONTRACT (memoized) ---------------- */
+/* ---------------- CONTRACTS (READ ONLY) ---------------- */
 const erc20 = useMemo(() => {
   if (!provider || !stakeToken) return null;
-  return new ethers.Contract(stakeToken, ERC20ABI, signer ?? provider);
-}, [provider, signer, stakeToken]);
+  return new ethers.Contract(stakeToken, ERC20ABI, provider);
+}, [provider, stakeToken]);
 
 const coreContract = useMemo(() => {
   if (!provider) return null;
-  return new ethers.Contract(CORE_TOKEN, ERC20ABI, signer ?? provider);
-}, [provider, signer]);
-
-useEffect(() => {
-  if (!unifiedProvider) {
-    setProvider(new ethers.JsonRpcProvider(RPC_URL));
-  }
-}, [unifiedProvider]);
+  return new ethers.Contract(CORE_TOKEN, ERC20ABI, provider);
+}, [provider]);
 
 /* ---------------- NFT STATE ---------------- */
 const [ownedNFTs, setOwnedNFTs] = useState([]);
@@ -145,50 +141,29 @@ useEffect(() => {
   return () => clearInterval(timer);
 }, [loading]);
 
-/* ---------------- UTILITY: SAFE SIGNER ---------------- */
-const getSignerSafe = async (provOrSigner) => {
-  if (!provOrSigner) throw new Error("No provider/signer available");
-
-  let provider;
-
-  if (provOrSigner instanceof ethers.BrowserProvider) {
-    provider = provOrSigner;
-  } else if (provOrSigner.request || provOrSigner.send) {
-    // Wrap injected provider / WalletConnect
-    provider = new ethers.BrowserProvider(provOrSigner);
-  } else {
-    throw new Error("Unsupported provider type");
-  }
-
-  const signer = await provider.getSigner();
-  return signer;
-};
-
 /* ---------------- ENSURE CORRECT NETWORK ---------------- */
 const ensureCorrectNetwork = useCallback(
-  async (provOrSigner, wcProviderInstance = null) => {
+  async (provider, wcProviderInstance = null) => {
     try {
       // Determine chainId
-      let chainId;
-      if ("request" in provOrSigner) {
-        chainId = await provOrSigner.request({ method: "eth_chainId" });
-      } else if ("send" in provOrSigner) {
-        chainId = await provOrSigner.send("eth_chainId", []);
-      } else {
-        throw new Error("Unsupported provider type");
-      }
+if (!(provider instanceof ethers.BrowserProvider)) {
+  throw new Error("Unsupported provider type");
+}
 
-      if (typeof chainId === "string") chainId = parseInt(chainId, 16);
+const network = await provider.getNetwork();
+const chainId = Number(network.chainId);
 
       if (chainId !== ELECTRONEUM_CHAIN_ID) {
         console.log(`Switching network from ${chainId} → ${ELECTRONEUM_CHAIN_ID}`);
+
+    const hexChainId = "0x" + ELECTRONEUM_CHAIN_ID.toString(16);
 
         // MetaMask injected
         if (window.ethereum && !wcProviderInstance) {
           try {
             await window.ethereum.request({
               method: "wallet_switchEthereumChain",
-              params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+              params: [{ chainId: hexChainId }],
             });
           } catch (switchErr) {
             if (switchErr.code === 4902) {
@@ -215,7 +190,7 @@ const ensureCorrectNetwork = useCallback(
           try {
             await wcProviderInstance.request({
               method: "wallet_switchEthereumChain",
-              params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+              params: [{ chainId: hexChainId }],
             });
           } catch (wcErr) {
             console.warn("WalletConnect chain switch failed:", wcErr);
@@ -223,14 +198,13 @@ const ensureCorrectNetwork = useCallback(
           }
         }
 
-        // Re-check chainId (mobile safe)
-        chainId = "request" in provOrSigner
-          ? parseInt(await provOrSigner.request({ method: "eth_chainId" }), 16)
-          : parseInt(await provOrSigner.send("eth_chainId", []), 16);
+// Re-check using ethers (safe for all providers)
+const newNetwork = await provider.getNetwork();
+const newChainId = Number(newNetwork.chainId);
 
-        if (chainId !== ELECTRONEUM_CHAIN_ID) {
-          throw new Error("Failed to switch to Electroneum network");
-        }
+if (newChainId !== ELECTRONEUM_CHAIN_ID) {
+  throw new Error("Failed to switch to Electroneum network");
+}
       }
     } catch (err) {
       console.warn("Network check failed:", err);
@@ -243,7 +217,6 @@ const ensureCorrectNetwork = useCallback(
 /* ---------------- DISCONNECT WALLET ---------------- */
 const disconnectWallet = useCallback(async () => {
   setAccount(null);
-  setSigner(null);
   setProvider(null);
   setWalletError(null);
 
@@ -254,10 +227,8 @@ const disconnectWallet = useCallback(async () => {
     setWcProvider(null);
   }
 
-  // 🔥 clear EVERYTHING
   localStorage.clear();
   sessionStorage.clear();
-
 }, [wcProvider]);
 
 /* ---------------- UNIFIED WALLET CONNECT ---------------- */
@@ -266,29 +237,22 @@ const connectWallet = useCallback(async (type = "metamask") => {
 
   try {
     let prov;
-    let signer;
     let addr;
     let wcProvInstance = null;
 
     if (type === "metamask") {
       if (!window.ethereum) throw new Error("MetaMask not installed");
 
-      // 🔹 Force fresh connection
-      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-      if (!accounts.length) throw new Error("No accounts found");
+      await window.ethereum.request({ method: "eth_requestAccounts" });
 
-      // 🔹 Create fresh BrowserProvider
       prov = new ethers.BrowserProvider(window.ethereum);
 
-      // 🔹 Ensure correct network
-      await ensureCorrectNetwork(prov);
+      await ensureCorrectNetwork(prov, null);
 
-      // 🔹 Get signer and address
-      signer = await prov.getSigner();
+      const signer = await prov.getSigner();
       addr = await signer.getAddress();
 
     } else if (type === "walletconnect") {
-      // 🔹 Clear stale sessions
       localStorage.removeItem("walletconnect");
       localStorage.removeItem("WALLETCONNECT_DEEPLINK_CHOICE");
 
@@ -298,54 +262,31 @@ const connectWallet = useCallback(async (type = "metamask") => {
         optionalChains: [52014],
         showQrModal: true,
         rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
-        metadata: {
-          name: "Core Clash",
-          description: "Core Clash Game",
-          url: window.location.origin,
-          icons: [`${window.location.origin}/CoreClashLogo.png`],
-        },
       });
 
-      // 🔹 Enable fresh session
       await wcProvInstance.enable();
 
-      // 🔹 Create ethers provider
       prov = new ethers.BrowserProvider(wcProvInstance);
 
-      // 🔹 Ensure network
       await ensureCorrectNetwork(prov, wcProvInstance);
 
-      // 🔹 Get signer and address
-      signer = await prov.getSigner();
+      const signer = await prov.getSigner();
       addr = await signer.getAddress();
     }
 
-    // 🔹 Validate signer before updating state
-    if (!signer || !addr) throw new Error("Wallet connection failed");
+    if (!addr) throw new Error("Wallet connection failed");
 
-    // 🔹 Set state
     setProvider(prov);
-    setSigner(signer);
     setAccount(addr);
     setWcProvider(wcProvInstance);
-
-    // 🔹 WalletConnect event listeners
-    if (wcProvInstance) {
-      wcProvInstance.on("accountsChanged", (accounts) => setAccount(accounts[0] || null));
-      wcProvInstance.on("chainChanged", (chainId) => {
-        if (parseInt(chainId, 16) !== ELECTRONEUM_CHAIN_ID) setWalletError("Switch network to Electroneum");
-        else setWalletError(null);
-      });
-      wcProvInstance.on("disconnect", disconnectWallet);
-    }
 
   } catch (err) {
     console.error("Wallet connection failed:", err);
     setWalletError(err.message || "Wallet connection failed");
   }
-}, [ensureCorrectNetwork, disconnectWallet]);
+}, [ensureCorrectNetwork]);
 
-/* ---------------- RESTORE WALLET ---------------- */
+/* ---------------- RESTORE WALLET (FIXED) ---------------- */
 useEffect(() => {
   let isMounted = true;
 
@@ -353,33 +294,34 @@ useEffect(() => {
     if (!isMounted) return;
 
     try {
-      // 1️⃣ Injected (MetaMask / other wallets)
+      /* ---------- 1️⃣ Injected (MetaMask) ---------- */
       if (window.ethereum) {
         try {
           const prov = new ethers.BrowserProvider(window.ethereum);
-          const accounts = await prov.send("eth_accounts", []);
-          if (accounts.length > 0) {
-            // 🔹 Test provider health
-            await prov.send("eth_chainId", []);
-            const signer = await prov.getSigner();
-            const addr = await signer.getAddress();
 
+          const accounts = await prov.listAccounts();
+          if (accounts.length > 0) {
+            // 🔹 Validate provider properly
+            await prov.getNetwork();
+
+const signer = await prov.getSigner();
+
+const addr = await signer.getAddress();
             if (!isMounted) return;
+
             setProvider(prov);
-            setSigner(signer);
             setAccount(addr);
+            setWcProvider(null);
             setWalletError(null);
-            return; // early return if successful
+
+            return;
           }
-        } catch {
-          // ❌ Stale provider → reset state
-          setAccount(null);
-          setSigner(null);
-          setProvider(null);
+        } catch (err) {
+          console.warn("Injected provider stale:", err);
         }
       }
 
-      // 2️⃣ WalletConnect
+      /* ---------- 2️⃣ WalletConnect ---------- */
       try {
         const wc = await EthereumProvider.init({
           projectId: "146ee334d324044083b6427d4bbf9202",
@@ -388,46 +330,53 @@ useEffect(() => {
           rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
         });
 
-        // Only restore valid sessions
         if ((wc.connected || wc.session) && wc.session?.namespaces?.eip155) {
           try {
-            await wc.disconnect(); // 🔹 force clean session
-          } catch {}
-
-          await wc.enable();
+            await wc.enable();
+          } catch (err) {
+            console.warn("WC enable failed:", err);
+            throw err;
+          }
 
           const prov = new ethers.BrowserProvider(wc);
-          const signer = await prov.getSigner();
-          const addr = await signer.getAddress();
 
+          // 🔹 Validate provider
+          await prov.getNetwork();
+
+const signer = await prov.getSigner();
+const addr = await signer.getAddress();
           if (!isMounted) return;
+
           setProvider(prov);
-          setSigner(signer);
           setAccount(addr);
           setWcProvider(wc);
           setWalletError(null);
+
           return;
         }
-      } catch {
-        // ignore WalletConnect restore errors
+      } catch (err) {
+        console.warn("WalletConnect restore failed:", err);
       }
 
     } catch (err) {
       console.warn("Wallet restore failed:", err);
     }
 
-    // 3️⃣ Fallback read-only
+    /* ---------- 3️⃣ Fallback read-only ---------- */
     if (!isMounted) return;
+
     const readOnly = new ethers.JsonRpcProvider(RPC_URL);
+
     setProvider(readOnly);
-    setSigner(null);
     setAccount(null);
+    setWcProvider(null);
     setWalletError(null);
   };
 
   restoreWallet();
+
   return () => { isMounted = false; };
-}, [ensureCorrectNetwork]);
+}, []);
 
 /* ---------------- OWNED NFT FETCH ---------------- */
 useEffect(() => {
@@ -528,13 +477,13 @@ if (RARE_BACKGROUNDS.includes(background)) {
 
   /* -------- APPROVE TOKENS ----------*/
   const approveTokens = async () => {
-  if (!signer || !stakeToken || !stakeAmount) {
+  if (!stakeToken || !stakeAmount) {
     alert("Missing stake token or amount");
     return;
   }
 
     // 🔹 Ensure signer is on Electroneum network
-  await ensureCorrectNetwork(signer, wcProvider);
+  await ensureCorrectNetwork(provider, wcProvider);
 
   try {
     const stakeWei = ethers.parseUnits(stakeAmount, 18);
@@ -709,20 +658,19 @@ useEffect(() => {
     return () => es.close();
   }, [loadGames]);
 
-/* ---------------- CREATE GAME ---------------- */
 const createGame = useCallback(async () => {
   if (!validated) {
     alert("Team not validated");
     return;
   }
 
-  if (!signer) {
+  if (!provider || !account) {
     alert("Wallet not connected");
     return;
   }
 
-  // 🔹 Ensure signer is on Electroneum network
-  await ensureCorrectNetwork(signer, wcProvider || null);
+  // 🔹 Ensure provider is on Electroneum network
+  await ensureCorrectNetwork(provider, wcProvider);
 
   if (!stakeToken || !stakeAmount || nfts.some(n => !n.address || !n.tokenId)) {
     alert("All fields must be completed before creating a game");
@@ -730,14 +678,15 @@ const createGame = useCallback(async () => {
   }
 
   try {
-    // ✅ WRITE contract (always signer)
-    const signerSafe = await getSignerSafe(signer);
-    const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signerSafe);
+    // 🔹 Get a signer from the current provider
+    const signerSafe = provider.getSigner();
 
-    // ✅ READ provider (always RPC, wallet-independent)
+    // 🔹 Contracts connected to signer for writing
+    const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI, signerSafe);
+    const erc20Write = new ethers.Contract(stakeToken, ERC20ABI, signerSafe);
+
+    // 🔹 Contracts connected to read-only provider for reading
     const readProvider = new ethers.JsonRpcProvider(RPC_URL);
-
-    // ✅ ERC20 read contract
     const erc20Read = new ethers.Contract(stakeToken, ERC20ABI, readProvider);
 
     const stakeWei = ethers.parseUnits(stakeAmount, 18);
@@ -753,7 +702,6 @@ const createGame = useCallback(async () => {
 
     // 2️⃣ Approve if needed (write)
     if (allowance < stakeWei) {
-      const erc20Write = new ethers.Contract(stakeToken, ERC20ABI, signer);
       const approveTx = await erc20Write.approve(GAME_ADDRESS, stakeWei);
       await approveTx.wait();
     }
@@ -769,14 +717,14 @@ const createGame = useCallback(async () => {
     );
 
     // 4️⃣ Create game on-chain
-    const tx = await contract.createGame(stakeToken, stakeWei, commit);
+    const tx = await gameContract.createGame(stakeToken, stakeWei, commit);
     const receipt = await tx.wait();
 
     // 5️⃣ Extract gameId
     const parsedLogs = receipt.logs
       .map(log => {
         try {
-          return contract.interface.parseLog(log);
+          return gameContract.interface.parseLog(log);
         } catch {
           return null;
         }
@@ -811,14 +759,12 @@ const createGame = useCallback(async () => {
 
     alert(`Game #${gameId} created successfully!\nReveal file downloaded.`);
     await loadGames();
-
   } catch (err) {
     console.error("Create game failed:", err);
     alert(err.reason || err.message || "Create game failed");
   }
 }, [
   validated,
-  signer,
   wcProvider,
   stakeToken,
   stakeAmount,
@@ -827,38 +773,40 @@ const createGame = useCallback(async () => {
   loadGames,
   downloadRevealBackup,
   ensureCorrectNetwork,
+  provider,
 ]);
 
 /* ---------------- JOIN GAME ---------------- */
 const joinGame = async (gameId) => {
-if (!signer) {
-  alert("Wallet not connected");
-  return;
-}
+  if (!provider || !account) {
+    alert("Wallet not connected");
+    return;
+  }
 
-  // 🔹 Ensure signer is on Electroneum network
-await ensureCorrectNetwork(signer, wcProvider || null);
+  // 🔹 Ensure provider is on Electroneum network
+  await ensureCorrectNetwork(provider, wcProvider);
 
-const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
+  // Contract instance (write via signer)
+  const contract = new ethers.Contract(GAME_ADDRESS, GameABI);
 
   try {
     const numericGameId = Number(gameId);
 
- // 🔒 Derive wallet live from provider
-  const liveSigner = await provider.getSigner();
-  const liveAccount = await liveSigner.getAddress();
+    // 🔒 Derive live signer from provider
+    const liveSigner = provider.getSigner();
+    const liveAccount = await liveSigner.getAddress();
 
-  if (!liveAccount || liveAccount === ethers.ZeroAddress) {
-    throw new Error("Invalid wallet address");
-  }
-    
-    // 1. Fetch game details from backend to get stakeToken & stakeAmount
+    if (!liveAccount || liveAccount === ethers.ZeroAddress) {
+      throw new Error("Invalid wallet address");
+    }
+
+    // 1️⃣ Fetch game details from backend
     const gameRes = await fetch(`${BACKEND_URL}/games/${numericGameId}`);
     if (!gameRes.ok) throw new Error("Failed to fetch game details");
     const gameData = await gameRes.json();
 
     const stakeToken = gameData.stakeToken;
-    const stakeAmount = gameData.stakeAmount; // already in string/decimal form
+    const stakeAmount = gameData.stakeAmount; // string/decimal
 
     if (!stakeToken || !stakeAmount) {
       throw new Error("Missing stake information from game");
@@ -866,7 +814,7 @@ const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
 
     console.log(`Joining game ${numericGameId} with stake: ${stakeAmount} of token ${stakeToken}`);
 
-    // 2. Prepare commit (unchanged)
+    // 2️⃣ Prepare commit
     const salt = ethers.toBigInt(ethers.randomBytes(32));
     const nftContracts = nfts.map(n => n.address);
     const tokenIds = nfts.map(n => BigInt(n.tokenId));
@@ -876,9 +824,9 @@ const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
       [salt, ...nftContracts, ...tokenIds]
     );
 
-    // 3. Approve tokens using fetched stakeAmount
-const erc20 = new ethers.Contract(stakeToken, ERC20ABI, liveSigner);
-    const stakeWei = ethers.parseUnits(stakeAmount, 18); // assuming 18 decimals
+    // 3️⃣ Approve tokens using liveSigner
+    const erc20 = new ethers.Contract(stakeToken, ERC20ABI, liveSigner);
+    const stakeWei = ethers.parseUnits(stakeAmount, 18);
 
     const allowance = await erc20.allowance(liveAccount, GAME_ADDRESS);
     if (allowance < stakeWei) {
@@ -888,33 +836,27 @@ const erc20 = new ethers.Contract(stakeToken, ERC20ABI, liveSigner);
       alert("Tokens approved!");
     }
 
-    // 4. Join on-chain
-    console.log("Joining on-chain...");
-    const tx = await contract.joinGame(numericGameId, commit);
+    // 4️⃣ Join on-chain
+    const tx = await contract.connect(liveSigner).joinGame(numericGameId, commit);
     await tx.wait();
 
-const gameOnChain = await contract.games(numericGameId);
+    const gameOnChain = await contract.games(numericGameId);
+    if (gameOnChain.player2.toLowerCase() !== liveAccount.toLowerCase()) {
+      throw new Error("On-chain player mismatch");
+    }
 
-if (gameOnChain.player2.toLowerCase() !== liveAccount.toLowerCase()) {
-  throw new Error("On-chain player mismatch");
-}
+    // 5️⃣ Update backend
+    await fetch(`${BACKEND_URL}/games/${numericGameId}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ player2: gameOnChain.player2 }),
+    });
 
-await fetch(`${BACKEND_URL}/games/${numericGameId}/join`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    player2: gameOnChain.player2
-  }),
-});
-
-    // 6. Save reveal backup (unchanged)
+    // 6️⃣ Save reveal backup
     const prefix = `${liveAccount.toLowerCase()}_${numericGameId}`;
     localStorage.setItem(`${prefix}_salt`, salt.toString());
     localStorage.setItem(`${prefix}_nftContracts`, JSON.stringify(nftContracts));
-    localStorage.setItem(
-      `${prefix}_tokenIds`,
-      JSON.stringify(tokenIds.map(t => t.toString()))
-    );
+    localStorage.setItem(`${prefix}_tokenIds`, JSON.stringify(tokenIds.map(t => t.toString())));
 
     downloadRevealBackup({
       gameId: numericGameId,
@@ -926,9 +868,8 @@ await fetch(`${BACKEND_URL}/games/${numericGameId}/join`, {
 
     alert(`Joined game #${numericGameId} successfully!`);
 
-// At the end of joinGame
-await loadGames();
-setPendingAutoRevealGameId(numericGameId);
+    await loadGames();
+    setPendingAutoRevealGameId(numericGameId);
 
   } catch (err) {
     console.error("Join game failed:", err);
@@ -938,20 +879,23 @@ setPendingAutoRevealGameId(numericGameId);
 
 /* -------- CANCEL UNJOINED GAME -----------*/
 const cancelUnjoinedGame = async (gameId) => {
-  if (!signer) {
+  if (!provider || !account) {
     alert("Wallet not connected");
     return;
   }
 
-  // 🔹 Ensure signer is on Electroneum network
-await ensureCorrectNetwork(signer, wcProvider || null);
+  // 🔹 Ensure provider is on Electroneum network
+  await ensureCorrectNetwork(provider, wcProvider);
 
   try {
-    // 1️⃣ Cancel on-chain (creator signs)
-const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
+    // 🔒 Derive live signer
+    const liveSigner = provider.getSigner();
+
+    // 1️⃣ Cancel on-chain
+    const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(liveSigner);
 
     const tx = await contract.cancelUnjoinedGame(gameId);
-        await tx.wait();
+    await tx.wait();
 
     await loadGames();
     alert(`Game #${gameId} cancelled successfully`);
@@ -964,23 +908,24 @@ const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 /* ---------------- AUTO REVEAL (CHAIN AUTHORITATIVE) ---------------- */
 const autoRevealIfPossible = useCallback(
   async (g) => {
-    if (!signer || !account ) return;
+    if (!account || !provider) return;
 
-  // 🔹 Ensure signer is on Electroneum network
-await ensureCorrectNetwork(signer, wcProvider || null);
+    // 🔹 Ensure provider is on Electroneum network
+    await ensureCorrectNetwork(provider, wcProvider);
 
     try {
       // 1️⃣ Always fetch fresh on-chain state
-const readProvider = unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
+      const readProvider = provider || new ethers.JsonRpcProvider(RPC_URL);
 
-// READ contract
-const contractRead = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
+      // READ contract
+      const contractRead = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
 
-// WRITE contract
-const contractWrite = contractRead.connect(signer);
+      // WRITE contract: derive signer on the fly
+      const liveSigner = provider.getSigner();
+      const contractWrite = contractRead.connect(liveSigner);
 
-// 1️⃣ fresh chain state
-const chainGame = await contractRead.games(BigInt(g.id));
+      // 1️⃣ fresh chain state
+      const chainGame = await contractRead.games(BigInt(g.id));
 
       const accountLower = account.toLowerCase();
       const zeroLower = ethers.ZeroAddress.toLowerCase();
@@ -996,7 +941,7 @@ const chainGame = await contractRead.games(BigInt(g.id));
         return;
       }
 
-      // 2️⃣ Prevent reveal if already revealed (use chain state if available)
+      // 2️⃣ Prevent reveal if already revealed
       const player1Revealed = chainGame.player1Revealed;
       const player2Revealed = chainGame.player2Revealed;
 
@@ -1047,13 +992,13 @@ const chainGame = await contractRead.games(BigInt(g.id));
       }
 
       // 5️⃣ On-chain reveal
-const tx = await contractWrite.reveal(
-  BigInt(g.id),
-  BigInt(preData.savedReveal.salt),
-  preData.savedReveal.nftContracts,
-  preData.savedReveal.tokenIds.map(BigInt),
-  preData.savedReveal.backgrounds
-);
+      const tx = await contractWrite.reveal(
+        BigInt(g.id),
+        BigInt(preData.savedReveal.salt),
+        preData.savedReveal.nftContracts,
+        preData.savedReveal.tokenIds.map(BigInt),
+        preData.savedReveal.backgrounds
+      );
 
       await tx.wait();
 
@@ -1065,24 +1010,12 @@ const tx = await contractWrite.reveal(
 
       // 7️⃣ Reload UI
       await loadGames();
-
     } catch (err) {
       console.error("Auto-reveal failed:", err);
     }
   },
-  [signer, wcProvider, account, unifiedProvider, loadGames, triggerBackendComputeIfNeeded, ensureCorrectNetwork]
+  [wcProvider, account, provider, loadGames, triggerBackendComputeIfNeeded, ensureCorrectNetwork]
 );
-
-useEffect(() => {
-  if (!pendingAutoRevealGameId) return;
-
-  const game = games.find(g => g.id === pendingAutoRevealGameId);
-  if (game) {
-    autoRevealIfPossible(game);
-    setPendingAutoRevealGameId(null);
-  }
-}, [games, pendingAutoRevealGameId, autoRevealIfPossible]);
-
 
 /* ---------------- REVEAL FILE UPLOAD ---------------- */
 const handleRevealFile = useCallback(async (e) => {
@@ -1104,12 +1037,12 @@ const handleRevealFile = useCallback(async (e) => {
       throw new Error("Invalid reveal file");
     }
 
-    if (!account || !signer) {
+    if (!account || !provider) {
       throw new Error("Wallet not connected");
     }
 
-// 🔥 Ensure the signer is on Electroneum network
-await ensureCorrectNetwork(signer, wcProvider || null);
+    // 🔹 Ensure the provider is on Electroneum network
+    await ensureCorrectNetwork(provider, wcProvider);
 
     // POST to backend (no need for contract constants here)
     const res = await fetch(`${BACKEND_URL}/games/${gameId}/reveal`, {
@@ -1128,10 +1061,11 @@ await ensureCorrectNetwork(signer, wcProvider || null);
 
     const { savedReveal } = backendData;
 
-    // Call on-chain reveal
-    const game = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
+    // Call on-chain reveal using live signer
+    const liveSigner = provider.getSigner();
+    const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(liveSigner);
 
-    const tx = await game.reveal(
+    const tx = await gameContract.reveal(
       BigInt(gameId),
       BigInt(savedReveal.salt),
       savedReveal.nftContracts,
@@ -1139,7 +1073,6 @@ await ensureCorrectNetwork(signer, wcProvider || null);
       savedReveal.backgrounds
     );
 
-    // After successful upload + on-chain reveal
     await tx.wait();
 
     alert("Reveal successful!");
@@ -1150,19 +1083,19 @@ await ensureCorrectNetwork(signer, wcProvider || null);
     console.error("Reveal failed:", err);
     alert(`Reveal failed: ${err.message}`);
   }
-}, [account, signer, wcProvider, loadGames, ensureCorrectNetwork, triggerBackendComputeIfNeeded]);
+}, [account, provider, wcProvider, loadGames, ensureCorrectNetwork, triggerBackendComputeIfNeeded]);
 
 /* ------ MANUAL SETTLE GAME -------- */
 const manualSettleGame = useCallback(
   async (gameId) => {
     try {
-      if (!signer || !account) {
+      if (!account || !provider) {
         alert("Wallet not ready");
         return;
       }
 
-  // 🔹 Ensure signer is on Electroneum network
-await ensureCorrectNetwork(signer, wcProvider || null);
+      // 🔹 Ensure provider is on Electroneum network
+      await ensureCorrectNetwork(provider, wcProvider);
 
       // Step 1: Compute results on backend
       const computeRes = await fetch(`${BACKEND_URL}/games/${gameId}/compute-results`, {
@@ -1177,18 +1110,21 @@ await ensureCorrectNetwork(signer, wcProvider || null);
 
       console.log("Computed results:", computeRes);
 
-      // Step 2: Post winner on-chain
+      // Step 2: Post winner on-chain via live signer
+      const liveSigner = provider.getSigner();
+      const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(liveSigner);
+
       const postWinnerRes = await fetch(`${BACKEND_URL}/games/${gameId}/post-winner`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       }).then(r => r.json());
 
-if (!postWinnerRes.success || postWinnerRes.alreadyPosted) {
-  if (!postWinnerRes.success) {
-    alert(`Failed to post winner: ${postWinnerRes.error}`);
-    return;
-  }
-}
+      if (!postWinnerRes.success || postWinnerRes.alreadyPosted) {
+        if (!postWinnerRes.success) {
+          alert(`Failed to post winner: ${postWinnerRes.error}`);
+          return;
+        }
+      }
 
       console.log("Winner posted:", postWinnerRes);
 
@@ -1209,9 +1145,11 @@ if (!postWinnerRes.success || postWinnerRes.alreadyPosted) {
         console.log(`Game ${gameId} settled successfully:`, settleRes.txHash);
       }
 
-if (!postWinnerRes.txHash) {
-  throw new Error("Awaiting on-chain postWinner and settleGame transaction. Reconcile also needs to run... please wait (~2mins). Hit refresh games");
-}
+      if (!postWinnerRes.txHash) {
+        throw new Error(
+          "Awaiting on-chain postWinner and settleGame transaction. Reconcile also needs to run... please wait (~2mins). Hit refresh games"
+        );
+      }
 
       // Refresh local state
       await loadGames();
@@ -1221,7 +1159,7 @@ if (!postWinnerRes.txHash) {
       alert(err.message || "Manual settle failed");
     }
   },
-  [signer, wcProvider, account, loadGames, ensureCorrectNetwork]
+  [provider, wcProvider, account, loadGames, ensureCorrectNetwork]
 );
 
 /// ---------------- MODAL STYLES ----------------
@@ -1250,7 +1188,6 @@ const modalBoxStyle = {
   /* ---------------- GAME CARD PROPS ---------------- */
 const gameCardProps = {
   account,
-  signer,
   approveTokens,
   joinGame,
   manualSettleGame,
@@ -2112,7 +2049,7 @@ style={{
     marginTop: 12,
   }}
 >
-  <span>signer: {signer ? "✅" : "❌"}</span>
+  <span>signer: {provider ? "✅" : "❌"}</span>
   <span>validated: {validated ? "✅" : "❌"}</span>
   <span>stakeToken: {stakeToken || "❌"}</span>
   <span>stakeAmount: {stakeAmount || "❌"}</span>
@@ -2217,12 +2154,12 @@ onClick={createGame} // <-- THIS IS REQUIRED
       borderRadius: 12,
       border: "none",
       background:
-        !validated || !stakeToken || !stakeAmount || !signer
+        !validated || !stakeToken || !stakeAmount || !provider
           ? "#555"
           : "linear-gradient(90deg, #ff7a00, #ff3d00)",
       color: "#fff",
       cursor:
-        !validated || !stakeToken || !stakeAmount || !signer
+        !validated || !stakeToken || !stakeAmount || !provider
           ? "not-allowed"
           : "pointer",
       boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
