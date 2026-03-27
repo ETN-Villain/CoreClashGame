@@ -152,6 +152,24 @@ useEffect(() => {
 
 /* ---------------- WALLET CONNECT + METAMASK FLOW ---------------- */
 
+const ensureCorrectNetwork = async (provOrSigner) => {
+  const chainId = await provOrSigner.send("eth_chainId", []);
+  if (chainId !== ELECTRONEUM_CHAIN_ID) {
+    console.log(`Switching network from ${chainId} → ${ELECTRONEUM_CHAIN_ID}`);
+    if (window.ethereum) {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+      });
+    } else if (wcProvider) {
+      await wcProvider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+      });
+    }
+  }
+};
+
 const connectMetamask = useCallback(async () => {
   if (!window.ethereum) {
     alert("MetaMask not installed");
@@ -501,6 +519,7 @@ const loadGames = useCallback(async () => {
   setLoadingGames(true);
 
   try {
+    // Use wallet provider if available, otherwise fallback RPC
     const readProvider = provider || new ethers.JsonRpcProvider("https://rpc.ankr.com/electroneum");
     if (!provider) {
       console.warn("No wallet connected, using fallback RPC provider");
@@ -508,9 +527,9 @@ const loadGames = useCallback(async () => {
 
     const contract = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
 
+    // 1️⃣ Load on-chain games
     const loadedOnChain = [];
     let i = 0;
-
     while (true) {
       try {
         const gameData = await contract.games(i);
@@ -535,12 +554,12 @@ const loadGames = useCallback(async () => {
       }
     }
 
-    // Fetch backend games
+    // 2️⃣ Fetch backend games (authoritative for reveals & results)
     const res = await fetch(`${BACKEND_URL}/games`);
     if (!res.ok) throw new Error(`Backend games fetch failed: ${res.status}`);
     const backendGames = await res.json();
 
-    // Merge backend + on-chain
+    // 3️⃣ Merge: backend takes precedence for computed/reveal fields
     const merged = backendGames.map((backendGame) => {
       const onChainGame = loadedOnChain.find(g => g.id === backendGame.id) || {};
 
@@ -573,17 +592,6 @@ const loadGames = useCallback(async () => {
     setLoadingGames(false);
   }
 }, [provider]);
-
-// 🔥 Auto-load games when provider becomes available
-useEffect(() => {
-    loadGames();
-}, [loadGames]);
-
-useEffect(() => {
-  if (process.env.NODE_ENV === "development") {
-    window.__GAMES__ = games;
-  }
-}, [games]);
 
 /* ---------------- REVEAL SUCCESS – Trigger backend compute ---------------- */
   const triggerBackendComputeIfNeeded = useCallback(async (gameId) => {
@@ -995,6 +1003,9 @@ const handleRevealFile = useCallback(async (e) => {
       throw new Error("Wallet not connected");
     }
 
+    // 🔥 Ensure the signer is on Electroneum network
+    await ensureCorrectNetwork(signer);
+
     // POST to backend (no need for contract constants here)
     const res = await fetch(`${BACKEND_URL}/games/${gameId}/reveal`, {
       method: "POST",
@@ -1012,16 +1023,6 @@ const handleRevealFile = useCallback(async (e) => {
 
     const { savedReveal } = backendData;
 
-    // Save locally
-    downloadRevealBackup({
-      gameId,
-      player: account.toLowerCase(),
-      salt: savedReveal.salt,
-      nftContracts: savedReveal.nftContracts,
-      tokenIds: savedReveal.tokenIds,
-      backgrounds: savedReveal.backgrounds || [],
-    });
-
     // Call on-chain reveal
     const game = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
@@ -1033,18 +1034,18 @@ const handleRevealFile = useCallback(async (e) => {
       savedReveal.backgrounds
     );
 
-// After successful upload + on-chain reveal
-await tx.wait();
+    // After successful upload + on-chain reveal
+    await tx.wait();
 
-alert("Reveal successful!");
-await triggerBackendComputeIfNeeded(gameId);  // ← add this
-await loadGames();
+    alert("Reveal successful!");
+    await triggerBackendComputeIfNeeded(gameId);
+    await loadGames();
 
   } catch (err) {
     console.error("Reveal failed:", err);
     alert(`Reveal failed: ${err.message}`);
   }
-}, [account, signer, loadGames, downloadRevealBackup, triggerBackendComputeIfNeeded]);
+}, [account, signer, loadGames, triggerBackendComputeIfNeeded]);
 
 /* ------ MANUAL SETTLE GAME -------- */
 const manualSettleGame = useCallback(
