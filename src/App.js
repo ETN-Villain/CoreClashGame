@@ -879,20 +879,23 @@ const joinGame = async (gameId) => {
 
 /* -------- CANCEL UNJOINED GAME -----------*/
 const cancelUnjoinedGame = async (gameId) => {
-  if (!signer) {
+  if (!provider || !account) {
     alert("Wallet not connected");
     return;
   }
 
-  // 🔹 Ensure signer is on Electroneum network
-await ensureCorrectNetwork(provider, wcProvider);
+  // 🔹 Ensure provider is on Electroneum network
+  await ensureCorrectNetwork(provider, wcProvider);
 
   try {
-    // 1️⃣ Cancel on-chain (creator signs)
-const contract = new ethers.Contract(GAME_ADDRESS, GameABI);
+    // 🔒 Derive live signer
+    const liveSigner = provider.getSigner();
+
+    // 1️⃣ Cancel on-chain
+    const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(liveSigner);
 
     const tx = await contract.cancelUnjoinedGame(gameId);
-        await tx.wait();
+    await tx.wait();
 
     await loadGames();
     alert(`Game #${gameId} cancelled successfully`);
@@ -1086,13 +1089,13 @@ const handleRevealFile = useCallback(async (e) => {
 const manualSettleGame = useCallback(
   async (gameId) => {
     try {
-      if (!signer || !account) {
+      if (!account || !provider) {
         alert("Wallet not ready");
         return;
       }
 
-  // 🔹 Ensure signer is on Electroneum network
-await ensureCorrectNetwork(provider, wcProvider);
+      // 🔹 Ensure provider is on Electroneum network
+      await ensureCorrectNetwork(provider, wcProvider);
 
       // Step 1: Compute results on backend
       const computeRes = await fetch(`${BACKEND_URL}/games/${gameId}/compute-results`, {
@@ -1107,18 +1110,21 @@ await ensureCorrectNetwork(provider, wcProvider);
 
       console.log("Computed results:", computeRes);
 
-      // Step 2: Post winner on-chain
+      // Step 2: Post winner on-chain via live signer
+      const liveSigner = provider.getSigner();
+      const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(liveSigner);
+
       const postWinnerRes = await fetch(`${BACKEND_URL}/games/${gameId}/post-winner`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       }).then(r => r.json());
 
-if (!postWinnerRes.success || postWinnerRes.alreadyPosted) {
-  if (!postWinnerRes.success) {
-    alert(`Failed to post winner: ${postWinnerRes.error}`);
-    return;
-  }
-}
+      if (!postWinnerRes.success || postWinnerRes.alreadyPosted) {
+        if (!postWinnerRes.success) {
+          alert(`Failed to post winner: ${postWinnerRes.error}`);
+          return;
+        }
+      }
 
       console.log("Winner posted:", postWinnerRes);
 
@@ -1139,9 +1145,11 @@ if (!postWinnerRes.success || postWinnerRes.alreadyPosted) {
         console.log(`Game ${gameId} settled successfully:`, settleRes.txHash);
       }
 
-if (!postWinnerRes.txHash) {
-  throw new Error("Awaiting on-chain postWinner and settleGame transaction. Reconcile also needs to run... please wait (~2mins). Hit refresh games");
-}
+      if (!postWinnerRes.txHash) {
+        throw new Error(
+          "Awaiting on-chain postWinner and settleGame transaction. Reconcile also needs to run... please wait (~2mins). Hit refresh games"
+        );
+      }
 
       // Refresh local state
       await loadGames();
@@ -1151,7 +1159,7 @@ if (!postWinnerRes.txHash) {
       alert(err.message || "Manual settle failed");
     }
   },
-  [signer, wcProvider, account, loadGames, ensureCorrectNetwork]
+  [provider, wcProvider, account, loadGames, ensureCorrectNetwork]
 );
 
 /// ---------------- MODAL STYLES ----------------
@@ -1180,7 +1188,6 @@ const modalBoxStyle = {
   /* ---------------- GAME CARD PROPS ---------------- */
 const gameCardProps = {
   account,
-  signer,
   approveTokens,
   joinGame,
   manualSettleGame,
@@ -2147,12 +2154,12 @@ onClick={createGame} // <-- THIS IS REQUIRED
       borderRadius: 12,
       border: "none",
       background:
-        !validated || !stakeToken || !stakeAmount || !signer
+        !validated || !stakeToken || !stakeAmount || !provider
           ? "#555"
           : "linear-gradient(90deg, #ff7a00, #ff3d00)",
       color: "#fff",
       cursor:
-        !validated || !stakeToken || !stakeAmount || !signer
+        !validated || !stakeToken || !stakeAmount || !provider
           ? "not-allowed"
           : "pointer",
       boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
