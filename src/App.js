@@ -1080,20 +1080,21 @@ const handleRevealFile = useCallback(async (e) => {
 
     const { savedReveal } = backendData;
 
-// Call on-chain reveal using proper signer
-if (!signer) throw new Error("Wallet not connected with a signer");
+    // ✅ Derive signer from provider (fix no-undef)
+    const liveSigner = await provider.getSigner();
 
-const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
+    // Call on-chain reveal
+    const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(liveSigner);
 
-const tx = await gameContract.reveal(
-  BigInt(gameId),
-  BigInt(savedReveal.salt),
-  savedReveal.nftContracts,
-  savedReveal.tokenIds.map((id) => BigInt(id)),
-  savedReveal.backgrounds
-);
+    const tx = await gameContract.reveal(
+      BigInt(gameId),
+      BigInt(savedReveal.salt),
+      savedReveal.nftContracts,
+      savedReveal.tokenIds.map((id) => BigInt(id)),
+      savedReveal.backgrounds
+    );
 
-await tx.wait();
+    await tx.wait();
 
     alert("Reveal successful!");
     await triggerBackendComputeIfNeeded(gameId);
