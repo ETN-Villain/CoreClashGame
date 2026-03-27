@@ -1007,6 +1007,7 @@ useEffect(() => {
   }
 }, [games, pendingAutoRevealGameId, autoRevealIfPossible]);
 
+/* ---------------- REVEAL FILE UPLOAD ---------------- */
 const handleRevealFile = useCallback(async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -1040,7 +1041,7 @@ const handleRevealFile = useCallback(async (e) => {
     await ensureCorrectNetwork(signer, wcProvider || null);
 
     /* ---------------- BACKEND PRE-REVEAL ---------------- */
-    const res = await fetch(`${BACKEND_URL}/games/${numericGameId}/reveal`, {
+    const preRes = await fetch(`${BACKEND_URL}/games/${numericGameId}/reveal`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1051,39 +1052,28 @@ const handleRevealFile = useCallback(async (e) => {
       }),
     });
 
-    const backendData = await res.json();
-
-    if (!res.ok) {
+    const backendData = await preRes.json();
+    if (!preRes.ok) {
       throw new Error(backendData?.error || "Backend reveal failed");
     }
-
     if (!backendData?.savedReveal) {
       throw new Error("Invalid backend response");
     }
 
     const saved = backendData.savedReveal;
 
-    /* ---------------- CONTRACT SETUP ---------------- */
-    const readProvider =
-      unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
-
-    const contractRead = new ethers.Contract(
-      GAME_ADDRESS,
-      GameABI,
-      readProvider
-    );
-
-    const contractWrite = contractRead.connect(signer);
+    /* ---------------- CONTRACT WRITE ---------------- */
+    // Always use signer from ethers.BrowserProvider.getSigner()
+    const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
     /* ---------------- ON-CHAIN REVEAL ---------------- */
-    const tx = await contractWrite.reveal(
+    const tx = await gameContract.reveal(
       BigInt(numericGameId),
       BigInt(saved.salt),
       saved.nftContracts,
-      saved.tokenIds.map((id) => BigInt(id)),
+      saved.tokenIds.map(BigInt),
       saved.backgrounds
     );
-
     await tx.wait();
 
     /* ---------------- POST-REVEAL ---------------- */
@@ -1100,7 +1090,6 @@ const handleRevealFile = useCallback(async (e) => {
   account,
   signer,
   wcProvider,
-  unifiedProvider,
   loadGames,
   ensureCorrectNetwork,
   triggerBackendComputeIfNeeded
