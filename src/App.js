@@ -249,11 +249,15 @@ const disconnectWallet = useCallback(async () => {
 
   if (wcProvider) {
     try {
-      wcProvider.removeAllListeners();
       await wcProvider.disconnect();
-    } catch { /* ignore */ }
+    } catch {}
     setWcProvider(null);
   }
+
+  // 🔥 clear EVERYTHING
+  localStorage.clear();
+  sessionStorage.clear();
+
 }, [wcProvider]);
 
 /* ---------------- UNIFIED WALLET CONNECT ---------------- */
@@ -266,11 +270,16 @@ const connectWallet = useCallback(async (type = "metamask") => {
     let addr;
     let wcProvInstance = null;
 
-    if (type === "metamask") {
-      if (!window.ethereum) throw new Error("MetaMask not installed");
+// BEFORE creating provider
+if (type === "metamask") {
+  if (!window.ethereum) throw new Error("MetaMask not installed");
 
-      prov = new ethers.BrowserProvider(window.ethereum);
-      await ensureCorrectNetwork(prov); // network first
+  // 🔥 force fresh connection
+  await window.ethereum.request({ method: "eth_requestAccounts" });
+
+  const prov = new ethers.BrowserProvider(window.ethereum);
+
+    await ensureCorrectNetwork(prov); // network first
       signer = await prov.getSigner();
       addr = await signer.getAddress();
 
@@ -278,6 +287,15 @@ const connectWallet = useCallback(async (type = "metamask") => {
       // Clear previous sessions
       localStorage.removeItem("walletconnect");
       localStorage.removeItem("WALLETCONNECT_DEEPLINK_CHOICE");
+
+await EthereumProvider.init({
+  projectId: "...",
+  chains: [52014],
+}).then(async (wc) => {
+  try {
+    await wc.disconnect(); // 🔥 force kill stale session
+  } catch {}
+});
 
       wcProvInstance = await EthereumProvider.init({
         projectId: "146ee334d324044083b6427d4bbf9202",
@@ -334,15 +352,23 @@ useEffect(() => {
       if (window.ethereum) {
         const prov = new ethers.BrowserProvider(window.ethereum);
         const accounts = await prov.send("eth_accounts", []);
-        if (accounts.length > 0) {
-          await ensureCorrectNetwork(prov);
-          const signer = await prov.getSigner();
-          if (!isMounted) return;
-          setProvider(prov);
-          setSigner(signer);
-          setAccount(await signer.getAddress());
-          return;
-        }
+if (accounts.length > 0) {
+  try {
+    await prov.send("eth_chainId", []); // 🔥 test provider health
+
+    const signer = await prov.getSigner();
+    const addr = await signer.getAddress();
+
+    setProvider(prov);
+    setSigner(signer);
+    setAccount(addr);
+  } catch {
+    // ❌ provider is stale → force disconnect
+    setAccount(null);
+    setSigner(null);
+    setProvider(null);
+  }
+}
       }
 
       // 2. WalletConnect
