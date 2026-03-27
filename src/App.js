@@ -53,6 +53,8 @@ const [showGameInfo, setShowGameInfo] = useState(false);
 const [helpModal, setHelpModal] = useState(null);
 const [showOwnershipWarning, setShowOwnershipWarning] = useState(false);
 
+const ELECTRONEUM_CHAIN_ID = "0xcb4e"; // 52014 in hex
+
 /* ---------------- WALLET STATE ---------------- */
 const [provider, setProvider] = useState(null);  // Unified provider
 const [signer, setSigner] = useState(null);
@@ -156,13 +158,42 @@ const connectMetamask = useCallback(async () => {
   }
 
   try {
+    // 🔥 Force switch to Electroneum
+    try {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+      });
+    } catch (switchError) {
+      // If chain not added → add it
+      if (switchError.code === 4902) {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: ELECTRONEUM_CHAIN_ID,
+            chainName: "Electroneum Mainnet",
+            nativeCurrency: {
+              name: "Electroneum",
+              symbol: "ETN",
+              decimals: 18,
+            },
+            rpcUrls: ["https://rpc.ankr.com/electroneum"],
+            blockExplorerUrls: ["https://blockexplorer.electroneum.com"], // optional
+          }],
+        });
+      } else {
+        throw switchError;
+      }
+    }
+
+    // 👇 NOW create provider AFTER switching
     const prov = new ethers.BrowserProvider(window.ethereum);
 
-    // 👇 Only request accounts when user clicks
-    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    const accounts = await window.ethereum.request({
+      method: "eth_requestAccounts",
+    });
 
     if (!accounts || accounts.length === 0) {
-      // User rejected or no accounts
       setWalletError("Wallet connection rejected.");
       return;
     }
@@ -174,12 +205,9 @@ const connectMetamask = useCallback(async () => {
     setSigner(signer);
     setAccount(addr);
     setWalletError(null);
-} catch (err) {
-    // 🔥 USER REJECTED CONNECTION (MetaMask code 4001 / ethers ACTION_REJECTED)
-    if (
-      err?.code === 4001 ||
-      err?.code === "ACTION_REJECTED"
-    ) {
+
+  } catch (err) {
+    if (err?.code === 4001 || err?.code === "ACTION_REJECTED") {
       setWalletError("Connect wallet to play");
       return;
     }
@@ -244,6 +272,25 @@ const connectWalletConnect = useCallback(async () => {
     // ✅ Enable WalletConnect session
     await ethereumProvider.enable();
 
+const REQUIRED_CHAIN_ID = "0xcb4e"; // 52014 hex
+
+const currentChainId = await ethereumProvider.request({
+  method: "eth_chainId",
+});
+
+if (currentChainId !== REQUIRED_CHAIN_ID) {
+  try {
+    await ethereumProvider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: REQUIRED_CHAIN_ID }],
+    });
+  } catch (err) {
+    console.warn("User refused to switch network or wallet doesn't support it");
+    setWalletError("Please switch to Electroneum network");
+    return;
+  }
+}
+
     // Wrap as ethers v6 BrowserProvider
     const newProv = new ethers.BrowserProvider(ethereumProvider);
     const newSigner = await newProv.getSigner();
@@ -269,72 +316,131 @@ const connectWalletConnect = useCallback(async () => {
 
 /* ---------------- RESTORE WALLET ---------------- */
 useEffect(() => {
-  let isMounted = true; // Prevent state updates after unmount
+  let isMounted = true;
 
   const restoreWallet = async () => {
     if (!isMounted) return;
 
-    // --- Step 1: Try injected wallet (MetaMask, etc.) ---
+    // =========================
+    // 1. Try Injected (MetaMask)
+    // =========================
     if (window.ethereum) {
       try {
         const prov = new ethers.BrowserProvider(window.ethereum);
-        const accounts = await prov.send("eth_accounts", []); // silent check
+        const accounts = await prov.send("eth_accounts", []);
+
         if (accounts?.length > 0) {
-          const signer = await prov.getSigner();
-          if (isMounted) {
-            setProvider(prov);
-            setSigner(signer);
-            setAccount(await signer.getAddress());
-            setWalletError(null);
+          const chainId = await prov.send("eth_chainId", []);
+
+          if (chainId !== ELECTRONEUM_CHAIN_ID) {
+            try {
+              await window.ethereum.request({
+                method: "wallet_switchEthereumChain",
+                params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+              });
+            } catch (err) {
+              console.warn("User refused chain switch (MetaMask)");
+              setWalletError("Please switch to Electroneum network");
+              return;
+            }
           }
-          return; // prefer injected if available
+
+          const signer = await prov.getSigner();
+
+          if (!isMounted) return;
+
+          setProvider(prov);
+          setSigner(signer);
+          setAccount(await signer.getAddress());
+          setWalletError(null);
+
+          return; // ✅ stop here if injected works
         }
       } catch (err) {
         console.warn("Injected provider restore failed:", err);
       }
     }
 
-    // --- Step 2: Try WalletConnect session restore ---
+    // =========================
+    // 2. Try WalletConnect Restore
+    // =========================
     try {
       const projectId = "146ee334d324044083b6427d4bbf9202";
 
-      // Init WalletConnect provider
-      const wcProvider = await EthereumProvider.init({
+      const wc = await EthereumProvider.init({
         projectId,
         chains: [52014],
         optionalChains: [52014],
-        // No showQrModal → silent restore
         rpcMap: {
           52014: "https://rpc.ankr.com/electroneum",
         },
       });
 
-      // Check if a session exists
-      if (wcProvider.connected || wcProvider.session) {
-        const prov = new ethers.BrowserProvider(wcProvider);
-        const accounts = await prov.send("eth_accounts", []);
+      if (wc.connected || wc.session) {
+        const accounts = await wc.request({ method: "eth_accounts" });
+
         if (accounts?.length > 0) {
+          const chainId = await wc.request({ method: "eth_chainId" });
+
+if (chainId !== ELECTRONEUM_CHAIN_ID) {
+  try {
+    await window.ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+    });
+  } catch (err) {
+    if (err.code === 4902) {
+      await window.ethereum.request({
+        method: "wallet_addEthereumChain",
+        params: [{
+          chainId: ELECTRONEUM_CHAIN_ID,
+          chainName: "Electroneum Mainnet",
+          nativeCurrency: {
+            name: "Electroneum",
+            symbol: "ETN",
+            decimals: 18,
+          },
+          rpcUrls: ["https://rpc.ankr.com/electroneum"],
+          blockExplorerUrls: ["https://blockexplorer.electroneum.com"],
+        }],
+      });
+    } else {
+      setWalletError("Please switch to Electroneum network");
+      return;
+    }
+  }
+}
+
+          const prov = new ethers.BrowserProvider(wc);
           const signer = await prov.getSigner();
-          if (isMounted) {
-            setProvider(prov);
-            setSigner(signer);
-            setAccount(await signer.getAddress());
-            setWalletError(null);
-            setWcProvider(wcProvider);
-          }
-          return;
+
+          if (!isMounted) return;
+
+          setProvider(prov);
+          setSigner(signer);
+          setAccount(await signer.getAddress());
+          setWalletError(null);
+          setWcProvider(wc);
+
+          return; // ✅ stop here if WC works
         } else {
-          // No accounts → disconnect stale session
-          await wcProvider.disconnect().catch(() => {});
+          // Clean up stale session
+          await wc.disconnect().catch(() => {});
         }
       }
-    } catch (wcErr) {
-      console.warn("WalletConnect restore failed:", wcErr);
+    } catch (err) {
+      console.warn("WalletConnect restore failed:", err);
     }
 
-    // --- Step 3: Fallback: read-only provider ---
+    // =========================
+    // 3. Fallback: Read-only mode
+    // =========================
     if (isMounted) {
-      setProvider(new ethers.JsonRpcProvider("https://rpc.ankr.com/electroneum"));
+      const readOnlyProvider = new ethers.JsonRpcProvider(
+        "https://rpc.ankr.com/electroneum"
+      );
+
+      setProvider(readOnlyProvider);
       setSigner(null);
       setAccount(null);
       setWalletError(null);
@@ -343,23 +449,28 @@ useEffect(() => {
 
   restoreWallet();
 
-  // --- Optional: Listen to injected wallet changes ---
-  const handleAccountsChanged = () => window.location.reload();
-  const handleChainChanged = () => window.location.reload();
-  if (window.ethereum) {
-    window.ethereum.on("accountsChanged", handleAccountsChanged);
-    window.ethereum.on("chainChanged", handleChainChanged);
-  }
-
-  // Cleanup
   return () => {
     isMounted = false;
-    if (window.ethereum) {
-      window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
-      window.ethereum.removeListener("chainChanged", handleChainChanged);
-    }
   };
 }, []);
+
+useEffect(() => {
+  if (!window.ethereum) return;
+
+  const handleAccountsChanged = (accounts) => {
+    if (!accounts || accounts.length === 0) {
+      disconnectWallet();
+    } else {
+      window.location.reload(); // simplest safe approach
+    }
+  };
+
+  window.ethereum.on("accountsChanged", handleAccountsChanged);
+
+  return () => {
+    window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
+  };
+}, [disconnectWallet]);
 
   /* ---------------- OWNED NFT FETCH ---------------- */
 useEffect(() => {
