@@ -1416,12 +1416,20 @@ return (
     }}
   />
 
-{/* ---------------- WALLET SECTION ---------------- */}
-<div style={{ display: "flex", alignItems: "center" }}>
+{/* ---------------- WALLET BUTTONS ---------------- */}
+<div
+  style={{
+    display: "flex",
+    flexDirection: isMobile ? "column" : "row",
+    alignItems: "center",
+    gap: isMobile ? 10 : 16,
+  }}
+>
   {!account ? (
     <>
+      {/* Connect MetaMask */}
       <button
-        onClick={() => setShowWalletModal(true)}
+        onClick={() => connectWallet("metamask")}
         style={{
           backgroundColor: "#18bb1a",
           color: "#fff",
@@ -1435,81 +1443,36 @@ return (
           transition: "all 0.2s ease",
           whiteSpace: "nowrap",
         }}
-        onMouseEnter={(e) =>
-          (e.currentTarget.style.boxShadow = "0 0 20px rgba(24,187,26,0.9)")
-        }
-        onMouseLeave={(e) =>
-          (e.currentTarget.style.boxShadow = "0 0 10px rgba(24,187,26,0.6)")
-        }
+        onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 20px rgba(24,187,26,0.9)")}
+        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 10px rgba(24,187,26,0.6)")}
       >
-        Connect Wallet
+        Connect MetaMask
       </button>
 
-      {/* ---------- WALLET CHOICE MODAL ---------- */}
-      {showWalletModal && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 999,
-          }}
-          onClick={() => setShowWalletModal(false)} // click outside to close
-        >
-          <div
-            style={{
-              background: "#111",
-              padding: 24,
-              borderRadius: 12,
-              minWidth: 260,
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-            }}
-            onClick={(e) => e.stopPropagation()} // prevent modal close on inner click
-          >
-            <h3 style={{ color: "#fff", margin: 0 }}>Choose Wallet</h3>
-            <button
-              onClick={() => {
-                connectWallet();
-                setShowWalletModal(false);
-              }}
-              style={{
-                padding: 10,
-                borderRadius: 8,
-                backgroundColor: "#18bb1a",
-                color: "#fff",
-                fontWeight: "bold",
-              }}
-            >
-              MetaMask
-            </button>
-            <button
-              onClick={() => {
-                connectWallet();
-                setShowWalletModal(false);
-              }}
-              style={{
-                padding: 10,
-                borderRadius: 8,
-                backgroundColor: "#1a75ff",
-                color: "#fff",
-                fontWeight: "bold",
-              }}
-            >
-              WalletConnect
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Connect WalletConnect */}
+      <button
+        onClick={() => connectWallet("walletconnect")}
+        style={{
+          backgroundColor: "#1a75ff",
+          color: "#fff",
+          border: "none",
+          padding: isMobile ? "10px 16px" : "14px 28px",
+          fontSize: isMobile ? 14 : 16,
+          fontWeight: "bold",
+          borderRadius: 12,
+          cursor: "pointer",
+          boxShadow: "0 0 10px rgba(26,117,255,0.6)",
+          transition: "all 0.2s ease",
+          whiteSpace: "nowrap",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 20px rgba(26,117,255,0.9)")}
+        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 10px rgba(26,117,255,0.6)")}
+      >
+        Connect Mobile
+      </button>
     </>
   ) : (
+    // Wallet connected view
     <div
       style={{
         display: "flex",
@@ -1517,7 +1480,6 @@ return (
         gap: 12,
       }}
     >
-      {/* Display connected account */}
       <div
         style={{
           display: "flex",
@@ -1530,8 +1492,15 @@ return (
           boxShadow: "0 0 8px rgba(0,0,0,0.4)",
         }}
       >
-        <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 600, color: "#fff" }}>
-          {account.slice(0, 6)}...{account.slice(-4)}
+        <span
+          style={{
+            fontSize: isMobile ? 12 : 14,
+            fontWeight: 600,
+            color: "#fff",
+            letterSpacing: 0.3,
+          }}
+        >
+          {account?.slice(0, 6)}...{account?.slice(-4)}
         </span>
 
         <div style={{ width: 1, height: 16, background: "#333" }} />
@@ -1546,7 +1515,10 @@ return (
             fontSize: isMobile ? 11 : 13,
             cursor: "pointer",
             padding: "2px 6px",
+            transition: "all 0.2s ease",
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#ff3b3b")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#ff6b6b")}
         >
           Disconnect
         </button>
