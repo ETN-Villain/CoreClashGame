@@ -145,18 +145,23 @@ useEffect(() => {
   return () => clearInterval(timer);
 }, [loading]);
 
-/* ---------------- UTILITY: CREATE ETHERS PROVIDER ---------------- */
-const getEthersProvider = (provOrSigner) => {
-  if (!provOrSigner) return null;
+/* ---------------- UTILITY: SAFE SIGNER ---------------- */
+const getSignerSafe = async (provOrSigner) => {
+  if (!provOrSigner) throw new Error("No provider/signer available");
 
-  // If it's a Signer, use its provider
-  if (provOrSigner.provider) return new ethers.BrowserProvider(provOrSigner.provider);
+  let provider;
 
-  // If it's an injected provider or WalletConnect, wrap it
-  if (provOrSigner.request) return new ethers.BrowserProvider(provOrSigner);
+  if (provOrSigner instanceof ethers.BrowserProvider) {
+    provider = provOrSigner;
+  } else if (provOrSigner.request || provOrSigner.send) {
+    // Wrap injected provider / WalletConnect
+    provider = new ethers.BrowserProvider(provOrSigner);
+  } else {
+    throw new Error("Unsupported provider type");
+  }
 
-  // Fallback read-only
-  return new ethers.JsonRpcProvider(RPC_URL);
+  const signer = await provider.getSigner();
+  return signer;
 };
 
 /* ---------------- ENSURE CORRECT NETWORK ---------------- */
@@ -679,7 +684,8 @@ const createGame = useCallback(async () => {
 
   try {
     // ✅ WRITE contract (always signer)
-    const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signer);
+    const signerSafe = await getSignerSafe(signer);
+    const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(signerSafe);
 
     // ✅ READ provider (always RPC, wallet-independent)
     const readProvider = new ethers.JsonRpcProvider(RPC_URL);
@@ -840,7 +846,8 @@ const joinGame = async (gameId) => {
 const readProvider = unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
     const stakeWei = ethers.parseUnits(stakeAmount, 18);
 const erc20Read = new ethers.Contract(stakeToken, ERC20ABI, readProvider);
-const erc20Write = erc20Read.connect(signer);
+const signerSafe = await getSignerSafe(signer);
+const erc20Write = erc20Read.connect(signerSafe);
 
 const allowance = await erc20Read.allowance(account, GAME_ADDRESS);
 
@@ -902,7 +909,8 @@ const readProvider = unifiedProvider || new ethers.JsonRpcProvider(RPC_URL);
 const contractRead = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
 
 // WRITE contract
-const contractWrite = contractRead.connect(signer);
+const signerSafe = await getSignerSafe(signer);
+const contractWrite = contractRead.connect(signerSafe);
 
 // 1️⃣ fresh chain state
 const chainGame = await contractRead.games(BigInt(g.id));
