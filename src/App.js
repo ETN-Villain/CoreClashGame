@@ -245,9 +245,6 @@ const connectWalletConnect = useCallback(async () => {
   try {
     const projectId = "146ee334d324044083b6427d4bbf9202";
 
-    localStorage.removeItem("walletconnect");
-localStorage.removeItem("WALLETCONNECT_DEEPLINK_CHOICE");
-
     // Init WalletConnect provider with custom RPC
     const ethereumProvider = await EthereumProvider.init({
       projectId,
@@ -273,8 +270,6 @@ localStorage.removeItem("WALLETCONNECT_DEEPLINK_CHOICE");
     });
 
 // 🔥 FORCE reset session
-await ethereumProvider.disconnect().catch(() => {});
-
 await ethereumProvider.enable();
 
 const REQUIRED_CHAIN_ID = "0xcb4e"; // 52014 hex
@@ -327,7 +322,7 @@ useEffect(() => {
     if (!isMounted) return;
 
     // =========================
-    // 1. Try Injected (MetaMask)
+    // 1. Try MetaMask / Injected
     // =========================
     if (window.ethereum) {
       try {
@@ -344,7 +339,6 @@ useEffect(() => {
                 params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
               });
             } catch (err) {
-              console.warn("User refused chain switch (MetaMask)");
               setWalletError("Please switch to Electroneum network");
               return;
             }
@@ -359,10 +353,10 @@ useEffect(() => {
           setAccount(await signer.getAddress());
           setWalletError(null);
 
-          return; // ✅ stop here if injected works
+          return; // ✅ STOP if MetaMask works
         }
       } catch (err) {
-        console.warn("Injected provider restore failed:", err);
+        console.warn("Injected restore failed:", err);
       }
     }
 
@@ -381,40 +375,30 @@ useEffect(() => {
         },
       });
 
-      if (wc.connected || wc.session) {
-        const accounts = await wc.request({ method: "eth_accounts" });
+      // 🔥 IMPORTANT: rehydrate session
+      if (wc.session) {
+        await wc.enable();
+
+        const accounts = await wc.request({
+          method: "eth_accounts",
+        });
 
         if (accounts?.length > 0) {
-          const chainId = await wc.request({ method: "eth_chainId" });
+          const chainId = await wc.request({
+            method: "eth_chainId",
+          });
 
-if (chainId !== ELECTRONEUM_CHAIN_ID) {
-  try {
-    await window.ethereum.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
-    });
-  } catch (err) {
-    if (err.code === 4902) {
-      await window.ethereum.request({
-        method: "wallet_addEthereumChain",
-        params: [{
-          chainId: ELECTRONEUM_CHAIN_ID,
-          chainName: "Electroneum Mainnet",
-          nativeCurrency: {
-            name: "Electroneum",
-            symbol: "ETN",
-            decimals: 18,
-          },
-          rpcUrls: ["https://rpc.ankr.com/electroneum"],
-          blockExplorerUrls: ["https://blockexplorer.electroneum.com"],
-        }],
-      });
-    } else {
-      setWalletError("Please switch to Electroneum network");
-      return;
-    }
-  }
-}
+          if (chainId !== ELECTRONEUM_CHAIN_ID) {
+            try {
+              await wc.request({
+                method: "wallet_switchEthereumChain",
+                params: [{ chainId: ELECTRONEUM_CHAIN_ID }],
+              });
+            } catch (err) {
+              setWalletError("Please switch to Electroneum network");
+              return;
+            }
+          }
 
           const prov = new ethers.BrowserProvider(wc);
           const signer = await prov.getSigner();
@@ -427,9 +411,9 @@ if (chainId !== ELECTRONEUM_CHAIN_ID) {
           setWalletError(null);
           setWcProvider(wc);
 
-          return; // ✅ stop here if WC works
+          return; // ✅ STOP if WC works
         } else {
-          // Clean up stale session
+          // Clean stale session
           await wc.disconnect().catch(() => {});
         }
       }
@@ -438,7 +422,7 @@ if (chainId !== ELECTRONEUM_CHAIN_ID) {
     }
 
     // =========================
-    // 3. Fallback: Read-only mode
+    // 3. Read-only fallback
     // =========================
     if (isMounted) {
       const readOnlyProvider = new ethers.JsonRpcProvider(
@@ -458,24 +442,6 @@ if (chainId !== ELECTRONEUM_CHAIN_ID) {
     isMounted = false;
   };
 }, []);
-
-useEffect(() => {
-  if (!window.ethereum) return;
-
-  const handleAccountsChanged = (accounts) => {
-    if (!accounts || accounts.length === 0) {
-      disconnectWallet();
-    } else {
-      window.location.reload(); // simplest safe approach
-    }
-  };
-
-  window.ethereum.on("accountsChanged", handleAccountsChanged);
-
-  return () => {
-    window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
-  };
-}, [disconnectWallet]);
 
   /* ---------------- OWNED NFT FETCH ---------------- */
 useEffect(() => {
