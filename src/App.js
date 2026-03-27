@@ -211,7 +211,7 @@ const connectMetamask = useCallback(async () => {
     console.error("MetaMask connect failed:", err);
     setWalletError(err.message || "MetaMask connection failed");
   }
-}, []);
+}, [ensureCorrectNetwork]);
 
 /* ---------------- CONNECT WALLETCONNECT ---------------- */
 const connectWalletConnect = useCallback(async () => {
@@ -264,7 +264,7 @@ const connectWalletConnect = useCallback(async () => {
     console.error("WalletConnect failed:", err);
     setWalletError(err.message || "WalletConnect connection failed");
   }
-}, []);
+}, [ensureCorrectNetwork]);
 
 /* ---------------- DISCONNECT WALLET ---------------- */
 const disconnectWallet = useCallback(async () => {
