@@ -658,6 +658,7 @@ useEffect(() => {
     return () => es.close();
   }, [loadGames]);
 
+/// ---------------- CREATE GAME ---------------- */
 const createGame = useCallback(async () => {
   if (!validated) {
     alert("Team not validated");
@@ -679,7 +680,7 @@ const createGame = useCallback(async () => {
 
   try {
     // 🔹 Get a signer from the current provider
-    const signerSafe = provider.getSigner();
+const signerSafe = await provider.getSigner();
 
     // 🔹 Contracts connected to signer for writing
     const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI, signerSafe);
@@ -793,7 +794,7 @@ const joinGame = async (gameId) => {
     const numericGameId = Number(gameId);
 
     // 🔒 Derive live signer from provider
-    const liveSigner = provider.getSigner();
+    const liveSigner = await provider.getSigner();
     const liveAccount = await liveSigner.getAddress();
 
     if (!liveAccount || liveAccount === ethers.ZeroAddress) {
@@ -904,7 +905,7 @@ const cancelUnjoinedGame = async (gameId) => {
 
   try {
     // 🔒 Derive live signer
-    const liveSigner = provider.getSigner();
+    const liveSigner = await provider.getSigner();
 
     // 1️⃣ Cancel on-chain
     const contract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(liveSigner);
@@ -940,7 +941,7 @@ if (!provider || !account) {
   console.log("No wallet connected for reveal");
   return;
 }
-const signer = provider.getSigner();
+const signer = await provider.getSigner();
 const contractWrite = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
       // 1️⃣ fresh chain state
@@ -1132,7 +1133,7 @@ const manualSettleGame = useCallback(
       console.log("Computed results:", computeRes);
 
       // Step 2: Post winner on-chain via live signer
-      const liveSigner = provider.getSigner();
+      const liveSigner = await provider.getSigner();
       const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(liveSigner);
 
       const postWinnerRes = await fetch(`${BACKEND_URL}/games/${gameId}/post-winner`, {
