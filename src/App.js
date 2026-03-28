@@ -787,16 +787,15 @@ const joinGame = async (gameId) => {
   // 🔹 Ensure provider is on Electroneum network
   await ensureCorrectNetwork(provider, wcProvider);
 
-  // Contract instance (write via signer)
-const contractRead = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
-const contractWrite = contractRead.connect(liveSigner);
-
   try {
     const numericGameId = Number(gameId);
 
     // 🔒 Derive live signer from provider
     const liveSigner = await provider.getSigner();
     const liveAccount = await liveSigner.getAddress();
+    // Contract instance (write via signer)
+    const contractRead = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
+    const contractWrite = contractRead.connect(liveSigner);
 
     if (!liveAccount || liveAccount === ethers.ZeroAddress) {
       throw new Error("Invalid wallet address");
