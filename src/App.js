@@ -711,6 +711,7 @@ const signerSafe = await provider.getSigner();
     const salt = ethers.toBigInt(ethers.randomBytes(32));
     const nftContracts = nfts.map(n => n.address);
     const tokenIds = nfts.map(n => BigInt(n.tokenId));
+    const gameId = Number(createdEvent.args.gameId);
 
     // 7️⃣ Download reveal backup
     downloadRevealBackup({
@@ -743,8 +744,6 @@ const signerSafe = await provider.getSigner();
 
     const createdEvent = parsedLogs.find(e => e.name === "GameCreated");
     if (!createdEvent) throw new Error("GameCreated event not found");
-
-    const gameId = Number(createdEvent.args.gameId);
 
     // 6️⃣ Save to backend
     await fetch(`${BACKEND_URL}/games`, {
