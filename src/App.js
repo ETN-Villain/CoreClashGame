@@ -788,7 +788,8 @@ const joinGame = async (gameId) => {
   await ensureCorrectNetwork(provider, wcProvider);
 
   // Contract instance (write via signer)
-  const contract = new ethers.Contract(GAME_ADDRESS, GameABI);
+const contractRead = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
+const contractWrite = contractRead.connect(liveSigner);
 
   try {
     const numericGameId = Number(gameId);
@@ -838,10 +839,11 @@ const joinGame = async (gameId) => {
     }
 
     // 4️⃣ Join on-chain
-    const tx = await contract.connect(liveSigner).joinGame(numericGameId, commit);
-    await tx.wait();
+const tx = await contractWrite.joinGame(numericGameId, commit);
+await tx.wait();
 
-    const gameOnChain = await contract.games(numericGameId);
+const gameOnChain = await contractRead.games(numericGameId);
+
     if (gameOnChain.player2.toLowerCase() !== liveAccount.toLowerCase()) {
       throw new Error("On-chain player mismatch");
     }
@@ -866,15 +868,6 @@ const joinGame = async (gameId) => {
       nftContracts,
       tokenIds: tokenIds.map(t => t.toString()),
     });
-
-    // After saving reveal backup
-downloadRevealBackup({
-  gameId: numericGameId,
-  player: liveAccount.toLowerCase(),
-  salt: salt.toString(),
-  nftContracts,
-  tokenIds: tokenIds.map(t => t.toString()),
-});
 
 // ✅ Trigger auto-reveal immediately
 await autoRevealIfPossible({
