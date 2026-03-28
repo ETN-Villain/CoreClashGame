@@ -707,55 +707,56 @@ const signerSafe = await provider.getSigner();
       await approveTx.wait();
     }
 
-    // 3️⃣ Prepare commit
-    const salt = ethers.toBigInt(ethers.randomBytes(32));
-    const nftContracts = nfts.map(n => n.address);
-    const tokenIds = nfts.map(n => BigInt(n.tokenId));
-    const gameId = Number(createdEvent.args.gameId);
+// 3️⃣ Prepare commit
+const salt = ethers.toBigInt(ethers.randomBytes(32));
+const nftContracts = nfts.map(n => n.address);
+const tokenIds = nfts.map(n => BigInt(n.tokenId));
 
-    // 7️⃣ Download reveal backup
-    downloadRevealBackup({
-      gameId,
-      player: account.toLowerCase(),
-      salt: salt.toString(),
-      nftContracts,
-      tokenIds: tokenIds.map(t => t.toString()),
-    });
+const commit = ethers.solidityPackedKeccak256(
+  ["uint256", "address", "address", "address", "uint256", "uint256", "uint256"],
+  [salt, ...nftContracts, ...tokenIds]
+);
 
-    const commit = ethers.solidityPackedKeccak256(
-      ["uint256", "address", "address", "address", "uint256", "uint256", "uint256"],
-      [salt, ...nftContracts, ...tokenIds]
-    );
+// 4️⃣ Create game on-chain
+const tx = await gameContract.createGame(stakeToken, stakeWei, commit);
+const receipt = await tx.wait();
 
-    // 4️⃣ Create game on-chain
-    const tx = await gameContract.createGame(stakeToken, stakeWei, commit);
-    const receipt = await tx.wait();
+// 5️⃣ Extract gameId
+const parsedLogs = receipt.logs
+  .map(log => {
+    try {
+      return gameContract.interface.parseLog(log);
+    } catch {
+      return null;
+    }
+  })
+  .filter(Boolean);
 
-    // 5️⃣ Extract gameId
-    const parsedLogs = receipt.logs
-      .map(log => {
-        try {
-          return gameContract.interface.parseLog(log);
-        } catch {
-          return null;
-        }
-      })
-      .filter(Boolean);
+const createdEvent = parsedLogs.find(e => e.name === "GameCreated");
+if (!createdEvent) throw new Error("GameCreated event not found");
 
-    const createdEvent = parsedLogs.find(e => e.name === "GameCreated");
-    if (!createdEvent) throw new Error("GameCreated event not found");
+const gameId = Number(createdEvent.args.gameId);
 
-    // 6️⃣ Save to backend
-    await fetch(`${BACKEND_URL}/games`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        gameId,
-        creator: account,
-        stakeToken,
-        stakeAmount,
-      }),
-    });
+// 6️⃣ Download reveal backup
+downloadRevealBackup({
+  gameId,
+  player: account.toLowerCase(),
+  salt: salt.toString(),
+  nftContracts,
+  tokenIds: tokenIds.map(t => t.toString()),
+});
+
+// 7️⃣ Save to backend
+await fetch(`${BACKEND_URL}/games`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    gameId,
+    creator: account,
+    stakeToken,
+    stakeAmount,
+  }),
+});
 
     alert(`Game #${gameId} created successfully!\nReveal file downloaded.`);
     await loadGames();
