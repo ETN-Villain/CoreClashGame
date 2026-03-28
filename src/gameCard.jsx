@@ -77,12 +77,21 @@ export default function GameCard({
   handleRevealFile,
   cancelUnjoinedGame,
   roundResults = [],
+  downloadRevealBackup,
 }) {
   const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
   const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
-  const isPlayer =
-  game.player1?.toLowerCase() === account.toLowerCase() ||
-  game.player2?.toLowerCase() === account.toLowerCase();
+  const isPlayer =  g.player1?.toLowerCase() === account.toLowerCase() || g.player2?.toLowerCase() === account.toLowerCase();
+
+const backupExists = (() => {
+  if (!account || !g?.id) return false;
+
+  const prefix = `${account.toLowerCase()}_${g.id}`;
+  const salt = localStorage.getItem(`${prefix}_salt`);
+  const nftContracts = localStorage.getItem(`${prefix}_nftContracts`);
+  const tokenIds = localStorage.getItem(`${prefix}_tokenIds`);
+  return !!salt && !!nftContracts && !!tokenIds;
+})();
 
   // ---------- Game Status Logic ----------
 function getGameStatus(g) {
@@ -374,7 +383,7 @@ const handleDownloadReveal = (gameId) => {
 
 {isPlayer && backupExists && (
   <button
-    onClick={() => handleDownloadReveal(game.id)}
+    onClick={() => handleDownloadReveal(g.id)}
     style={{
       marginTop: "8px",
       padding: "6px 10px",

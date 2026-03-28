@@ -1209,6 +1209,7 @@ const gameCardProps = {
   handleRevealFile,
   cancelUnjoinedGame,
   renderTokenImages,
+  downloadRevealBackup,
 };
 
 /* ---------------- BACKGROUND PRIORITY ---------------- */
