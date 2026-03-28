@@ -712,6 +712,15 @@ const signerSafe = await provider.getSigner();
     const nftContracts = nfts.map(n => n.address);
     const tokenIds = nfts.map(n => BigInt(n.tokenId));
 
+    // 7️⃣ Download reveal backup
+    downloadRevealBackup({
+      gameId,
+      player: account.toLowerCase(),
+      salt: salt.toString(),
+      nftContracts,
+      tokenIds: tokenIds.map(t => t.toString()),
+    });
+
     const commit = ethers.solidityPackedKeccak256(
       ["uint256", "address", "address", "address", "uint256", "uint256", "uint256"],
       [salt, ...nftContracts, ...tokenIds]
@@ -747,15 +756,6 @@ const signerSafe = await provider.getSigner();
         stakeToken,
         stakeAmount,
       }),
-    });
-
-    // 7️⃣ Download reveal backup
-    downloadRevealBackup({
-      gameId,
-      player: account.toLowerCase(),
-      salt: salt.toString(),
-      nftContracts,
-      tokenIds: tokenIds.map(t => t.toString()),
     });
 
     alert(`Game #${gameId} created successfully!\nReveal file downloaded.`);
@@ -820,7 +820,22 @@ const joinGame = async (gameId) => {
     const nftContracts = nfts.map(n => n.address);
     const tokenIds = nfts.map(n => BigInt(n.tokenId));
 
-    const commit = ethers.solidityPackedKeccak256(
+// 🔴 DOWNLOAD IMMEDIATELY (user gesture still active)
+downloadRevealBackup({
+  gameId: numericGameId,
+  player: account.toLowerCase(),
+  salt: salt.toString(),
+  nftContracts,
+  tokenIds: tokenIds.map(t => t.toString()),
+});
+
+    // 6️⃣ Save reveal backup
+    const prefix = `${liveAccount.toLowerCase()}_${numericGameId}`;
+    localStorage.setItem(`${prefix}_salt`, salt.toString());
+    localStorage.setItem(`${prefix}_nftContracts`, JSON.stringify(nftContracts));
+    localStorage.setItem(`${prefix}_tokenIds`, JSON.stringify(tokenIds.map(t => t.toString())));
+
+const commit = ethers.solidityPackedKeccak256(
       ["uint256", "address", "address", "address", "uint256", "uint256", "uint256"],
       [salt, ...nftContracts, ...tokenIds]
     );
@@ -852,20 +867,6 @@ const gameOnChain = await contractRead.games(numericGameId);
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ player2: gameOnChain.player2 }),
-    });
-
-    // 6️⃣ Save reveal backup
-    const prefix = `${liveAccount.toLowerCase()}_${numericGameId}`;
-    localStorage.setItem(`${prefix}_salt`, salt.toString());
-    localStorage.setItem(`${prefix}_nftContracts`, JSON.stringify(nftContracts));
-    localStorage.setItem(`${prefix}_tokenIds`, JSON.stringify(tokenIds.map(t => t.toString())));
-
-    downloadRevealBackup({
-      gameId: numericGameId,
-      player: liveAccount.toLowerCase(),
-      salt: salt.toString(),
-      nftContracts,
-      tokenIds: tokenIds.map(t => t.toString()),
     });
 
 // ✅ Trigger auto-reveal immediately
