@@ -77,9 +77,21 @@ export default function GameCard({
   handleRevealFile,
   cancelUnjoinedGame,
   roundResults = [],
+  downloadRevealBackup,
 }) {
   const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
   const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
+  const isPlayer =  g.player1?.toLowerCase() === account.toLowerCase() || g.player2?.toLowerCase() === account.toLowerCase();
+
+const backupExists = (() => {
+  if (!account || !g?.id) return false;
+
+  const prefix = `${account.toLowerCase()}_${g.id}`;
+  const salt = localStorage.getItem(`${prefix}_salt`);
+  const nftContracts = localStorage.getItem(`${prefix}_nftContracts`);
+  const tokenIds = localStorage.getItem(`${prefix}_tokenIds`);
+  return !!salt && !!nftContracts && !!tokenIds;
+})();
 
   // ---------- Game Status Logic ----------
 function getGameStatus(g) {
@@ -164,6 +176,40 @@ const canJoin =
   const canSettle = bothRevealed && !isSettled && !isCancelled;
   const status = getGameStatus(g);
   const BadgeWrapper = status.link ? "a" : "div";
+
+  /* ---------------- Reveal File Re-download Handler ---------------- */
+  const getRevealBackup = (account, gameId) => {
+  const prefix = `${account.toLowerCase()}_${gameId}`;
+
+  const salt = localStorage.getItem(`${prefix}_salt`);
+  const nftContracts = localStorage.getItem(`${prefix}_nftContracts`);
+  const tokenIds = localStorage.getItem(`${prefix}_tokenIds`);
+
+  if (!salt || !nftContracts || !tokenIds) return null;
+
+  return {
+    salt,
+    nftContracts: JSON.parse(nftContracts),
+    tokenIds: JSON.parse(tokenIds),
+  };
+};
+
+const handleDownloadReveal = (gameId) => {
+  const backup = getRevealBackup(account, gameId);
+
+  if (!backup) {
+    alert("No reveal backup found for this game.");
+    return;
+  }
+
+  downloadRevealBackup({
+    gameId,
+    player: account.toLowerCase(),
+    salt: backup.salt,
+    nftContracts: backup.nftContracts,
+    tokenIds: backup.tokenIds,
+  });
+};
 
   /* ---------------- Render Token Images ---------------- */
   const renderTokenImages = (input = []) => {
@@ -334,6 +380,23 @@ const canJoin =
           </button>
         </div>
       )}
+
+{isPlayer && backupExists && (
+  <button
+    onClick={() => handleDownloadReveal(g.id)}
+    style={{
+      marginTop: "8px",
+      padding: "6px 10px",
+      background: "#444",
+      color: "#fff",
+      border: "none",
+      borderRadius: "6px",
+      cursor: "pointer"
+    }}
+  >
+    ⬇️ Re-download Reveal File
+  </button>
+)}
 
 {/* Reveal Upload + Expired Settle */}
 {g.player2 !== ethers.ZeroAddress &&
