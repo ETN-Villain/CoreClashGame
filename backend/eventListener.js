@@ -154,15 +154,24 @@ for (const log of settledLogs) {
   const burn = pot / 100n; // 1%
 
   // 🔥 Update running total
+// Only add burn if game is not cancelled
+if (!game.cancelled) {
   let totalBurn = readBurnTotal();
   totalBurn += burn;
   writeBurnTotal(totalBurn);
 
-  // Mark game as processed
-  game.settled = true;
-  game.burnRecorded = true;
-  game.burnWei = burn.toString();
-  writeGames(games);
+  console.log(
+    `🔥 Burn added: ${ethers.formatEther(burn)} CORE | Total: ${ethers.formatEther(totalBurn)}`
+  );
+} else {
+  console.log(`Game ${game.id} cancelled — skipping burn update`);
+}
+
+// Mark game as processed regardless
+game.settled = true;
+game.burnRecorded = true;
+game.burnWei = burn.toString();
+writeGames(games);
 
   console.log(
     `🔥 Burn added: ${ethers.formatEther(burn)} CORE | Total: ${ethers.formatEther(totalBurn)}`
