@@ -146,17 +146,19 @@ const revealDeadlinePassed =
   Date.now() - new Date(g.player2JoinedAt).getTime() >= FIVE_DAYS_MS;
 
   /* --------- GAME STATES --------- */
-const isCancelled = g.cancelled === true || g.cancelled === "true";
+const isPlayer2Empty =
+  g.player2?.toLowerCase() === ethers.ZeroAddress.toLowerCase();
+  
+  const isCancelled = g.cancelled === true || g.cancelled === "true";
 const isSettled = g.settled === true || g.settled === "true";
 
-  const canJoin =
-    g.player2 === ethers.ZeroAddress &&
-    !isPlayer1 &&
-    !isPlayer2 &&
-    !isCancelled &&
-    !isSettled &&
-    !!account &&
-    !!signer;
+const canJoin =
+  isPlayer2Empty &&
+  !isPlayer1 &&
+  !isPlayer2 &&
+  !isCancelled &&
+  !isSettled &&
+  !!account;
 
   const bothRevealed = g.player1Revealed && g.player2Revealed;
   const canSettle = bothRevealed && !isSettled && !isCancelled;
@@ -282,28 +284,33 @@ const isSettled = g.settled === true || g.settled === "true";
   </>
 )}
 
-      {/* Cancel Button – only for unjoined games */}
-      {isPlayer1 && g.player2 === ethers.ZeroAddress && !isSettled && !isCancelled && (
-        <div style={{ marginTop: 12 }}>
-          <button
-            onClick={() => cancelUnjoinedGame(g.id)}
-            disabled={!signer}
-            style={{
-              background: "#ff4444",
-              color: "#fff",
-              padding: "6px 12px",
-              borderRadius: 4,
-              border: "none",
-              cursor: signer ? "pointer" : "not-allowed",
-              opacity: signer ? 1 : 0.5,
-            }}
-          >
-            Cancel Game (Refund Stake)
-          </button>
+{/* Cancel Button – only for unjoined games */}
+{isPlayer1 &&
+  g.player2?.toLowerCase() === ethers.ZeroAddress.toLowerCase() &&
+  !isSettled &&
+  !isCancelled && (
+    <div style={{ marginTop: 12 }}>
+      <button
+        onClick={() => cancelUnjoinedGame(g.id)}
+        disabled={!account}
+        style={{
+          background: "#ff4444",
+          color: "#fff",
+          padding: "6px 12px",
+          borderRadius: 4,
+          border: "none",
+          cursor: account ? "pointer" : "not-allowed",
+          opacity: account ? 1 : 0.5,
+        }}
+      >
+        Cancel Game (Refund Stake)
+      </button>
 
-          <div style={{ fontSize: 12, color: "#ff9999", marginTop: 4 }}>Only available before someone joins</div>
-        </div>
-      )}
+      <div style={{ fontSize: 12, color: "#ff9999", marginTop: 4 }}>
+        Only available before someone joins
+      </div>
+    </div>
+)}
 
       {/* Hidden Teams */}
       {!isSettled && !bothRevealed && (
@@ -313,19 +320,6 @@ const isSettled = g.settled === true || g.settled === "true";
       {/* Join / Approve */}
       {!isCancelled && !isSettled && canJoin && (
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          <button
-            onClick={() => approveTokens(g.stakeToken, stakeAmount)}
-            disabled={!signer}
-            style={{
-              background: "#333",
-              color: "#fff",
-              padding: "6px 12px",
-              borderRadius: 4,
-              cursor: signer ? "pointer" : "not-allowed",
-            }}
-          >
-            Approve
-          </button>
           <button
             onClick={() => joinGame(g.id)}
             style={{
