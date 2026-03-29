@@ -591,7 +591,7 @@ const loadGames = useCallback(async () => {
         id: backendGame.id,
         player1: onChainGame.player1 || backendGame.player1 || ethers.ZeroAddress,
         player2: onChainGame.player2 || backendGame.player2 || ethers.ZeroAddress,
-        stakeAmount: onChainGame.stakeAmount || backendGame.stakeAmount || "0",
+        stakeAmount: onChainGame.stakeAmount?.toString() || "0",
         stakeToken: backendGame.stakeToken || onChainGame.stakeToken,
         player1Revealed: !!backendGame.player1Revealed,
         player2Revealed: !!backendGame.player2Revealed,
@@ -690,7 +690,7 @@ const signerSafe = await provider.getSigner();
     const readProvider = new ethers.JsonRpcProvider(RPC_URL);
     const erc20Read = new ethers.Contract(stakeToken, ERC20ABI, readProvider);
 
-    const stakeWei = ethers.parseUnits(stakeAmount, 18);
+    const stakeWei = ethers.parseUnits(stakeAmount.toString(), 18);
 
     // 1️⃣ Check allowance (read-only)
     let allowance;
@@ -754,7 +754,7 @@ await fetch(`${BACKEND_URL}/games`, {
     gameId,
     creator: account,
     stakeToken,
-    stakeAmount,
+    stakeAmount: stakeWei.toString(),
   }),
 });
 

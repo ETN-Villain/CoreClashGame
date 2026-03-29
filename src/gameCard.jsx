@@ -130,8 +130,15 @@ if (
   return { label: "In Progress", color: "#888" };
 }
 
-// Convert human → wei properly
-const stakeWei = BigInt(g.stakeAmount || 0);
+// Ensure stake is treated as wei (already stored in wei)
+const rawStake = g.stakeAmount || "0";
+
+// sanity check: reject suspiciously small values
+if (BigInt(rawStake) < 10n ** 10n) {
+  console.warn("⚠️ stakeAmount looks like human value, not wei:", rawStake);
+}
+
+const stakeWei = BigInt(rawStake);
 
 // Compute totals (WEI-SAFE)
 const totalPotWei = stakeWei * 2n;
