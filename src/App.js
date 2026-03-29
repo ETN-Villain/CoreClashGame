@@ -499,10 +499,9 @@ if (RARE_BACKGROUNDS.includes(background)) {
 };
 
 const downloadRevealBackup = useCallback(
-  ({ gameId, player, salt, nftContracts, tokenIds, backgrounds }) => {
+  ({ gameId, salt, nftContracts, tokenIds, backgrounds }) => {
     const payload = {
       gameId: Number(gameId),
-      player,
       salt: salt.toString(),
       nftContracts,
       tokenIds: tokenIds.map(t => t.toString()),
@@ -740,7 +739,6 @@ const gameId = Number(createdEvent.args.gameId);
 // 6️⃣ Download reveal backup
 downloadRevealBackup({
   gameId,
-  player: account.toLowerCase(),
   salt: salt.toString(),
   nftContracts,
   tokenIds: tokenIds.map(t => t.toString()),
@@ -823,7 +821,6 @@ const joinGame = async (gameId) => {
 // 🔴 DOWNLOAD IMMEDIATELY (user gesture still active)
 downloadRevealBackup({
   gameId: numericGameId,
-  player: account.toLowerCase(),
   salt: salt.toString(),
   nftContracts,
   tokenIds: tokenIds.map(t => t.toString()),
