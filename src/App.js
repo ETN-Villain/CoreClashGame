@@ -969,8 +969,6 @@ const contractWrite = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
         return;
       }
 
-      const preData = await preRes.json();
-
       // 4️⃣ Load local commit data
       const prefix = `${accountLower}_${g.id}`;
 
@@ -988,10 +986,6 @@ const contractWrite = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
       const tokenIds = JSON.parse(tokenIdsStr).map(BigInt);
 
       console.log("Backend reveal response:", preData);
-
-      if (!preRes.ok) {
-        throw new Error(preData.error || "Backend pre-reveal failed");
-      }
 
       // 5️⃣ On-chain reveal
       const tx = await contractWrite.reveal(
@@ -1015,6 +1009,12 @@ const contractWrite = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
           tokenIds: tokenIds.map(t => t.toString()),
         }),
       });
+
+      const preData = await preRes.json();
+
+      if (!preRes.ok) {
+        throw new Error(preData.error || "Backend pre-reveal failed");
+      }
 
       console.log("Auto-reveal completed for game", g.id);
       alert(`✅ Reveal successful for game #${g.id}`);
@@ -1058,8 +1058,6 @@ const handleRevealFile = useCallback(async (e) => {
     // 🔹 Ensure the provider is on Electroneum network
     await ensureCorrectNetwork(provider, wcProvider);
 
-    const { savedReveal } = backendData;
-
     // ✅ Derive signer from provider (fix no-undef)
     const liveSigner = await provider.getSigner();
 
@@ -1090,6 +1088,8 @@ const handleRevealFile = useCallback(async (e) => {
 
     const backendData = await res.json();
     if (!res.ok) throw new Error(backendData.error || "Backend reveal failed");
+
+    const { savedReveal } = backendData;
 
     alert("Reveal successful!");
     await triggerBackendComputeIfNeeded(gameId);
