@@ -969,6 +969,8 @@ const contractWrite = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
         return;
       }
 
+      const preData = await preRes.json();
+
       // 4️⃣ Load local commit data
       const prefix = `${accountLower}_${g.id}`;
 
@@ -985,7 +987,6 @@ const contractWrite = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
       const nftContracts = JSON.parse(nftContractsStr);
       const tokenIds = JSON.parse(tokenIdsStr).map(BigInt);
 
-      const preData = await preRes.json();
       console.log("Backend reveal response:", preData);
 
       if (!preRes.ok) {
@@ -1057,9 +1058,6 @@ const handleRevealFile = useCallback(async (e) => {
     // 🔹 Ensure the provider is on Electroneum network
     await ensureCorrectNetwork(provider, wcProvider);
 
-    const backendData = await res.json();
-    if (!res.ok) throw new Error(backendData.error || "Backend reveal failed");
-
     const { savedReveal } = backendData;
 
     // ✅ Derive signer from provider (fix no-undef)
@@ -1089,6 +1087,9 @@ const handleRevealFile = useCallback(async (e) => {
         tokenIds,
       }),
     });
+
+    const backendData = await res.json();
+    if (!res.ok) throw new Error(backendData.error || "Backend reveal failed");
 
     alert("Reveal successful!");
     await triggerBackendComputeIfNeeded(gameId);
