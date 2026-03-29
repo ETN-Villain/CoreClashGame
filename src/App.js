@@ -919,25 +919,13 @@ const autoRevealIfPossible = useCallback(
   async (g) => {
     if (!account || !provider) return;
 
-    // 🔹 Ensure provider is on Electroneum network
     await ensureCorrectNetwork(provider, wcProvider);
 
     try {
-      // 1️⃣ Always fetch fresh on-chain state
-      const readProvider = provider || new ethers.JsonRpcProvider(RPC_URL);
+      const contractRead = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
+      const signer = await provider.getSigner();
+      const contractWrite = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
-      // READ contract
-      const contractRead = new ethers.Contract(GAME_ADDRESS, GameABI, readProvider);
-
-// WRITE contract: derive signer on the fly
-if (!provider || !account) {
-  console.log("No wallet connected for reveal");
-  return;
-}
-const signer = await provider.getSigner();
-const contractWrite = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
-
-      // 1️⃣ fresh chain state
       const chainGame = await contractRead.games(BigInt(g.id));
 
       const accountLower = account.toLowerCase();
@@ -949,57 +937,39 @@ const contractWrite = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
       const isP1 = player1 === accountLower;
       const isP2 = player2 === accountLower;
 
-      if (!isP1 && !isP2) {
-        console.log("Auto-reveal skipped: not a participant", g.id);
-        return;
-      }
+      if (!isP1 && !isP2) return;
 
-      // 2️⃣ Prevent reveal if already revealed
-      const player1Revealed = chainGame.player1Revealed;
-      const player2Revealed = chainGame.player2Revealed;
+      if (
+        (isP1 && chainGame.player1Revealed) ||
+        (isP2 && chainGame.player2Revealed)
+      ) return;
 
-      if ((isP1 && player1Revealed) || (isP2 && player2Revealed)) {
-        console.log("Auto-reveal skipped: already revealed", g.id);
-        return;
-      }
+      if (player2 === zeroLower) return;
 
-      // 3️⃣ Ensure both players exist on-chain
-      if (player2 === zeroLower) {
-        console.log("Auto-reveal skipped: waiting for Player 2 (chain)", g.id);
-        return;
-      }
-
-      // 4️⃣ Load local commit data
+      // 🔹 Load local data
       const prefix = `${accountLower}_${g.id}`;
-
       const saltStr = localStorage.getItem(`${prefix}_salt`);
       const nftContractsStr = localStorage.getItem(`${prefix}_nftContracts`);
       const tokenIdsStr = localStorage.getItem(`${prefix}_tokenIds`);
 
-      if (!saltStr || !nftContractsStr || !tokenIdsStr) {
-        console.log("Auto-reveal skipped: missing localStorage data", g.id);
-        return;
-      }
+      if (!saltStr || !nftContractsStr || !tokenIdsStr) return;
 
       const salt = BigInt(saltStr);
       const nftContracts = JSON.parse(nftContractsStr);
       const tokenIds = JSON.parse(tokenIdsStr).map(BigInt);
 
-      console.log("Backend reveal response:", preData);
-
-      // 5️⃣ On-chain reveal
+      // ✅ 1️⃣ Chain FIRST
       const tx = await contractWrite.reveal(
         BigInt(g.id),
-        BigInt(preData.savedReveal.salt),
-        preData.savedReveal.nftContracts,
-        preData.savedReveal.tokenIds.map(BigInt),
-        preData.savedReveal.backgrounds
+        salt,
+        nftContracts,
+        tokenIds
       );
 
       await tx.wait();
 
-      /* ---------------- BACKEND PRE-REVEAL ---------------- */
-      const preRes = await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
+      // ✅ 2️⃣ Backend AFTER success
+      await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1010,20 +980,11 @@ const contractWrite = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
         }),
       });
 
-      const preData = await preRes.json();
+      console.log("Auto-reveal completed", g.id);
 
-      if (!preRes.ok) {
-        throw new Error(preData.error || "Backend pre-reveal failed");
-      }
-
-      console.log("Auto-reveal completed for game", g.id);
-      alert(`✅ Reveal successful for game #${g.id}`);
-
-      // 6️⃣ Trigger backend compute
       await triggerBackendComputeIfNeeded(g.id);
-
-      // 7️⃣ Reload UI
       await loadGames();
+
     } catch (err) {
       console.error("Auto-reveal failed:", err);
     }
@@ -1055,26 +1016,22 @@ const handleRevealFile = useCallback(async (e) => {
       throw new Error("Wallet not connected");
     }
 
-    // 🔹 Ensure the provider is on Electroneum network
     await ensureCorrectNetwork(provider, wcProvider);
 
-    // ✅ Derive signer from provider (fix no-undef)
-    const liveSigner = await provider.getSigner();
+    const signer = await provider.getSigner();
+    const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
-    // Call on-chain reveal
-    const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI).connect(liveSigner);
-
-    const tx = await gameContract.reveal(
+    // ✅ 1️⃣ Chain FIRST
+    const tx = await contract.reveal(
       BigInt(gameId),
-      BigInt(savedReveal.salt),
-      savedReveal.nftContracts,
-      savedReveal.tokenIds.map((id) => BigInt(id)),
-      savedReveal.backgrounds
+      BigInt(salt),
+      nftContracts,
+      tokenIds.map(id => BigInt(id))
     );
 
     await tx.wait();
 
-    // POST to backend (no need for contract constants here)
+    // ✅ 2️⃣ Backend AFTER
     const res = await fetch(`${BACKEND_URL}/games/${gameId}/reveal`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1089,9 +1046,8 @@ const handleRevealFile = useCallback(async (e) => {
     const backendData = await res.json();
     if (!res.ok) throw new Error(backendData.error || "Backend reveal failed");
 
-    const { savedReveal } = backendData;
-
     alert("Reveal successful!");
+
     await triggerBackendComputeIfNeeded(gameId);
     await loadGames();
 
