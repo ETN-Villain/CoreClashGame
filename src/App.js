@@ -1025,7 +1025,7 @@ const handleRevealFile = useCallback(async (e) => {
     const signer = await provider.getSigner();
     const contract = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
 
-    // ✅ 1️⃣ Chain FIRST
+    // 1️⃣ On-chain reveal
     const tx = await contract.reveal(
       BigInt(gameId),
       BigInt(salt),
@@ -1033,29 +1033,43 @@ const handleRevealFile = useCallback(async (e) => {
       tokenIds.map(id => BigInt(id)),
       backgrounds
     );
-
     await tx.wait();
+    console.log("On-chain reveal succeeded for game", gameId);
 
-    // ✅ 2️⃣ Backend AFTER
-    const res = await fetch(`${BACKEND_URL}/games/${gameId}/reveal`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        player: account.toLowerCase(),
-        salt,
-        nftContracts,
-        tokenIds,
-        backgrounds,
-      }),
-    });
+    // 2️⃣ Backend reveal
+    let backendData;
+    try {
+      const res = await fetch(`${BACKEND_URL}/games/${gameId}/reveal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          player: account.toLowerCase(),
+          salt,
+          nftContracts,
+          tokenIds,
+          backgrounds,
+        }),
+      });
 
-    const backendData = await res.json();
-    if (!res.ok) throw new Error(backendData.error || "Backend reveal failed");
+      backendData = await res.json();
 
-    alert("Reveal successful!");
+      if (!res.ok) throw new Error(backendData.error || "Backend reveal failed");
 
+      console.log("Backend reveal succeeded for game", gameId);
+
+    } catch (backendErr) {
+      console.warn("Backend reveal failed, but on-chain succeeded:", backendErr);
+      alert(
+        "Reveal succeeded on-chain but failed to update backend. Please retry posting reveal."
+      );
+      return; // exit early, allow retry
+    }
+
+    // 3️⃣ Trigger compute and reload UI
     await triggerBackendComputeIfNeeded(gameId);
     await loadGames();
+
+    alert("Reveal successful!");
 
   } catch (err) {
     console.error("Reveal failed:", err);
