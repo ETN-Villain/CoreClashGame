@@ -130,23 +130,24 @@ if (
   return { label: "In Progress", color: "#888" };
 }
 
+// Convert human → wei properly
+const stakeWei = ethers.parseUnits(g.stakeAmount || "0", 18);
+
 // Compute totals (WEI-SAFE)
-const stakeWei = BigInt(g.stakeAmount || 0);
 const totalPotWei = stakeWei * 2n;
 
 const winnerAddress = g.winner;
 const tie = !winnerAddress || winnerAddress === ethers.ZeroAddress;
 
 // 1% burn
-const burnPercent = 1;
-const burnWei = (totalPotWei * BigInt(burnPercent)) / 100n;
+const burnWei = (totalPotWei * 1n) / 100n;
 
 // Player winnings (95% if not tie)
 const playerWinningsWei = tie
   ? totalPotWei / 2n
   : (totalPotWei * 95n) / 100n;
 
-// 🔽 Keep original const names (formatted for UI)\
+// Convert back to display
 const stakeAmount = ethers.formatUnits(stakeWei, 18);
 const totalPot = ethers.formatUnits(totalPotWei, 18);
 const burnAmount = ethers.formatUnits(burnWei, 18);

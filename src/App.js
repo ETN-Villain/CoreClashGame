@@ -985,18 +985,6 @@ const contractWrite = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
       const nftContracts = JSON.parse(nftContractsStr);
       const tokenIds = JSON.parse(tokenIdsStr).map(BigInt);
 
-      /* ---------------- BACKEND PRE-REVEAL ---------------- */
-      const preRes = await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          player: accountLower,
-          salt: salt.toString(),
-          nftContracts,
-          tokenIds: tokenIds.map(t => t.toString()),
-        }),
-      });
-
       const preData = await preRes.json();
       console.log("Backend reveal response:", preData);
 
@@ -1014,6 +1002,18 @@ const contractWrite = new ethers.Contract(GAME_ADDRESS, GameABI, signer);
       );
 
       await tx.wait();
+
+      /* ---------------- BACKEND PRE-REVEAL ---------------- */
+      const preRes = await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          player: accountLower,
+          salt: salt.toString(),
+          nftContracts,
+          tokenIds: tokenIds.map(t => t.toString()),
+        }),
+      });
 
       console.log("Auto-reveal completed for game", g.id);
       alert(`✅ Reveal successful for game #${g.id}`);
@@ -1057,18 +1057,6 @@ const handleRevealFile = useCallback(async (e) => {
     // 🔹 Ensure the provider is on Electroneum network
     await ensureCorrectNetwork(provider, wcProvider);
 
-    // POST to backend (no need for contract constants here)
-    const res = await fetch(`${BACKEND_URL}/games/${gameId}/reveal`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        player: account.toLowerCase(),
-        salt,
-        nftContracts,
-        tokenIds,
-      }),
-    });
-
     const backendData = await res.json();
     if (!res.ok) throw new Error(backendData.error || "Backend reveal failed");
 
@@ -1089,6 +1077,18 @@ const handleRevealFile = useCallback(async (e) => {
     );
 
     await tx.wait();
+
+    // POST to backend (no need for contract constants here)
+    const res = await fetch(`${BACKEND_URL}/games/${gameId}/reveal`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        player: account.toLowerCase(),
+        salt,
+        nftContracts,
+        tokenIds,
+      }),
+    });
 
     alert("Reveal successful!");
     await triggerBackendComputeIfNeeded(gameId);
