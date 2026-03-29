@@ -1010,7 +1010,8 @@ const handleRevealFile = useCallback(async (e) => {
       gameId === undefined ||
       !salt ||
       !Array.isArray(nftContracts) ||
-      !Array.isArray(tokenIds)
+      !Array.isArray(tokenIds) ||
+      !Array.isArray(backgrounds)
     ) {
       throw new Error("Invalid reveal file");
     }
@@ -1044,6 +1045,7 @@ const handleRevealFile = useCallback(async (e) => {
         salt,
         nftContracts,
         tokenIds,
+        backgrounds,
       }),
     });
 
