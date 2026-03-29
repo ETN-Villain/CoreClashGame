@@ -499,9 +499,10 @@ if (RARE_BACKGROUNDS.includes(background)) {
 };
 
 const downloadRevealBackup = useCallback(
-  ({ gameId, salt, nftContracts, tokenIds, backgrounds }) => {
+  ({ gameId, player, salt, nftContracts, tokenIds, backgrounds }) => {
     const payload = {
       gameId: Number(gameId),
+      player,
       salt: salt.toString(),
       nftContracts,
       tokenIds: tokenIds.map(t => t.toString()),
@@ -739,9 +740,11 @@ const gameId = Number(createdEvent.args.gameId);
 // 6️⃣ Download reveal backup
 downloadRevealBackup({
   gameId,
+  player: account.toLowerCase(),
   salt: salt.toString(),
   nftContracts,
   tokenIds: tokenIds.map(t => t.toString()),
+  backgrounds: nfts.map(n => n.metadata?.background || ""),
 });
 
 // 7️⃣ Save to backend
@@ -821,9 +824,11 @@ const joinGame = async (gameId) => {
 // 🔴 DOWNLOAD IMMEDIATELY (user gesture still active)
 downloadRevealBackup({
   gameId: numericGameId,
+  player: account.toLowerCase(),
   salt: salt.toString(),
   nftContracts,
   tokenIds: tokenIds.map(t => t.toString()),
+  backgrounds: nfts.map(n => n.metadata?.background || ""),
 });
 
     // 6️⃣ Save reveal backup
@@ -831,6 +836,7 @@ downloadRevealBackup({
     localStorage.setItem(`${prefix}_salt`, salt.toString());
     localStorage.setItem(`${prefix}_nftContracts`, JSON.stringify(nftContracts));
     localStorage.setItem(`${prefix}_tokenIds`, JSON.stringify(tokenIds.map(t => t.toString())));
+    localStorage.setItem(`${prefix}_backgrounds`, JSON.stringify(nfts.map(n => n.metadata?.background || "")));
 
 const commit = ethers.solidityPackedKeccak256(
       ["uint256", "address", "address", "address", "uint256", "uint256", "uint256"],
@@ -998,7 +1004,7 @@ const handleRevealFile = useCallback(async (e) => {
     const text = await file.text();
     const data = JSON.parse(text);
 
-    const { gameId, salt, nftContracts, tokenIds } = data;
+    const { gameId, salt, nftContracts, tokenIds, backgrounds } = data;
 
     if (
       gameId === undefined ||
@@ -1023,7 +1029,8 @@ const handleRevealFile = useCallback(async (e) => {
       BigInt(gameId),
       BigInt(salt),
       nftContracts,
-      tokenIds.map(id => BigInt(id))
+      tokenIds.map(id => BigInt(id)),
+      backgrounds
     );
 
     await tx.wait();
