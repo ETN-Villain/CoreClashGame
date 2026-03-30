@@ -9,7 +9,7 @@ import {
   VQLE_CONTRACT_ADDRESS,
 } from "./config.js";
 import { loadLastBlock, saveLastBlock } from "./utils/blockState.js";
-import { readOwnerCache, writeOwnerCache, deleteCache } from "./utils/ownerCache.js";
+import { readOwnerCache, writeOwnerCache } from "./utils/ownerCache.js";
 import { reconcileActiveGamesScheduled } from "./reconcile.js";
 import { fetchOwnedTokenIds } from "./utils/nftUtils.js";
 import { readGames, writeGames } from "./store/gamesStore.js";
@@ -46,7 +46,7 @@ async function handleGameCreated(id) {
     stakeAmount: onChain.stakeAmount.toString(),
     stakeToken: onChain.stakeToken,
     settled: onChain.settled,
-    winner: ethers.ZeroAddress,
+    winner: ethers.ZeroAddress.toLowerCase(),
     cancelled: false,
   });
 
@@ -57,27 +57,57 @@ async function handleGameCreated(id) {
 /**
  * Auto-update owner cache for a wallet
  */
-async function updateWalletCache(wallet) {
-  wallet = wallet.toLowerCase();
-  console.log(`[AUTO-CACHE] Updating NFT cache for ${wallet}…`);
+async function updateMultipleWalletCaches(wallets) {
+  const uniqueWallets = [
+    ...new Set(wallets.filter(Boolean).map(w => w.toLowerCase()))
+  ];
 
-  try {
-const [vkinResult, vqleResult] = await Promise.allSettled([
-  fetchOwnedTokenIds(vkinContract, wallet, "VKIN"),
-  fetchOwnedTokenIds(vqleContract, wallet, "VQLE")
-]);
+  if (uniqueWallets.length === 0) return;
 
-const vkinIds = vkinResult.status === "fulfilled" ? vkinResult.value : [];
-const vqleIds = vqleResult.status === "fulfilled" ? vqleResult.value : [];
+  console.log(
+    `[AUTO-CACHE] Updating ${uniqueWallets.length} wallet cache(s): ${uniqueWallets.join(", ")}`
+  );
 
-    const cache = readOwnerCache();
-    cache[wallet] = { VKIN: vkinIds, VQLE: vqleIds };
-    writeOwnerCache(cache);
+  const cache = readOwnerCache();
 
-    console.log(`[AUTO-CACHE] Cache updated: ${vkinIds.length} VKIN, ${vqleIds.length} VQLE for ${wallet}`);
-  } catch (err) {
-    console.error(`[AUTO-CACHE] Failed to update cache for ${wallet}:`, err.message);
+  for (const wallet of uniqueWallets) {
+    try {
+      const [vkinResult, vqleResult] = await Promise.allSettled([
+        fetchOwnedTokenIds(vkinContract, wallet, "VKIN"),
+        fetchOwnedTokenIds(vqleContract, wallet, "VQLE")
+      ]);
+
+      const existing = cache[wallet] || { VKIN: [], VQLE: [] };
+
+      const nextVKIN =
+        vkinResult.status === "fulfilled" ? vkinResult.value : existing.VKIN;
+
+      const nextVQLE =
+        vqleResult.status === "fulfilled" ? vqleResult.value : existing.VQLE;
+
+      if (vkinResult.status === "rejected") {
+        console.error(`[AUTO-CACHE] VKIN fetch failed for ${wallet}:`, vkinResult.reason);
+      }
+
+      if (vqleResult.status === "rejected") {
+        console.error(`[AUTO-CACHE] VQLE fetch failed for ${wallet}:`, vqleResult.reason);
+      }
+
+      cache[wallet] = {
+        VKIN: nextVKIN,
+        VQLE: nextVQLE
+      };
+
+      console.log(
+        `[AUTO-CACHE] Prepared ${wallet}: ${nextVKIN.length} VKIN, ${nextVQLE.length} VQLE`
+      );
+    } catch (err) {
+      console.error(`[AUTO-CACHE] Failed preparing cache for ${wallet}:`, err.message);
+    }
   }
+
+  writeOwnerCache(cache);
+  console.log(`[AUTO-CACHE] Batch cache write complete`);
 }
 
 // ── POLLING LOOP ──
@@ -182,41 +212,48 @@ writeGames(games);
       const getTransferLogs = async (address) =>
         provider.getLogs({ address, topics: [TRANSFER_TOPIC], fromBlock, toBlock });
 
+      const zero = ethers.ZeroAddress.toLowerCase();
       const vkinLogs = await getTransferLogs(VKIN_CONTRACT_ADDRESS);
       const vqleLogs = await getTransferLogs(VQLE_CONTRACT_ADDRESS);
 
-      const processLogs = (logs, contractName, contractInstance) => {
-        for (const log of logs) {
-          try {
-            const parsed = contractInstance.interface.parseLog(log);
-            const from = parsed.args.from ? String(parsed.args.from).toLowerCase() : null;
-            const to = parsed.args.to ? String(parsed.args.to).toLowerCase() : null;
+const processLogs = async (logs, contractName, contractInstance) => {
+  const affectedWallets = new Set();
+  const zero = ethers.ZeroAddress.toLowerCase();
 
-            const walletsToUpdate = [];
+  for (const log of logs) {
+    try {
+      const parsed = contractInstance.interface.parseLog(log);
+      const from = parsed.args.from ? String(parsed.args.from).toLowerCase() : null;
+      const to = parsed.args.to ? String(parsed.args.to).toLowerCase() : null;
+      const tokenId = parsed.args.tokenId ? parsed.args.tokenId.toString() : "unknown";
 
-            if (from && from !== ethers.ZeroAddress) {
-              deleteCache(`${contractName}_owned_${from}`);
-              console.log(`♻️ ${contractName.toUpperCase()} cache invalidated for ${from}`);
-              walletsToUpdate.push(from);
-            }
-            if (to && to !== ethers.ZeroAddress) {
-              deleteCache(`${contractName}_owned_${to}`);
-              console.log(`♻️ ${contractName.toUpperCase()} cache invalidated for ${to}`);
-              walletsToUpdate.push(to);
-            }
+      console.log(
+        `📦 ${contractName.toUpperCase()} Transfer detected: ${from} -> ${to}, token ${tokenId}`
+      );
 
-            // Auto-update owner cache asynchronously
-            for (const wallet of walletsToUpdate) {
-              updateWalletCache(wallet); // no await, runs in background
-            }
-          } catch (err) {
-            console.warn(`⚠️ Failed to parse ${contractName.toUpperCase()} log:`, err);
-          }
-        }
-      };
+      if (from && from !== zero) {
+        affectedWallets.add(from);
+      }
 
-      processLogs(vkinLogs, "vkin", vkinContract);
-      processLogs(vqleLogs, "vqle", vqleContract);
+      if (to && to !== zero) {
+        affectedWallets.add(to);
+      }
+    } catch (err) {
+      console.warn(`⚠️ Failed to parse ${contractName.toUpperCase()} log:`, err);
+    }
+  }
+
+  if (affectedWallets.size > 0) {
+    const walletList = [...affectedWallets];
+    console.log(
+      `♻️ ${contractName.toUpperCase()} refreshing ${walletList.length} wallet(s): ${walletList.join(", ")}`
+    );
+    await updateMultipleWalletCaches(walletList);
+  }
+};
+
+      await processLogs(vkinLogs, "vkin", vkinContract);
+      await processLogs(vqleLogs, "vqle", vqleContract);
 
       lastBlock = toBlock;
       saveLastBlock(lastBlock);
