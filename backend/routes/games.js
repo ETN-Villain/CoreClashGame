@@ -238,8 +238,9 @@ router.post("/:id/reveal", authWallet, async (req, res) => {
     const alreadyRevealedOnChain =
       (slot === "player1" && onChainGame.player1Revealed) ||
       (slot === "player2" && onChainGame.player2Revealed);
+
     if (alreadyRevealedOnChain) {
-      return res.status(400).json({ error: "Reveal already submitted on-chain" });
+      console.log(`Game ${gameId}: reveal already on-chain for ${slot}, syncing backend...`);
     }
 
     // ---- Map addresses to collection folders ----
@@ -271,6 +272,14 @@ router.post("/:id/reveal", authWallet, async (req, res) => {
       backgrounds.push(bgTrait?.value || "Unknown");
     }
 
+if (game[slot + "Reveal"]) {
+  console.log(`Game ${gameId}: backend already has reveal for ${slot}`);
+  return res.json({
+    message: "Reveal already synced",
+    savedReveal: game[slot + "Reveal"],
+  });
+}
+    
     // ---- Save reveal data ----
     const revealData = { salt, nftContracts: [...nftContracts], tokenIds: [...tokenIds], tokenURIs, backgrounds };
     game[slot + "Reveal"] = revealData;
