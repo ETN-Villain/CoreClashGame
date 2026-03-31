@@ -1752,7 +1752,7 @@ return (
       <img
         src={AetherScionsBanner}
         alt="Aether Scions"
-        style={{ width: "110%", height: "100%", objectFit: "contain", transform: "scale(1.05)", borderRadius: 8 }}
+        style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 8 }}
       />
     </div>
   </a>

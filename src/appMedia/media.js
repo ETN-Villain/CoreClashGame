@@ -5,7 +5,7 @@ import HowToPlayImg from "./HowToPlay.jpg";
 import GameInfoImg from "./GameInfo.jpg";
 import ElectroSwapImg from "./electroswap.jpg";
 import VerdantKinBannerImg from "./VerdantKinBanner.jpg";
-import AetherScionsBannerImg from "./AetherScionsBanner.jpg";
+import AetherScionsBannerImg from "./AetherScionsBanner.png";
 import VerdantQueenBannerImg from "./QueenBanner.jpg";
 import ElectroneumImg from "./Electroneum.png";
 
