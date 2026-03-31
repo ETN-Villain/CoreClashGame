@@ -1,12 +1,14 @@
 import { ethers } from "ethers";
-import GameABI from "../src/abis/GameABI.json" assert { type: "json" };
-import VKINABI from "../src/abis/VKINABI.json" assert { type: "json" };
-import VQLEABI from "../src/abis/VQLEABI.json" assert { type: "json" };
+import GameABI from "../src/abis/GameABI.json" with { type: "json" };
+import VKINABI from "../src/abis/VKINABI.json" with { type: "json" };
+import VQLEABI from "../src/abis/VQLEABI.json" with { type: "json" };
+import SCIONSNABI from "../src/abis/SCIONSABI.json" with { type: "json" };
 import {
   GAME_ADDRESS,
   RPC_URL,
   VKIN_CONTRACT_ADDRESS,
   VQLE_CONTRACT_ADDRESS,
+  SCIONS_CONTRACT_ADDRESS
 } from "./config.js";
 import { loadLastBlock, saveLastBlock } from "./utils/blockState.js";
 import { readOwnerCache, writeOwnerCache } from "./utils/ownerCache.js";
@@ -19,6 +21,7 @@ const provider = new ethers.JsonRpcProvider(RPC_URL);
 const gameContract = new ethers.Contract(GAME_ADDRESS, GameABI, provider);
 const vkinContract = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKINABI, provider);
 const vqleContract = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLEABI, provider);
+const scionsContract = new ethers.Contract(SCIONS_CONTRACT_ADDRESS, SCIONSNABI, provider);
 
 const POLL_INTERVAL_MS = 6000;
 const MAX_BLOCK_RANGE = 500; // safe range for RPC
@@ -72,18 +75,22 @@ async function updateMultipleWalletCaches(wallets) {
 
   for (const wallet of uniqueWallets) {
     try {
-      const [vkinResult, vqleResult] = await Promise.allSettled([
+      const [vkinResult, vqleResult, scionsResult] = await Promise.allSettled([
         fetchOwnedTokenIds(vkinContract, wallet, "VKIN"),
-        fetchOwnedTokenIds(vqleContract, wallet, "VQLE")
+        fetchOwnedTokenIds(vqleContract, wallet, "VQLE"),
+        fetchOwnedTokenIds(scionsContract, wallet, "SCIONS")
       ]);
 
-      const existing = cache[wallet] || { VKIN: [], VQLE: [] };
+      const existing = cache[wallet] || { VKIN: [], VQLE: [], SCIONS: [] };
 
       const nextVKIN =
         vkinResult.status === "fulfilled" ? vkinResult.value : existing.VKIN;
 
       const nextVQLE =
         vqleResult.status === "fulfilled" ? vqleResult.value : existing.VQLE;
+
+      const nextSCIONS =
+        scionsResult.status === "fulfilled" ? scionsResult.value : existing.SCIONS;
 
       if (vkinResult.status === "rejected") {
         console.error(`[AUTO-CACHE] VKIN fetch failed for ${wallet}:`, vkinResult.reason);
@@ -93,13 +100,18 @@ async function updateMultipleWalletCaches(wallets) {
         console.error(`[AUTO-CACHE] VQLE fetch failed for ${wallet}:`, vqleResult.reason);
       }
 
+      if (scionsResult.status === "rejected") {
+        console.error(`[AUTO-CACHE] SCIONS fetch failed for ${wallet}:`, scionsResult.reason);
+      }
+
       cache[wallet] = {
         VKIN: nextVKIN,
-        VQLE: nextVQLE
+        VQLE: nextVQLE,
+        SCIONS: nextSCIONS
       };
 
       console.log(
-        `[AUTO-CACHE] Prepared ${wallet}: ${nextVKIN.length} VKIN, ${nextVQLE.length} VQLE`
+        `[AUTO-CACHE] Prepared ${wallet}: ${nextVKIN.length} VKIN, ${nextVQLE.length} VQLE, ${nextSCIONS.length} SCIONS`
       );
     } catch (err) {
       console.error(`[AUTO-CACHE] Failed preparing cache for ${wallet}:`, err.message);
@@ -215,6 +227,7 @@ writeGames(games);
       const zero = ethers.ZeroAddress.toLowerCase();
       const vkinLogs = await getTransferLogs(VKIN_CONTRACT_ADDRESS);
       const vqleLogs = await getTransferLogs(VQLE_CONTRACT_ADDRESS);
+      const scionsLogs = await getTransferLogs(SCIONS_CONTRACT_ADDRESS);
 
 const processLogs = async (logs, contractName, contractInstance) => {
   const affectedWallets = new Set();
@@ -254,6 +267,7 @@ const processLogs = async (logs, contractName, contractInstance) => {
 
       await processLogs(vkinLogs, "vkin", vkinContract);
       await processLogs(vqleLogs, "vqle", vqleContract);
+      await processLogs(scionsLogs, "scions", scionsContract);
 
       lastBlock = toBlock;
       saveLastBlock(lastBlock);

@@ -3,7 +3,7 @@ import axios from "axios";
 import { METADATA_JSON_DIR } from "./paths.js";
 import fs from "fs";
 import path from "path";
-import tokenMapping from "../src/mapping.json" assert { type: "json" };
+import tokenMapping from "../src/mapping.json" with { type: "json" };
 
 // Helper to map tokenId → tokenURI from mapping.json
 function tokenIdToTokenURI(collection, tokenId) {
@@ -26,6 +26,7 @@ function tokenIdToTokenURI(collection, tokenId) {
 const addressToCollection = {
   "0x3fc7665b1f6033ff901405cddf31c2e04b8a2ab4": "VKIN",
   "0x8cfbb04c54d35e2e8471ad9040d40d73c08136f0": "VQLE",
+  "0xac620b1a3de23f4eb0a69663613babf73f6c535d": "SCIONS",
 };
 
 export const fetchNFT = async (collection, tokenId) => {

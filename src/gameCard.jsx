@@ -8,6 +8,8 @@ const addressToCollection = {
   "0x3FC7665B1F6033FF901405CdDF31C2E04B8A2AB4": "VKIN",
   "0x8cfbb04c54d35e2e8471ad9040d40d73c08136f0": "VQLE",
   "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0": "VQLE",
+  "0xAc620b1A3dE23F4EB0A69663613baBf73F6C535D": "SCIONS",
+  "0xac620b1a3de23f4eb0a69663613babf73f6c535d": "SCIONS",
   // add more if needed
 };
 
@@ -220,47 +222,70 @@ const handleDownloadReveal = (gameId) => {
   });
 };
 
-  /* ---------------- Render Token Images ---------------- */
-  const renderTokenImages = (input = []) => {
-    let tokens = [];
+/* ---------------- Render Token Images ---------------- */
+const renderTokenImages = (input = []) => {
+  let tokens = [];
 
-    if (Array.isArray(input)) tokens = input;
-    else if (input && typeof input === "object") {
-      const { nftContracts = [], tokenIds = [], tokenURIs = [] } = input;
+  if (Array.isArray(input)) {
+    tokens = input;
+  } else if (input && typeof input === "object") {
+    const { nftContracts = [], tokenIds = [], tokenURIs = [] } = input;
 
-      tokens = tokenIds.map((id, idx) => {
-        const rawAddr = nftContracts[idx];
-        let addr = (rawAddr || "").toString().trim().replace(/[^0-9a-fA-F]/gi, "").toLowerCase();
-        if (addr && !addr.startsWith("0x")) addr = "0x" + addr;
+    tokens = tokenIds.map((id, idx) => {
+      const rawAddr = nftContracts[idx];
+      let addr = (rawAddr || "")
+        .toString()
+        .trim()
+        .replace(/[^0-9a-fA-F]/gi, "")
+        .toLowerCase();
 
-        let collection = addressToCollection[addr] || (addr.includes("8cfbb04c") ? "VQLE" : "VKIN");
+      if (addr && !addr.startsWith("0x")) addr = "0x" + addr;
 
-        let imageFile = `${id}.png`;
-        const mappedEntry = mapping[collection]?.[String(id)];
+      const collection =
+        addressToCollection[addr] || (addr.includes("8cfbb04c") ? "VQLE" : "VKIN");
 
-        if (mappedEntry) {
-          if (mappedEntry.image_file) imageFile = mappedEntry.image_file;
-          else if (mappedEntry.token_uri) imageFile = mappedEntry.token_uri.replace(/\.json$/i, ".png").toLowerCase();
-        } else if (tokenURIs[idx]) {
-          imageFile = tokenURIs[idx].replace(/\.json$/i, ".png").toLowerCase();
+      // SCIONS uses VKIN-style token mapping, but its own image folder
+      const mappingKey =
+        collection === "SCIONS" || collection === "VKIN" ? "VKIN" : "VQLE";
+
+      let imageFile = `${id}.png`;
+      const mappedEntry = mapping[mappingKey]?.[String(id)];
+
+      if (mappedEntry) {
+        if (mappedEntry.image_file) {
+          imageFile = mappedEntry.image_file;
+        } else if (mappedEntry.token_uri) {
+          imageFile = mappedEntry.token_uri
+            .replace(/\.json$/i, ".png")
+            .toLowerCase();
         }
+      } else if (tokenURIs[idx]) {
+        imageFile = tokenURIs[idx].replace(/\.json$/i, ".png").toLowerCase();
+      }
 
-        return { collection, tokenId: id, imageFile };
-      });
-    }
+      return { collection, tokenId: id, imageFile };
+    });
+  }
 
-    if (!tokens.length) return null;
+  if (!tokens.length) return null;
 
-    return (
-      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-        {tokens.map((token, i) => {
-          const { collection, tokenId, imageFile } = token;
-          const src = `${BACKEND_URL}/images/${collection}/${imageFile}`;
-          return <StableImage key={`${collection}-${tokenId || i}-${i}`} src={src} alt={`${collection} #${tokenId || "?"}`} />;
-        })}
-      </div>
-    );
-  };
+  return (
+    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+      {tokens.map((token, i) => {
+        const { collection, tokenId, imageFile } = token;
+        const src = `${BACKEND_URL}/images/${collection}/${imageFile}`;
+
+        return (
+          <StableImage
+            key={`${collection}-${tokenId || i}-${i}`}
+            src={src}
+            alt={`${collection} #${tokenId || "?"}`}
+          />
+        );
+      })}
+    </div>
+  );
+};
 
   /* ---------------- Render JSX ---------------- */
   return (

@@ -9,6 +9,8 @@ const addressToCollection = {
   "0x3FC7665B1F6033FF901405CdDF31C2E04B8A2AB4": "VKIN",
   "0x8cfbb04c54d35e2e8471ad9040d40d73c08136f0": "VQLE",
   "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0": "VQLE",
+  "0xac620b1a3de23f4eb0a69663613babf73f6c535d": "SCIONS",
+  "0xAc620b1A3dE23F4EB0A69663613baBf73F6C535D": "SCIONS",
 };
 
 export const renderTokenImages = (input = []) => {
@@ -18,28 +20,25 @@ export const renderTokenImages = (input = []) => {
 
   if (Array.isArray(input)) {
     tokens = input;
-  } else if (input && typeof input === 'object') {
+  } else if (input && typeof input === "object") {
     const { nftContracts = [], tokenIds = [], tokenURIs = [] } = input;
 
     tokens = tokenIds.map((id, idx) => {
       let rawAddr = nftContracts[idx];
-      console.log(`Slot ${idx} raw type:`, typeof rawAddr, 'length:', rawAddr?.length || 'N/A');
+      console.log(`Slot ${idx} raw type:`, typeof rawAddr, "length:", rawAddr?.length || "N/A");
 
       let addr = (rawAddr || "").toString().trim();
 
-      // Log char codes to detect hidden chars
-      const charCodes = addr.split('').map(c => c.charCodeAt(0)).join(', ');
+      const charCodes = addr.split("").map((c) => c.charCodeAt(0)).join(", ");
       console.log(`Slot ${idx} char codes:`, charCodes);
 
-addr = (addr || '')
-   .replace(/[^0-9a-fA-F]/gi, '')           // remove 'x' too unless intentional
-   .toLowerCase();
+      addr = addr.replace(/[^0-9a-fA-F]/gi, "").toLowerCase();
 
- if (addr && !addr.startsWith('0x')) {
-   addr = '0x' + addr;
- }
+      if (addr && !addr.startsWith("0x")) {
+        addr = "0x" + addr;
+      }
 
-let collection = addressToCollection[addr];
+      let collection = addressToCollection[addr];
 
       // Debug override for token ID 24 (remove after fix)
       if (id === "24") {
@@ -48,60 +47,63 @@ let collection = addressToCollection[addr];
       }
 
       // More forgiving pattern match
-// More forgiving pattern match
-if (!collection && (
-  addr.includes('8cfb') ||
-  addr.includes('8cfbb04c')
-)) {
-  console.log(`Slot ${idx} VQLE pattern match → forcing VQLE`);
-  collection = "VQLE";
-} 
+      if (!collection && (addr.includes("8cfb") || addr.includes("8cfbb04c"))) {
+        console.log(`Slot ${idx} VQLE pattern match → forcing VQLE`);
+        collection = "VQLE";
+      }
+
       if (!collection) {
-        console.warn(`Slot ${idx} NO MATCH for cleaned addr "${addr}" (raw: "${rawAddr}") — defaulting to VKIN`);
+        console.warn(
+          `Slot ${idx} NO MATCH for cleaned addr "${addr}" (raw: "${rawAddr}") — defaulting to VKIN`
+        );
         collection = "VKIN";
       }
+
+      // SCIONS uses VKIN mapping, but SCIONS image folder
+      const mappingKey =
+        collection === "SCIONS" || collection === "VKIN" ? "VKIN" : "VQLE";
 
       console.log(`Slot ${idx} final:`, {
         rawAddr,
         cleanedAddr: addr,
         collection,
+        mappingKey,
         tokenId: id,
-        tokenURI: tokenURIs[idx] || "none"
+        tokenURI: tokenURIs[idx] || "none",
       });
 
-// ── inside the tokenIds.map callback ──
+      let imageFile = `${id}.png`;
 
-let imageFile = `${id}.png`;
+      const mapped = mapping[mappingKey]?.[String(id)];
 
-// Look up the mapping entry once — safe even if missing
-const mapped = mapping[collection]?.[String(id)];
+      // Priority 1: explicit tokenURI from backend
+      if (tokenURIs[idx]) {
+        imageFile = tokenURIs[idx]
+          .replace(/\.json$/i, ".png")
+          .toLowerCase();
 
-// Priority 1: explicit tokenURI from backend (highest precedence)
-if (tokenURIs[idx]) {
-  // If tokenURI is present, derive filename from it
-  imageFile = tokenURIs[idx]
-    .replace(/\.json$/i, ".png")
-    .toLowerCase();
+        console.log(
+          `Slot ${idx}: backend tokenURI → ${imageFile} (coll: ${collection}, mappingKey: ${mappingKey})`
+        );
+      }
+      // Priority 2: mapping.json
+      else if (mapped) {
+        imageFile =
+          mapped?.image_file ??
+          mapped?.token_uri?.replace(/\.json$/i, ".png") ??
+          `${id}.png`;
 
-  console.log(`Slot ${idx}: backend tokenURI → ${imageFile} (coll: ${collection})`);
-}
-// Priority 2: use mapping.json if we have an entry
-else if (mapped) {
-  imageFile = mapped?.image_file ??
-    mapped?.token_uri?.replace(/\.json$/i, ".png") ??
-    `${id}.png`;
+        console.log(`Slot ${idx}: mapping → ${imageFile}`);
+      }
 
-  console.log(`Slot ${idx}: mapping → ${imageFile}`);
-}
-// Priority 3: fallback (already set above)
+      console.log(`Slot ${idx} final imageFile: ${imageFile}`);
 
-console.log(`Slot ${idx} final imageFile: ${imageFile}`);
-
-return {
-  collection,
-  tokenId: id,
-  imageFile
-};
+      return {
+        collection,
+        mappingKey,
+        tokenId: id,
+        imageFile,
+      };
     });
   }
 
@@ -110,15 +112,16 @@ return {
   return (
     <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
       {tokens.map((token, i) => {
-        const { collection, tokenId, imageFile } = token;
+        const { collection, mappingKey, tokenId, imageFile } = token;
 
         let finalImageFile = imageFile;
 
-        const mapped = mapping[collection]?.[String(tokenId)];
+        const mapped = mapping[mappingKey]?.[String(tokenId)];
         if (mapped) {
-finalImageFile = mapped?.image_file ??
-  mapped?.token_uri?.replace(/\.json$/i, ".png") ??
-  `${tokenId}.png`;
+          finalImageFile =
+            mapped?.image_file ??
+            mapped?.token_uri?.replace(/\.json$/i, ".png") ??
+            `${tokenId}.png`;
         }
 
         const src = `${BACKEND_URL}/images/${collection}/${finalImageFile}`;

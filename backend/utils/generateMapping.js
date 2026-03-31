@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import {
   IPFS_GATEWAYS,
   VKIN_CONTRACT_ADDRESS,
+  SCIONS_CONTRACT_ADDRESS,
   VQLE_IPFS_BASE,
   RPC_URL,
 } from "../config.js";
@@ -25,12 +26,15 @@ const VKIN_JSON_DIR = path.join(METADATA_JSON_DIR, "VKIN");
 const VKIN_IMAGE_DIR = path.join(METADATA_IMAGES_DIR, "VKIN");
 const VQLE_JSON_DIR = path.join(METADATA_JSON_DIR, "VQLE");
 const VQLE_IMAGE_DIR = path.join(METADATA_IMAGES_DIR, "VQLE");
+const SCIONS_JSON_DIR = path.join(METADATA_JSON_DIR, "SCIONS");
+const SCIONS_IMAGE_DIR = path.join(METADATA_IMAGES_DIR, "SCIONS");
 
 /* ---------------- Config ---------------- */
 const VKIN_MAX_SUPPLY = 474;
 const VQLE_MAX_SUPPLY = 30;
+const SCIONS_MAX_SUPPLY = 198;
 const VKIN_ABI = ["function tokenURI(uint256 tokenId) view returns (string)"];
-
+const SCIONS_ABI = ["function tokenURI(uint256 tokenId) view returns (string)"];
 /* ---------------- Helpers ---------------- */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -181,12 +185,76 @@ async function generateVQLE(rows) {
   }
 }
 
+/* ---------------- SCIONS ---------------- */
+async function generateSCIONS(rows, provider) {
+  ensureDir(SCIONS_JSON_DIR);
+  ensureDir(SCIONS_IMAGE_DIR);
+
+  const contract = new ethers.Contract(SCIONS_CONTRACT_ADDRESS, SCIONS_ABI, provider);
+
+  for (let tokenId = 1; tokenId <= SCIONS_MAX_SUPPLY; tokenId++) {
+    let jsonFile = null;
+    let imageFile = `${tokenId}.png`; // fallback – prevents undefined
+
+    try {
+      const tokenURI = await contract.tokenURI(tokenId);
+      if (!tokenURI?.startsWith("ipfs://")) {
+        console.warn(`SCIONS ${tokenId}: tokenURI not IPFS → skipping`);
+        continue;
+      }
+
+      jsonFile = path.basename(tokenURI);
+      const jsonPath = path.join(SCIONS_JSON_DIR, jsonFile);
+
+      let metadata;
+      if (fs.existsSync(jsonPath)) {
+        metadata = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+      } else {
+        const rawJson = await fetchWithRetries(tokenURI, 3, 5000, "arraybuffer");
+        if (!rawJson) continue;
+
+        metadata = JSON.parse(rawJson.toString());
+        fs.writeFileSync(jsonPath, JSON.stringify(metadata, null, 2));
+        console.log(`💾 Saved SCIONS JSON ${jsonFile}`);
+      }
+
+      // Download image & use real filename
+      if (metadata.image?.startsWith("ipfs://")) {
+        const downloadedImageFile = path.basename(metadata.image);
+        const imagePath = path.join(SCIONS_IMAGE_DIR, downloadedImageFile);
+
+        if (!fs.existsSync(imagePath)) {
+          const img = await fetchWithRetries(metadata.image, 3, 5000, "arraybuffer");
+          if (img) {
+            fs.writeFileSync(imagePath, img);
+            console.log(`🖼️ Downloaded SCIONS image ${downloadedImageFile}`);
+          }
+        }
+
+        imageFile = downloadedImageFile; // ← use the real name
+      }
+
+      // Only push if we have at least jsonFile
+      if (jsonFile) {
+        rows.push(`SCIONS,${tokenId},${jsonFile},${imageFile}`);
+        console.log(`Added SCIONS ${tokenId} → ${jsonFile} / ${imageFile}`);
+      }
+
+    } catch (err) {
+      console.warn(`⚠️ SCIONS tokenId ${tokenId} skipped: ${err.message}`);
+    }
+
+    await sleep(100);
+  }
+}
+
 /* ---------------- Main ---------------- */
 export async function generateMapping() {
   const rows = ["collection,token_id,token_uri,image_file"];
   const provider = new ethers.JsonRpcProvider(RPC_URL);
 
   await generateVKIN(rows, provider);
+  await generateSCIONS(rows, provider);
   await generateVQLE(rows);
 
   fs.writeFileSync(MAPPING_FILE, rows.join("\n"));

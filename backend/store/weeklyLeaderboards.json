@@ -1,12 +1,42 @@
 {
   "2026-03-09": [
-    { "address": "0x4933fffd2a3ee6fdd2c3eeb724e4c754beea50e4", "wins": 2, "played": 2, "winRate": 100 },
-    { "address": "0x2871835ca982f248f61c3a1995931e205c9d5243", "wins": 0, "played": 1, "winRate": 0 },
-    { "address": "0xbccf55d5b19703e3f3b8df31196714f92d15cf3d", "wins": 0, "played": 1, "winRate": 0 }
+    {
+      "address": "0x4933fffd2a3ee6fdd2c3eeb724e4c754beea50e4",
+      "wins": 2,
+      "played": 2,
+      "winRate": 100
+    },
+    {
+      "address": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+      "wins": 0,
+      "played": 1,
+      "winRate": 0
+    },
+    {
+      "address": "0xbccf55d5b19703e3f3b8df31196714f92d15cf3d",
+      "wins": 0,
+      "played": 1,
+      "winRate": 0
+    }
   ],
   "2026-03-02": [
-    { "address": "0x2871835ca982f248f61c3a1995931e205c9d5243", "wins": 1, "played": 5, "winRate": 20 },
-    { "address": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099", "wins": 0, "played": 2, "winRate": 0 },
-    { "address": "0xe4CCA28f011C619e2D8B6bc39DD4389dfEfb7311", "wins": 6, "played": 6, "winRate": 100 }
+    {
+      "address": "0x2871835ca982f248f61c3a1995931e205c9d5243",
+      "wins": 1,
+      "played": 5,
+      "winRate": 20
+    },
+    {
+      "address": "0x3fd2e5b4ac0eff6dfdf2446abddab3f66b425099",
+      "wins": 0,
+      "played": 2,
+      "winRate": 0
+    },
+    {
+      "address": "0xe4CCA28f011C619e2D8B6bc39DD4389dfEfb7311",
+      "wins": 6,
+      "played": 6,
+      "winRate": 100
+    }
   ]
 }

@@ -5,12 +5,13 @@ import fs from "fs";
 import path from "path";
 import { ethers } from "ethers";
 import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";
-import mapping from "../../src/mapping.json" assert { type: "json" }; // new format
-import { RPC_URL, VKIN_CONTRACT_ADDRESS, VQLE_CONTRACT_ADDRESS } from "../config.js";
+import mapping from "../../src/mapping.json" with { type: "json" }; // new format
+import { RPC_URL, VKIN_CONTRACT_ADDRESS, VQLE_CONTRACT_ADDRESS, SCIONS_CONTRACT_ADDRESS } from "../config.js";
 import { METADATA_JSON_DIR } from "../paths.js";
 import { fetchOwnedTokenIds } from "../utils/nftUtils.js";
-import VKIN_ABI from "../../src/abis/VKINABI.json" assert { type: "json" };
-import VQLE_ABI from "../../src/abis/VQLEABI.json" assert { type: "json" };
+import VKIN_ABI from "../../src/abis/VKINABI.json" with { type: "json" };
+import VQLE_ABI from "../../src/abis/VQLEABI.json" with { type: "json" };
+import SCIONS_ABI from "../../src/abis/SCIONSABI.json" with { type: "json" };
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 const RPC_CONCURRENCY = 5; // max 5 concurrent RPC calls
@@ -33,6 +34,7 @@ async function retryRpc(fn, retries = RETRY_COUNT, delayMs = RETRY_DELAY_MS) {
 const addressToCollection = {
   [VKIN_CONTRACT_ADDRESS.toLowerCase()]: "VKIN",
   [VQLE_CONTRACT_ADDRESS.toLowerCase()]: "VQLE",
+  [SCIONS_CONTRACT_ADDRESS.toLowerCase()]: "SCIONS"
 };
 
 // Helper: enrich a single token with remapped data + real metadata
@@ -91,6 +93,8 @@ router.post("/force-cache/:wallet", async (req, res) => {
     const provider = new ethers.JsonRpcProvider(RPC_URL);
     const vkin = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
     const vqle = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLE_ABI, provider);
+    const scions = new ethers.Contract(SCIONS_CONTRACT_ADDRESS, SCIONS_ABI, provider);
+
 
     console.log("Force-scanning VKIN...");
 const vkinIds = await retryRpc(() => fetchOwnedTokenIds(vkin, wallet, "VKIN"));
@@ -98,12 +102,15 @@ const vkinIds = await retryRpc(() => fetchOwnedTokenIds(vkin, wallet, "VKIN"));
     console.log("Force-scanning VQLE...");
 const vqleIds = await retryRpc(() => fetchOwnedTokenIds(vqle, wallet, "VQLE"));
 
-    cache[wallet] = { VKIN: vkinIds, VQLE: vqleIds };
+    console.log("Force-scanning SCIONS...");
+const scionsIds = await retryRpc(() => fetchOwnedTokenIds(scions, wallet, "SCIONS"));
+
+    cache[wallet] = { VKIN: vkinIds, VQLE: vqleIds, SCIONS: scionsIds };
     writeOwnerCache(cache);
 
-    console.log(`Force cache filled: ${vkinIds.length} VKIN, ${vqleIds.length} VQLE`);
+    console.log(`Force cache filled: ${vkinIds.length} VKIN, ${vqleIds.length} VQLE, ${scionsIds.length} SCIONS`);
 
-    res.json({ success: true, tokens: { VKIN: vkinIds.length, VQLE: vqleIds.length } });
+    res.json({ success: true, tokens: { VKIN: vkinIds.length, VQLE: vqleIds.length, SCIONS: scionsIds.length } });
   } catch (err) {
     console.error("Force cache failed:", err.message);
     res.status(500).json({ error: err.message });
@@ -126,6 +133,7 @@ router.get("/owned/:wallet", async (req, res) => {
       const provider = new ethers.JsonRpcProvider(RPC_URL);
       const vkin = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
       const vqle = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLE_ABI, provider);
+      const scions = new ethers.Contract(SCIONS_CONTRACT_ADDRESS, SCIONS_ABI, provider);
 
       const queue = new PQueue({ concurrency: RPC_CONCURRENCY });
 
@@ -135,11 +143,14 @@ router.get("/owned/:wallet", async (req, res) => {
       console.log("Scanning VQLE...");
       const vqleIds = await fetchOwnedTokenIds(vqle, wallet, "VQLE");  // ← fixed: "VQLE"
 
-      walletCache = { VKIN: vkinIds, VQLE: vqleIds };
+      console.log("Scanning SCIONS...");
+      const scionsIds = await fetchOwnedTokenIds(scions, wallet, "SCIONS");  // ← fixed: "SCIONS"
+
+      walletCache = { VKIN: vkinIds, VQLE: vqleIds, SCIONS: scionsIds };
       cache[wallet] = walletCache;
       writeOwnerCache(cache);
 
-      console.log(`Cache filled: ${vkinIds.length} VKIN, ${vqleIds.length} VQLE`);
+      console.log(`Cache filled: ${vkinIds.length} VKIN, ${vqleIds.length} VQLE, ${scionsIds.length} SCIONS`);
 } catch (err) {
       console.error("On-chain scan failed:", err.message);
       return res.status(500).json({ error: err.message });
@@ -207,6 +218,35 @@ for (const tokenId of walletCache.VQLE) {
     background,
     tokenURI: jsonFile,
     collection: "VQLE"
+  });
+}
+
+// SCIONS (same pattern)
+for (const tokenId of walletCache.SCIONS) {
+  const mapped = mapping["SCIONS"]?.[tokenId];
+  const jsonFile = mapped?.token_uri || `${tokenId}.json`;
+  const jsonPath = path.join(METADATA_JSON_DIR, "SCIONS", jsonFile);
+
+  let name = `SCIONS #${tokenId}`;
+  let background = "Unknown";
+
+  if (fs.existsSync(jsonPath)) {
+    try {
+      const meta = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+      name = meta.name || name;
+      background = meta.attributes?.find(a => a.trait_type === "Background")?.value || background;
+    } catch (e) {
+      console.warn(`Metadata parse error for SCIONS #${tokenId}`);
+    }
+  }
+
+  result.push({
+    nftAddress: SCIONS_CONTRACT_ADDRESS,
+    tokenId,
+    name,
+    background,
+    tokenURI: jsonFile,
+    collection: "SCIONS"
   });
 }
 

@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 import { METADATA_JSON_DIR, REVEAL_DIR, MAPPING_FILE, loadMapping } from "../paths.js";
 import { RPC_URL, BACKEND_PRIVATE_KEY, GAME_ADDRESS, 
   VKIN_CONTRACT_ADDRESS, VQLE_CONTRACT_ADDRESS } from "../config.js";
-import GameABI from "../../src/abis/GameABI.json" assert { type: "json" };
+import GameABI from "../../src/abis/GameABI.json" with { type: "json" };
 import { readGames, writeGames } from "../store/gamesStore.js";
 import { resolveGame } from "../gameLogic.js";
 import { fetchOwnedTokenIds } from "../utils/nftUtils.js";
@@ -17,8 +17,8 @@ import { broadcast } from "./sse.js";
 import { adminContract, adminWalletReady } from "../admin.js";
 import { withLock } from "../utils/mutex.js";
 import { authWallet } from "../middleware/authWallet.js";
-import VKIN_ABI from "../../src/abis/VKINABI.json" assert { type: "json" };
-import VQLE_ABI from "../../src/abis/VQLEABI.json" assert { type: "json" };
+import VKIN_ABI from "../../src/abis/VKINABI.json" with { type: "json" };
+import VQLE_ABI from "../../src/abis/VQLEABI.json" with { type: "json" };
 import { readBurnTotal } from "../store/burnStore.js";
 
 const router = express.Router();
@@ -138,6 +138,7 @@ games.push({
       const provider = new ethers.JsonRpcProvider(RPC_URL);
       const vkin = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
       const vqle = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLE_ABI, provider);
+      const scions = new ethers.Contract(SCIONS_CONTRACT_ADDRESS, SCIONS_ABI, provider);
 
       console.log("Fetching VKIN tokens...");
       const vkinIds = await fetchOwnedTokenIds(vkin, player1Lc, "VKIN");
@@ -145,13 +146,17 @@ games.push({
       console.log("Fetching VQLE tokens...");
       const vqleIds = await fetchOwnedTokenIds(vqle, player1Lc, "VQLE");
 
+      console.log("Fetching SCIONS tokens...");
+      const scionsIds = await fetchOwnedTokenIds(scions, player1Lc, "SCIONS");
+
       cache[player1Lc] = {
         VKIN: vkinIds,
         VQLE: vqleIds,
+        SCIONS: scionsIds
       };
 
       writeOwnerCache(cache);
-      console.log(`Cache populated for ${player1Lc}: ${vkinIds.length} VKIN, ${vqleIds.length} VQLE`);
+      console.log(`Cache populated for ${player1Lc}: ${vkinIds.length} VKIN, ${vqleIds.length} VQLE, ${scionsIds.length} SCIONS`);
     } catch (err) {
       console.error("Failed to populate creator cache:", err.message, err.stack);
     }
@@ -247,6 +252,7 @@ router.post("/:id/reveal", authWallet, async (req, res) => {
     const addressToCollection = {
       [VKIN_CONTRACT_ADDRESS.toLowerCase()]: "VKIN",
       [VQLE_CONTRACT_ADDRESS.toLowerCase()]: "VQLE",
+      [SCIONS_CONTRACT_ADDRESS.toLowerCase()]: "SCIONS"
     };
     const mapping = loadMapping();
 
