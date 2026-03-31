@@ -1691,7 +1691,7 @@ return (
 
   {/* Verdant Queen Banner */}
   <a
-    href="https://https://panth.art/collections/0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0"
+    href="https://panth.art/collections/0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0"
     target="_blank"
     rel="noopener noreferrer"
     style={{
