@@ -5,7 +5,8 @@ import { deleteCache } from "../utils/ownerCache.js";
 import { ethers } from "ethers";
 import {
   VKIN_CONTRACT_ADDRESS,
-  VQLE_CONTRACT_ADDRESS
+  VQLE_CONTRACT_ADDRESS,
+  SCIONS_CONTRACT_ADDRESS
 } from "../config.js";
 
 // Sanitize BigInt values in args for logging and broadcasting
@@ -39,6 +40,8 @@ import {
       prefix = "vkin_owned_";
     } else if (contractAddr === VQLE_CONTRACT_ADDRESS.toLowerCase()) {
       prefix = "vqle_owned_";
+    } else if (contractAddr === SCIONS_CONTRACT_ADDRESS.toLowerCase()) {
+      prefix = "scions_owned_";
     }
 
     if (prefix) {

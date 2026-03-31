@@ -1,6 +1,6 @@
 // backend/admin.js
 import { ethers } from "ethers";
-import GameABI from "../src/abis/GameABI.json" assert { type: "json" };
+import GameABI from "../src/abis/GameABI.json" with { type: "json" };
 import { GAME_ADDRESS, BACKEND_PRIVATE_KEY, RPC_URL } from "./config.js";
 
 export let adminWalletReady = false;

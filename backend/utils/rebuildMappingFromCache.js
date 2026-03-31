@@ -4,6 +4,7 @@ import { METADATA_JSON_DIR, MAPPING_FILE } from "../paths.js";
 
 const VKIN_DIR = path.join(METADATA_JSON_DIR, "VKIN");
 const VQLE_DIR = path.join(METADATA_JSON_DIR, "VQLE");
+const SCIONS_DIR = path.join(METADATA_JSON_DIR, "SCIONS");
 
 /* ------------------ Helpers ------------------ */
 function readExistingVKIN() {
@@ -17,6 +18,18 @@ function readExistingVKIN() {
     .filter(row => row.startsWith("VKIN,"));
 }
 
+function readExistingSCIONS() {
+  if (!fs.existsSync(MAPPING_FILE)) return [];
+
+  return fs
+    .readFileSync(MAPPING_FILE, "utf8")
+    .split("\n")
+    .slice(1)
+    .filter(Boolean)
+    .filter(row => row.startsWith("SCIONS,"));
+}
+
+
 /* ------------------ Rebuild ------------------ */
 function rebuildMapping() {
   const rows = ["collection,token_id,token_uri"];
@@ -24,6 +37,10 @@ function rebuildMapping() {
   // Preserve VKIN mapping
   const vkinRows = readExistingVKIN();
   rows.push(...vkinRows);
+
+    // Preserve SCIONS mapping
+  const scionsRows = readExistingSCIONS();
+  rows.push(...scionsRows);
 
   // Rebuild VQLE from cache
   const vqleFiles = fs

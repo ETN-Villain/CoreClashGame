@@ -29,7 +29,7 @@ import { renderTokenImages } from "./renderTokenImages.jsx";
 
 import {
   CoreClashLogo, AppBackground, PlanetZephyrosAE, HowToPlay, GameInfo, ElectroSwap,
-  VerdantKinBanner, ElectroneumLogo,
+  VerdantKinBanner, ElectroneumLogo, AetherScionsBanner, VerdantQueenBanner
 } from "./appMedia/media.js";
 
 import GameCard from "./gameCard.jsx";
@@ -1582,7 +1582,7 @@ return (
     marginTop: 16,
     width: "100%",
     display: "grid",
-    gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1.4fr 1fr",
+    gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1.4fr 1.4fr 1.4fr 1fr",
     gap: 14,
     alignItems: "center",
     justifyItems: "center",
@@ -1609,7 +1609,11 @@ return (
         transition: "all 0.2s ease",
       }}
     >
-      <img src={ElectroSwap} alt="Buy CORE" style={{ width: 34, height: 34, borderRadius: 6 }} />
+      <img
+        src={ElectroSwap}
+        alt="Buy CORE"
+        style={{ width: 34, height: 34, borderRadius: 6 }}
+      />
       <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 600, color: "#fff" }}>
         Buy CORE
       </span>
@@ -1659,8 +1663,8 @@ return (
     style={{
       textDecoration: "none",
       width: "100%",
-      maxWidth: isMobile ? "100%" : 280, // optional max width on desktop
-      gridColumn: isMobile ? "1 / span 2" : undefined, // span two columns on mobile
+      maxWidth: isMobile ? "100%" : 280,
+      gridColumn: isMobile ? "1 / span 2" : undefined,
     }}
   >
     <div
@@ -1684,18 +1688,77 @@ return (
       />
     </div>
   </a>
+
+  {/* Verdant Queen Banner */}
+  <a
+    href="https://https://panth.art/collections/0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      textDecoration: "none",
+      width: "100%",
+      maxWidth: isMobile ? "100%" : 280,
+      gridColumn: isMobile ? "1 / span 2" : undefined,
+    }}
+  >
+    <div
+      style={{
+        background: "#0f0f0f",
+        border: "1px solid #333",
+        borderRadius: 12,
+        width: "100%",
+        height: 60,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
+        transition: "all 0.2s ease",
+      }}
+    >
+      <img
+        src={VerdantQueenBanner}
+        alt="Verdant Queen"
+        style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 8 }}
+      />
+    </div>
+  </a>
+
+  {/* Aether Scions Banner */}
+  <a
+    href="https://app.electroswap.io/nfts/collection/0xAc620b1A3dE23F4EB0A69663613baBf73F6C535D"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      textDecoration: "none",
+      width: "100%",
+      maxWidth: isMobile ? "100%" : 280,
+      gridColumn: isMobile ? "1 / span 2" : undefined,
+    }}
+  >
+    <div
+      style={{
+        background: "#0f0f0f",
+        border: "1px solid #333",
+        borderRadius: 12,
+        width: "100%",
+        height: 60,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
+        transition: "all 0.2s ease",
+      }}
+    >
+      <img
+        src={AetherScionsBanner}
+        alt="Aether Scions"
+        style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 8 }}
+      />
+    </div>
+  </a>
 </div>
 
-<div
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    gap: 24,
-    alignItems: "flex-start",
-    minWidth: 0, // allows children to shrink
-  }}
->
-  {/* ---------------- TOTAL CORE BURNED ---------------- */}
+{/* ---------------- TOTAL CORE BURNED ---------------- */}
 <div
 style={{
   marginTop: 20,
@@ -1934,20 +1997,34 @@ style={{
       >
         {ownedNFTs.map((nftOption) => {
           const selected = nfts[i]?.tokenId === nftOption.tokenId;
-          const collectionKey =
-            WHITELISTED_NFTS.find(
-              (x) =>
-                x.address?.toLowerCase() === nftOption.nftAddress?.toLowerCase()
-            )?.label === "Verdant Kin"
-              ? "VKIN"
-              : "VQLE";
+          const label = WHITELISTED_NFTS.find(
+            (x) => x.address?.toLowerCase() === nftOption.nftAddress?.toLowerCase()
+          )?.label;
 
-          const mapped = nftOption.tokenId && collectionKey ? mapping[collectionKey]?.[String(nftOption.tokenId)] : null;
-          const imageFile = mapped
-            ? mapped.image_file || mapped.token_uri?.replace(/\.json$/i, ".png") || `${nftOption.tokenId}.png`
-            : `${nftOption.tokenId}.png`;
+let collectionKey;
+if (label === "Verdant Kin" || label === "Scions") {
+  collectionKey = "VKIN";
+} else if (label === "VQLE") {
+  collectionKey = "VQLE";
+} else {
+  collectionKey = null;
+}
 
-          const imageSrc = imageFile && collectionKey ? `${BACKEND_URL}/images/${collectionKey}/${imageFile}` : "/placeholder.png";
+const mapped =
+  nftOption.tokenId && collectionKey
+    ? mapping[collectionKey]?.[String(nftOption.tokenId)]
+    : null;
+
+const imageFile = mapped
+  ? mapped.image_file ||
+    mapped.token_uri?.replace(/\.json$/i, ".png") ||
+    `${nftOption.tokenId}.png`
+  : `${nftOption.tokenId}.png`;
+
+const imageSrc =
+  imageFile && collectionKey
+    ? `${BACKEND_URL}/images/${collectionKey}/${imageFile}`
+    : "/placeholder.png";
 
           return (
             <div
@@ -2741,7 +2818,6 @@ gap: 20,
     </div>
   </div>
 )}
-</div>
 </div>
 </div>
 </div>
