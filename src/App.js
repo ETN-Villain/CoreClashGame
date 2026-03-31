@@ -1735,26 +1735,29 @@ return (
       gridColumn: isMobile ? "1 / span 2" : undefined,
     }}
   >
-    <div
-      style={{
-        background: "#0f0f0f",
-        border: "1px solid #333",
-        borderRadius: 12,
-        width: "100%",
-        height: 60,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
-        transition: "all 0.2s ease",
-      }}
-    >
-      <img
-        src={AetherScionsBanner}
-        alt="Aether Scions"
-        style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 8 }}
-      />
-    </div>
+<div
+  style={{
+    background: "#000", // or a color that matches the banner edges
+    border: "1px solid #333",
+    borderRadius: 12,
+    width: "100%",
+    height: 60,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  }}
+>
+  <img
+    src={AetherScionsBanner}
+    alt="Aether Scions"
+    style={{
+      width: "100%",
+      height: "100%",
+      objectFit: "contain",
+      borderRadius: 8,
+    }}
+  />
+</div>
   </a>
 </div>
 
