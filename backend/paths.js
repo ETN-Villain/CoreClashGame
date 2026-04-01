@@ -10,13 +10,15 @@ import { RPC_URL } from "./config.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- Base folder for all JSON metadata ---
-// Individual collections will use subfolders: VKIN, VQLE, SCIONS
-export const METADATA_JSON_DIR = path.join(__dirname, "metadata-cache", "json");
-export const METADATA_IMAGES_DIR = path.join(__dirname, "metadata-cache", "images");
+const BASE_DATA_DIR = process.env.RENDER
+  ? "/backend/data"
+  : __dirname;
 
-export const MAPPING_FILE = path.join(__dirname, "mapping.csv");
-export const REVEAL_DIR = path.join(__dirname, "reveals");
+export const METADATA_JSON_DIR = path.join(BASE_DATA_DIR, "metadata-cache", "json");
+export const METADATA_IMAGES_DIR = path.join(BASE_DATA_DIR, "metadata-cache", "images");
+
+export const MAPPING_FILE = path.join(BASE_DATA_DIR, "mapping.csv");
+export const REVEAL_DIR = path.join(BASE_DATA_DIR, "reveals");
 
 export const VKIN_ABI = VKIN_ABI_JSON;
 export const VQLE_ABI = VQLE_ABI_JSON;
@@ -24,7 +26,20 @@ export const SCIONS_ABI = SCIONS_ABI_JSON;
 
 export { RPC_URL };
 
-// --- Load mapping CSV for VKIN/VQLE tokenId -> { token_uri, image_file } ---
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log("📁 Created directory:", dir);
+  }
+}
+
+export function ensureDataPaths() {
+  ensureDir(BASE_DATA_DIR);
+  ensureDir(METADATA_JSON_DIR);
+  ensureDir(METADATA_IMAGES_DIR);
+  ensureDir(REVEAL_DIR);
+}
+
 export function loadMapping() {
   if (!fs.existsSync(MAPPING_FILE)) {
     console.warn("mapping.csv not found → empty mapping");
@@ -42,10 +57,10 @@ export function loadMapping() {
 
   for (const r of records) {
     const collection = r.collection?.toUpperCase();
-    const tokenId = String(r.token_id); // string key!
+    const tokenId = String(r.token_id);
 
     if (!collection || !tokenId) {
-      console.warn(`Invalid CSV row skipped:`, r);
+      console.warn("Invalid CSV row skipped:", r);
       continue;
     }
 
@@ -53,10 +68,12 @@ export function loadMapping() {
 
     map[collection][tokenId] = {
       token_uri: r.token_uri?.trim(),
-      image_file: r.image_file?.trim() || (r.token_uri ? r.token_uri.replace(/\.json$/i, ".png") : `${tokenId}.png`),
+      image_file:
+        r.image_file?.trim() ||
+        (r.token_uri
+          ? r.token_uri.replace(/\.json$/i, ".png")
+          : `${tokenId}.png`),
     };
-
-    console.log(`Loaded: ${collection} #${tokenId} → ${map[collection][tokenId].token_uri}`);
   }
 
   return map;

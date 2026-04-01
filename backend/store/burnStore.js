@@ -1,17 +1,29 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { withLock } from "../utils/mutex.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const FILE = path.join(__dirname, "burnTotal.json");
+const DATA_DIR = "/backend/data/store";
+const FILE = path.join(DATA_DIR, "burnTotal.json");
+
+function ensureDir() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
 
 export function readBurnTotal() {
   try {
     if (!fs.existsSync(FILE)) return 0n;
-    const data = JSON.parse(fs.readFileSync(FILE, "utf8"));
-    return BigInt(data.totalBurnWei);
+
+    const raw = fs.readFileSync(FILE, "utf8");
+    if (!raw) return 0n;
+
+    const data = JSON.parse(raw);
+    return BigInt(data?.totalBurnWei || "0");
   } catch (err) {
     console.error("readBurnTotal error:", err);
     return 0n;
@@ -19,8 +31,51 @@ export function readBurnTotal() {
 }
 
 export function writeBurnTotal(totalWei) {
-  fs.writeFileSync(
-    FILE,
-    JSON.stringify({ totalBurnWei: totalWei.toString() }, null, 2)
-  );
+  try {
+    ensureDir();
+
+    const tempFile = FILE + ".tmp";
+
+    fs.writeFileSync(
+      tempFile,
+      JSON.stringify({ totalBurnWei: totalWei.toString() }, null, 2),
+      "utf8"
+    );
+
+    fs.renameSync(tempFile, FILE);
+  } catch (err) {
+    console.error("writeBurnTotal error:", err);
+    throw err;
+  }
+}
+
+/**
+ * Safely read burn total under lock
+ */
+export async function readBurnTotalLocked() {
+  return withLock(async () => {
+    return readBurnTotal();
+  });
+}
+
+/**
+ * Safely overwrite burn total under lock
+ */
+export async function writeBurnTotalLocked(totalWei) {
+  return withLock(async () => {
+    writeBurnTotal(totalWei);
+    return totalWei;
+  });
+}
+
+/**
+ * Safely add to burn total under lock
+ */
+export async function addBurnTotal(amountWei) {
+  return withLock(async () => {
+    const current = readBurnTotal();
+    const updated = current + BigInt(amountWei);
+    writeBurnTotal(updated);
+    return updated;
+  });
 }

@@ -5,7 +5,9 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const CACHE_DIR = path.join(__dirname, "..", "cache");
+const CACHE_DIR = process.env.RENDER
+  ? "/backend/data/cache"
+  : path.join(__dirname, "..", "cache");
 const CACHE_FILE = path.join(CACHE_DIR, "owners.json");
 
 console.log("🔥 ownerCache.js LOADED FROM:", import.meta.url);
@@ -13,7 +15,10 @@ console.log("🔥 ownerCache.js LOADED FROM:", import.meta.url);
 function ensureCacheDir() {
   if (!fs.existsSync(CACHE_DIR)) {
     fs.mkdirSync(CACHE_DIR, { recursive: true });
-    console.log("📁 Created cache directory:", CACHE_DIR);
+  }
+
+  if (!fs.existsSync(CACHE_FILE)) {
+    fs.writeFileSync(CACHE_FILE, "{}", "utf8");
   }
 }
 
@@ -56,6 +61,8 @@ export function writeOwnerCache(cache) {
       normalizedCache[lowerWallet] = cache[wallet];
     }
 
+    console.log("💾 Writing cache to:", CACHE_FILE);
+
     fs.writeFileSync(CACHE_FILE, JSON.stringify(normalizedCache, null, 2), "utf8");
     console.log(`💾 Owner cache written (${Object.keys(normalizedCache).length} wallets, all lowercase)`);
   } catch (err) {
@@ -64,19 +71,21 @@ export function writeOwnerCache(cache) {
 }
 
 /**
- * Delete a specific cache key (e.g. vkin_owned_0xabc...)
+ * Delete cached ownership data for a wallet address
  */
-export function deleteCache(key) {
+export function deleteCache(wallet) {
   if (!fs.existsSync(CACHE_FILE)) return;
 
   try {
-    const cache = readOwnerCache(); // load current
+    const cache = readOwnerCache();
+    const key = wallet.toLowerCase();
+
     if (cache[key]) {
       delete cache[key];
       writeOwnerCache(cache);
-      console.log(`Cache key deleted: ${key}`);
+      console.log(`🗑️ Cache deleted for wallet: ${key}`);
     }
   } catch (err) {
-    console.error("Failed to delete cache key:", key, err.message);
+    console.error("Failed to delete cache for wallet:", wallet, err.message);
   }
 }

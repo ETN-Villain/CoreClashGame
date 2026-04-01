@@ -34,27 +34,22 @@ import {
     const from = args?.from?.toLowerCase();
     const to = args?.to?.toLowerCase();
 
-    let prefix = null;
+const isTrackedCollection =
+  contractAddr === VKIN_CONTRACT_ADDRESS.toLowerCase() ||
+  contractAddr === VQLE_CONTRACT_ADDRESS.toLowerCase() ||
+  contractAddr === SCIONS_CONTRACT_ADDRESS.toLowerCase();
 
-    if (contractAddr === VKIN_CONTRACT_ADDRESS.toLowerCase()) {
-      prefix = "vkin_owned_";
-    } else if (contractAddr === VQLE_CONTRACT_ADDRESS.toLowerCase()) {
-      prefix = "vqle_owned_";
-    } else if (contractAddr === SCIONS_CONTRACT_ADDRESS.toLowerCase()) {
-      prefix = "scions_owned_";
-    }
+if (isTrackedCollection) {
+  if (from && from !== ethers.ZeroAddress.toLowerCase()) {
+    deleteCache(from);
+    console.log(`♻️ Cache invalidated for ${from}`);
+  }
 
-    if (prefix) {
-      if (from && from !== ethers.ZeroAddress) {
-        deleteCache(prefix + from);
-        console.log(`♻️ Cache invalidated for ${from}`);
-      }
-
-      if (to && to !== ethers.ZeroAddress) {
-        deleteCache(prefix + to);
-        console.log(`♻️ Cache invalidated for ${to}`);
-      }
-    }
+  if (to && to !== ethers.ZeroAddress.toLowerCase()) {
+    deleteCache(to);
+    console.log(`♻️ Cache invalidated for ${to}`);
+  }
+}
 
     return; // Transfer handled, nothing else to do
   }
