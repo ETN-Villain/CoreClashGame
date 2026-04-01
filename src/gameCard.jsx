@@ -164,6 +164,18 @@ const playerWinnings = ethers.formatUnits(playerWinningsWei, 18);
 const hasStakeAmount = stakeAmount !== undefined && stakeAmount !== null && stakeAmount !== "";
 const displayStake = hasStakeAmount ? Number(stakeAmount) : null;
 
+const formatTokenAmount = (value) => {
+  if (value === null || value === undefined) return "0";
+
+  const n = Number(value);
+
+  if (Number.isNaN(n)) return "0";
+
+  return Number.isInteger(n)
+    ? n.toLocaleString()
+    : Number(n.toFixed(2)).toLocaleString();
+};
+
 /* ----- Deadline Calculation ----- */
 const revealDeadlinePassed =
   g.player2JoinedAt &&
@@ -618,8 +630,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontWeight: "bold", color: "#ff5555", marginBottom: 8, textAlign: "left" }}>🟥 Player 1 Team: {g.player1 ? `0x...${g.player1.slice(-5)}` : "—"}</div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {displayStake !== null ? Number(displayStake).toFixed(2) : "Loading..."} $CORE
-      </div>
+        Stake: {displayStake !== null ? (() => {const n = Number(displayStake); return Number.isInteger(n) ? n : n.toFixed(2);})() : "Loading..."} $CORE </div>
 <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
   {renderTokenImages(g.player1Reveal, winnerIsPlayer1)}
 </div>
@@ -656,8 +667,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
           <div>
             <div style={{ fontWeight: "bold", color: "#4da3ff", marginBottom: 8, textAlign: "left" }}>🟦 Player 2 Team: {g.player2 ? `0x...${g.player2.slice(-5)}` : "—"}</div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {displayStake !== null ? Number(displayStake).toFixed(2) : "Loading..."} $CORE
-      </div>
+        Stake: {displayStake !== null ? (() => {const n = Number(displayStake); return Number.isInteger(n) ? n : n.toFixed(2);})() : "Loading..."} $CORE </div>
 <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
   {renderTokenImages(g.player2Reveal, winnerIsPlayer2)}
 </div>
@@ -720,7 +730,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
 
   {/* Player Winnings */}
   <div style={{ fontSize: 28, fontWeight: "bold", color: "#0f0", marginBottom: 4 }}>
-    Winnings: {playerWinnings} $CORE
+    Winnings: {formatTokenAmount(playerWinnings)} $CORE  
   </div>
 
   {/* Core Burn */}
