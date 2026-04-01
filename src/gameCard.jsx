@@ -725,7 +725,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
   
   {/* Total Pot */}
   <div style={{ fontSize: 14, marginBottom: 4 }}>
-    Total Pot: {totalPot} $CORE
+    Total Pot: {formatTokenAmount(totalPot)} $CORE
   </div>
 
   {/* Player Winnings */}
@@ -735,7 +735,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
 
   {/* Core Burn */}
   <div style={{ fontSize: 16, color: "#f50", display: "flex", justifyContent: "center", alignItems: "center" }}>
-    🔥 Core Burn: {burnAmount} $CORE 🔥
+    🔥 Core Burn: {formatTokenAmount(burnAmount)} $CORE 🔥
   </div>
 </div>
 )}
