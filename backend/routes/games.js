@@ -900,30 +900,35 @@ router.post("/:id/settle-game", async (req, res) => {
     const txSettle = await adminContract.settleGame(gameId);
     await txSettle.wait(1);
 
+let finalSettledAt = null;
+
     // Persist settled state
-    await withLock(async () => {
-      const games = readGames();
-      const game = games.find((g) => g.id === gameId);
+await withLock(async () => {
+  const games = readGames();
+  const game = games.find((g) => g.id === gameId);
 
-      if (!game) {
-        res.status(404).json({ error: "Game not found after settle tx confirmation" });
-        return;
-      }
+  if (!game) {
+    res.status(404).json({ error: "Game not found after settle tx confirmation" });
+    return;
+  }
 
-      if (!game.settled) {
-        game.settled = true;
-        game.settleTxHash = txSettle.hash;
-        game.settledAt = new Date().toISOString();
-        game.settlementState = "settled";
-        writeGames(games);
-      }
-    });
+  if (!game.settled) {
+    finalSettledAt = new Date().toISOString();
+    game.settled = true;
+    game.settleTxHash = txSettle.hash;
+    game.settledAt = finalSettledAt;
+    game.settlementState = "settled";
+    writeGames(games);
+  } else {
+    finalSettledAt = game.settledAt || new Date().toISOString();
+  }
+});
 
-    if (res.headersSent) return;
+if (res.headersSent) return;
 
-    await rebuildWeeklyLeaderboardForDate(game.settledAt);
+await rebuildWeeklyLeaderboardForDate(finalSettledAt);
 
-    return res.json({ success: true, gameId, txHash: txSettle.hash });
+return res.json({ success: true, gameId, txHash: txSettle.hash });
   } catch (err) {
     console.error("manual settle-game error:", err);
     return res.status(500).json({ error: err.message || "Failed to settle game" });
