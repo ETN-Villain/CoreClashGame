@@ -83,7 +83,6 @@ export default function GameCard({
 }) {
   const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
   const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
-  const isPlayer =  g.player1?.toLowerCase() === account.toLowerCase() || g.player2?.toLowerCase() === account.toLowerCase();
 
 const backupExists = (() => {
   if (!account || !g?.id) return false;
@@ -94,13 +93,6 @@ const backupExists = (() => {
   const tokenIds = localStorage.getItem(`${prefix}_tokenIds`);
   return !!salt && !!nftContracts && !!tokenIds;
 })();
-
-const hasStakeAmount =
-  stakeAmount !== undefined &&
-  stakeAmount !== null &&
-  stakeAmount !== "";
-
-const displayStake = hasStakeAmount ? Number(stakeAmount) : null;
 
   // ---------- Game Status Logic ----------
 function getGameStatus(g) {
@@ -169,6 +161,8 @@ const stakeAmount = ethers.formatUnits(stakeWei, 18);
 const totalPot = ethers.formatUnits(totalPotWei, 18);
 const burnAmount = ethers.formatUnits(burnWei, 18);
 const playerWinnings = ethers.formatUnits(playerWinningsWei, 18);
+const hasStakeAmount = stakeAmount !== undefined && stakeAmount !== null && stakeAmount !== "";
+const displayStake = hasStakeAmount ? Number(stakeAmount) : null;
 
 /* ----- Deadline Calculation ----- */
 const revealDeadlinePassed =
