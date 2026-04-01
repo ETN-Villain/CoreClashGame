@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { withLock } from "./mutex.js";
 
-const DATA_DIR = process.env.RENDER
+const DATA_DIR = fs.existsSync("/backend/data")
   ? "/backend/data/state"
   : path.join(process.cwd(), "state");
 
