@@ -95,6 +95,13 @@ const backupExists = (() => {
   return !!salt && !!nftContracts && !!tokenIds;
 })();
 
+const hasStakeAmount =
+  stakeAmount !== undefined &&
+  stakeAmount !== null &&
+  stakeAmount !== "";
+
+const displayStake = hasStakeAmount ? Number(stakeAmount) : null;
+
   // ---------- Game Status Logic ----------
 function getGameStatus(g) {
   if (g.cancelled) {
@@ -188,8 +195,10 @@ const canJoin =
   const status = getGameStatus(g);
   const BadgeWrapper = status.link ? "a" : "div";
 
-  /* ---------------- Reveal File Re-download Handler ---------------- */
-  const getRevealBackup = (account, gameId) => {
+/* ---------------- Reveal File Re-download Handler ---------------- */
+const getRevealBackup = (account, gameId) => {
+  if (!account || !gameId) return null;
+
   const prefix = `${account.toLowerCase()}_${gameId}`;
 
   const salt = localStorage.getItem(`${prefix}_salt`);
@@ -205,8 +214,26 @@ const canJoin =
   };
 };
 
-const handleDownloadReveal = (gameId) => {
-  const backup = getRevealBackup(account, gameId);
+const canDownloadRevealBackup = (game, account) => {
+  if (!game || !account) return false;
+
+  const wallet = account.toLowerCase();
+  const p1 = game.player1?.toLowerCase();
+  const p2 = game.player2?.toLowerCase();
+
+  const isPlayer = wallet === p1 || wallet === p2;
+  const allowedStatus = game.status === "open" || game.status === "active";
+
+  return isPlayer && allowedStatus;
+};
+
+const handleDownloadReveal = (game) => {
+  if (!canDownloadRevealBackup(game, account)) {
+    alert("You can only download the reveal backup for your own open or active games.");
+    return;
+  }
+
+  const backup = getRevealBackup(account, game.id);
 
   if (!backup) {
     alert("No reveal backup found for this game.");
@@ -214,7 +241,7 @@ const handleDownloadReveal = (gameId) => {
   }
 
   downloadRevealBackup({
-    gameId,
+    gameId: game.id,
     player: account.toLowerCase(),
     salt: backup.salt,
     nftContracts: backup.nftContracts,
@@ -358,10 +385,9 @@ const renderTokenImages = (input = []) => {
     </div>
 
 <div style={{ fontSize: 14, marginTop: 6, opacity: isCancelled ? 0.6 : 1 }}>
-  Stake:{" "}
-{stakeAmount ? Number(stakeAmount) : 0}
-</div>
-  </>
+  Stake: {displayStake !== null ? displayStake : "Loading..."} $CORE
+</div>  
+</>
 )}
 
 {/* Cancel Button – only for unjoined games */}
@@ -415,16 +441,16 @@ const renderTokenImages = (input = []) => {
         </div>
       )}
 
-{isPlayer && backupExists && (
+{canDownloadRevealBackup(g, account) && backupExists && (
   <button
-    onClick={() => handleDownloadReveal(g.id)}
+    onClick={() => handleDownloadReveal(g)}
     style={{
       marginTop: "8px",
-      padding: "6px 10px",
+      padding: "6px 12px",
       background: "#444",
       color: "#fff",
       border: "none",
-      borderRadius: "6px",
+      borderRadius: 4,
       cursor: "pointer"
     }}
   >
@@ -517,7 +543,7 @@ const renderTokenImages = (input = []) => {
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontWeight: "bold", color: "#ff5555", marginBottom: 8, textAlign: "left" }}>🟥 Player 1 Team: {g.player1 ? `0x...${g.player1.slice(-5)}` : "—"}</div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {Number(stakeAmount).toFixed(2)}
+        Stake: {Number(displayStake !== null ? displayStake : "Loading...").toFixed(2)}
       </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>{renderTokenImages(g.player1Reveal)}</div>
           </div>
@@ -553,7 +579,7 @@ const renderTokenImages = (input = []) => {
           <div>
             <div style={{ fontWeight: "bold", color: "#4da3ff", marginBottom: 8, textAlign: "left" }}>🟦 Player 2 Team: {g.player2 ? `0x...${g.player2.slice(-5)}` : "—"}</div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {Number(stakeAmount).toFixed(2)}
+        Stake: {Number(displayStake !== null ? displayStake : "Loading...").toFixed(2)}
       </div>
             <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>{renderTokenImages(g.player2Reveal)}</div>
           </div>
