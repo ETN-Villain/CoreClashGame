@@ -845,8 +845,8 @@ const commit = ethers.solidityPackedKeccak256(
 
     // 3️⃣ Approve tokens using liveSigner
     const erc20 = new ethers.Contract(stakeToken, ERC20ABI, liveSigner);
-    const stakeWei = ethers.parseUnits(stakeAmount, 18);
 
+    const stakeWei = ethers.parseUnits(stakeAmount, 18);
     const allowance = await erc20.allowance(liveAccount, GAME_ADDRESS);
     if (allowance < stakeWei) {
       console.log("Approving tokens...");
@@ -865,17 +865,29 @@ const gameOnChain = await contractRead.games(numericGameId);
       throw new Error("On-chain player mismatch");
     }
 
-    // 5️⃣ Update backend
-    await fetch(`${BACKEND_URL}/games/${numericGameId}/join`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ player2: gameOnChain.player2 }),
-    });
+// 5️⃣ Update backend
+const joinRes = await fetch(`${BACKEND_URL}/games/${numericGameId}/join`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ player2: gameOnChain.player2 }),
+});
 
-// ✅ Trigger auto-reveal immediately
+if (!joinRes.ok) {
+  const errText = await joinRes.text();
+  throw new Error(`Backend join failed: ${errText}`);
+}
+
+// Re-fetch fresh backend game state after join is persisted
+const refreshedGameRes = await fetch(`${BACKEND_URL}/games/${numericGameId}`);
+if (!refreshedGameRes.ok) {
+  throw new Error("Failed to fetch refreshed game after join");
+}
+const refreshedGameData = await refreshedGameRes.json();
+
+// ✅ Trigger auto-reveal with fresh backend state
 await autoRevealIfPossible({
-  ...gameData,       // your backend game data
-  id: numericGameId, // ensure it has an "id" property
+  ...refreshedGameData,
+  id: numericGameId,
 });
 
     alert(`Joined game #${numericGameId} successfully!`);
@@ -971,23 +983,35 @@ const autoRevealIfPossible = useCallback(
 
       await tx.wait();
 
-      // ✅ 2️⃣ Backend AFTER success
-      await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          player: accountLower,
-          salt: salt.toString(),
-          nftContracts,
-          tokenIds: tokenIds.map(t => t.toString()),
-        }),
-      });
+// ✅ 2️⃣ Backend AFTER success
+const revealRes = await fetch(`${BACKEND_URL}/games/${g.id}/reveal`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-wallet": accountLower, // explicit auth (safe + clear)
+  },
+  body: JSON.stringify({
+    player: accountLower,
+    salt: salt.toString(),
+    nftContracts,
+    tokenIds: tokenIds.map((t) => t.toString()),
+  }),
+});
 
-      console.log("Auto-reveal completed", g.id);
+const revealJson = await revealRes.json().catch(() => ({}));
+
+console.log("🔍 Reveal response:", revealRes.status, revealJson);
+
+if (!revealRes.ok) {
+  throw new Error(
+    revealJson.error || `Reveal failed (${revealRes.status})`
+  );
+}
+
+console.log("Auto-reveal completed", g.id, revealJson);
 
       await triggerBackendComputeIfNeeded(g.id);
       await loadGames();
-
     } catch (err) {
       console.error("Auto-reveal failed:", err);
     }
