@@ -28,7 +28,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3001;
 
-const weeklyFilePath = process.env.RENDER
+const weeklyFilePath = fs.existsSync("/backend/data")
   ? "/backend/data/weeklyLeaderboards.json"
   : path.join(__dirname, "store", "weeklyLeaderboards.json");
 

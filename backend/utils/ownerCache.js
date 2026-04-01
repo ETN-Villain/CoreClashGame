@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const CACHE_DIR = process.env.RENDER
+const CACHE_DIR = fs.existsSync("/backend/data")
   ? "/backend/data/cache"
   : path.join(__dirname, "..", "cache");
 const CACHE_FILE = path.join(CACHE_DIR, "owners.json");

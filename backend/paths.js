@@ -10,7 +10,7 @@ import { RPC_URL } from "./config.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BASE_DATA_DIR = process.env.RENDER
+const BASE_DATA_DIR = fs.existsSync("/backend/data")
   ? "/backend/data"
   : __dirname;
 
