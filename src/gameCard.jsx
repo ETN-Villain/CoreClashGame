@@ -618,7 +618,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontWeight: "bold", color: "#ff5555", marginBottom: 8, textAlign: "left" }}>🟥 Player 1 Team: {g.player1 ? `0x...${g.player1.slice(-5)}` : "—"}</div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {Number(displayStake !== null ? displayStake : "Loading...").toFixed(2)} $CORE
+        Stake: {displayStake !== null ? Number(displayStake).toFixed(2) : "Loading..."} $CORE
       </div>
 <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
   {renderTokenImages(g.player1Reveal, winnerIsPlayer1)}
@@ -656,7 +656,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
           <div>
             <div style={{ fontWeight: "bold", color: "#4da3ff", marginBottom: 8, textAlign: "left" }}>🟦 Player 2 Team: {g.player2 ? `0x...${g.player2.slice(-5)}` : "—"}</div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {Number(displayStake !== null ? displayStake : "Loading...").toFixed(2)} $CORE
+        Stake: {displayStake !== null ? Number(displayStake).toFixed(2) : "Loading..."} $CORE
       </div>
 <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
   {renderTokenImages(g.player2Reveal, winnerIsPlayer2)}
