@@ -189,6 +189,18 @@ const canJoin =
   const status = getGameStatus(g);
   const BadgeWrapper = status.link ? "a" : "div";
 
+const winnerIsPlayer1 =
+  isSettled &&
+  winnerAddress &&
+  g.player1 &&
+  winnerAddress.toLowerCase() === g.player1.toLowerCase();
+
+const winnerIsPlayer2 =
+  isSettled &&
+  winnerAddress &&
+  g.player2 &&
+  winnerAddress.toLowerCase() === g.player2.toLowerCase();
+
 /* ---------------- Reveal File Re-download Handler ---------------- */
 const getRevealBackup = (account, gameId) => {
   if (!account || !gameId) return null;
@@ -244,7 +256,7 @@ const handleDownloadReveal = (game) => {
 };
 
 /* ---------------- Render Token Images ---------------- */
-const renderTokenImages = (input = []) => {
+const renderTokenImages = (input = [], isWinningTeam = false) => {
   let tokens = [];
 
   if (Array.isArray(input)) {
@@ -297,11 +309,80 @@ const renderTokenImages = (input = []) => {
         const src = `${BACKEND_URL}/images/${collection}/${imageFile}`;
 
         return (
-          <StableImage
+          <div
             key={`${collection}-${tokenId || i}-${i}`}
-            src={src}
-            alt={`${collection} #${tokenId || "?"}`}
-          />
+            style={{
+              position: "relative",
+              borderRadius: 14,
+              padding: isWinningTeam ? 3 : 0,
+              background: isWinningTeam
+                ? "linear-gradient(135deg, #ffd700, #fff4a3, #ffcf40, #fff8cc, #ffd700)"
+                : "transparent",
+              boxShadow: isWinningTeam
+                ? "0 0 8px rgba(255,215,0,0.7), 0 0 16px rgba(255,215,0,0.5), 0 0 24px rgba(255,215,0,0.3)"
+                : "none",
+              animation: isWinningTeam ? "winnerGlowPulse 1.8s ease-in-out infinite" : "none",
+            }}
+          >
+            {isWinningTeam && (
+              <>
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -6,
+                    left: -4,
+                    fontSize: 11,
+                    color: "#fff6b0",
+                    textShadow: "0 0 6px #ffd700, 0 0 10px #fff6b0",
+                    pointerEvents: "none",
+                    animation: "winnerSparkle 1.5s ease-in-out infinite",
+                  }}
+                >
+                  ✨
+                </span>
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    right: -5,
+                    fontSize: 10,
+                    color: "#fff6b0",
+                    textShadow: "0 0 6px #ffd700, 0 0 10px #fff6b0",
+                    pointerEvents: "none",
+                    animation: "winnerSparkle 1.7s ease-in-out infinite 0.35s",
+                  }}
+                >
+                  ✦
+                </span>
+                <span
+                  style={{
+                    position: "absolute",
+                    bottom: -4,
+                    left: 10,
+                    fontSize: 10,
+                    color: "#fffbe0",
+                    textShadow: "0 0 6px #ffd700, 0 0 10px #fff6b0",
+                    pointerEvents: "none",
+                    animation: "winnerSparkle 1.9s ease-in-out infinite 0.7s",
+                  }}
+                >
+                  ✨
+                </span>
+              </>
+            )}
+
+            <div
+              style={{
+                borderRadius: 12,
+                overflow: "hidden",
+              }}
+            >
+              <StableImage
+                src={src}
+                alt={`${collection} #${tokenId || "?"}`}
+              />
+            </div>
+          </div>
         );
       })}
     </div>
@@ -537,9 +618,11 @@ const renderTokenImages = (input = []) => {
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontWeight: "bold", color: "#ff5555", marginBottom: 8, textAlign: "left" }}>🟥 Player 1 Team: {g.player1 ? `0x...${g.player1.slice(-5)}` : "—"}</div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {Number(displayStake !== null ? displayStake : "Loading...").toFixed(2)}
+        Stake: {Number(displayStake !== null ? displayStake : "Loading...").toFixed(2)} $CORE
       </div>
-            <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>{renderTokenImages(g.player1Reveal)}</div>
+<div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
+  {renderTokenImages(g.player1Reveal, winnerIsPlayer1)}
+</div>
           </div>
 
           {/* Round Results */}
@@ -573,9 +656,11 @@ const renderTokenImages = (input = []) => {
           <div>
             <div style={{ fontWeight: "bold", color: "#4da3ff", marginBottom: 8, textAlign: "left" }}>🟦 Player 2 Team: {g.player2 ? `0x...${g.player2.slice(-5)}` : "—"}</div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {Number(displayStake !== null ? displayStake : "Loading...").toFixed(2)}
+        Stake: {Number(displayStake !== null ? displayStake : "Loading...").toFixed(2)} $CORE
       </div>
-            <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>{renderTokenImages(g.player2Reveal)}</div>
+<div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
+  {renderTokenImages(g.player2Reveal, winnerIsPlayer2)}
+</div>
           </div>
         </div>
       )}
