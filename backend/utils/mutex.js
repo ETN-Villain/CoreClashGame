@@ -3,7 +3,7 @@ const queue = [];
 
 export async function withLock(fn) {
   if (locked) {
-    await new Promise(resolve => queue.push(resolve));
+    await new Promise((resolve) => queue.push(resolve));
   }
 
   locked = true;
@@ -11,10 +11,12 @@ export async function withLock(fn) {
   try {
     return await fn();
   } finally {
-    locked = false;
-    if (queue.length > 0) {
-      const next = queue.shift();
-      next();
+    const next = queue.shift();
+
+    if (next) {
+      next(); // hand off to next waiter
+    } else {
+      locked = false;
     }
   }
 }

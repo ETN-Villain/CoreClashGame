@@ -3,47 +3,56 @@ import cors from "cors";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { readOwnerCache, writeOwnerCache } from "./utils/ownerCache.js";
+
 import { initAdminWallet } from "./admin.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-//import { generateMapping } from "./utils/generateMapping.js";
-import { loadMapping, METADATA_JSON_DIR } from "./paths.js";
+import {
+  loadMapping,
+  METADATA_JSON_DIR,
+  METADATA_IMAGES_DIR,
+  ensureDataPaths,
+} from "./paths.js";
+import { readGames } from "./store/gamesStore.js";
+import { readBurnTotal } from "./store/burnStore.js";
 
 import gamesRouter from "./routes/games.js";
 import sseRouter from "./routes/sse.js";
 import nftsRouter from "./routes/nfts.js";
 import leaderboardRouter from "./routes/leaderboard.js";
+
 import { reconcileActiveGamesScheduled } from "./reconcile.js";
 import "./eventListener.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
-const GAMES_FILE = path.join(__dirname, "games", "games.json");
-const weeklyFilePath = path.join(__dirname, "store", "weeklyLeaderboards.json");
+const PORT = 3001;
+
+const weeklyFilePath = process.env.RENDER
+  ? "/backend/data/weeklyLeaderboards.json"
+  : path.join(__dirname, "store", "weeklyLeaderboards.json");
 
 // ---------------- MIDDLEWARE ----------------
 app.use(cors({
   origin: [
-    "https://coreclash.planetzephyros.xyz",   // ← your main production domain
-    "https://planetzephyros.xyz",             // ← add root domain if you use it
-    "https://coreclashgame.vercel.app",       // ← you can keep this temporarily
+    "https://coreclash.planetzephyros.xyz",
+    "https://planetzephyros.xyz",
+    "https://coreclashgame.vercel.app",
     "http://localhost:3000",
     "http://localhost:5173",
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  preflightContinue: false,     // ensures proper handling
-  optionsSuccessStatus: 204     // some browsers prefer 204 for OPTIONS
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
 }));
 
-// Handle preflight OPTIONS requests (this is good to keep)
-app.options('*', cors());
-
-// Other middleware
+app.options("*", cors());
 app.use(express.json());
+
+// ---------------- STATIC ----------------
+app.use("/images", express.static(METADATA_IMAGES_DIR));
 
 // ---------------- ROUTES ----------------
 app.use("/games", gamesRouter);
@@ -53,150 +62,117 @@ app.use("/nfts", nftsRouter);
 
 // ---------------- METADATA ----------------
 app.get("/metadata/:collection/:tokenId", (req, res) => {
-  const { collection, tokenId } = req.params;
-  const mapping = loadMapping(); // your load function
-
-  const mapped = mapping[collection.toUpperCase()]?.[String(tokenId)];
-  if (!mapped) {
-    return res.status(404).json({ error: "Token not found in mapping" });
-  }
-
-  // Prefer image_file if present
-  const jsonFile = mapped.token_uri || `${tokenId}.json`;
-  const imageFile = mapped.image_file || `${tokenId}.png`;
-
-  const filePath = path.join(METADATA_JSON_DIR, collection.toUpperCase(), jsonFile);
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: "Metadata file missing" });
-  }
-
-  const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
-  res.json({
-    ...data,
-    image_file: imageFile, // expose to frontend if needed
-  });
-});
-
-// ---------------- START SERVER ----------------
-//await generateMapping();
-
-const PORT = 3001;
-
-try {
-  initAdminWallet();
-} catch (err) {
-  console.error("❌ Failed to initialize admin wallet:", err.message);
-  process.exit(1); // hard fail — backend must not run without admin
-}
-
-app.listen(PORT, () => {
-  console.log(`🚀 Backend server running at https://coreclashgame.onrender.com:${PORT}`);
-});
-
-/* ---------- RECONCILE GAMES WITH CHAIN --------*/
-(async () => {
   try {
-    await reconcileActiveGamesScheduled();
-    console.log("[SERVER] Reconciliation complete");
-  } catch (err) {
-    console.error("[SERVER] Reconciliation failed", err);
-  }
-})();
-
-// ---------------- DEBUG ROUTE LOGGING ----------------
-console.log("✅ games.js router loaded");
-
-// log mounted routes AFTER registration
-setTimeout(() => {
-  console.log(
-    app._router.stack
-      .filter(r => r.route)
-      .map(
-        r =>
-          Object.keys(r.route.methods)[0].toUpperCase() +
-          " " +
-          r.route.path
-      )
-  );
-}, 0);
-
-// ---------------- ROUTES ----------------
-console.log("✅ games.js router loaded");
-console.log(
-  app._router.stack
-    .filter(r => r.route)
-    .map(r => Object.keys(r.route.methods)[0].toUpperCase() + " " + r.route.path)
-);
-
-// POST endpoint for validation
-app.post("/games/validate", (req, res) => {
-  const { nfts } = req.body; // [{ address, tokenId }]
-  const metadata = nfts.map(({ tokenId }) => {
+    const { collection, tokenId } = req.params;
     const mapping = loadMapping();
-    const file = mapping[tokenId];
-    const data = JSON.parse(fs.readFileSync(path.join(METADATA_JSON_DIR, file)));
-    // return only needed fields
-    const traits = {};
-    data.attributes.forEach(a => {
-      traits[a.trait_type.toLowerCase()] = a.value;
+    const collectionKey = collection.toUpperCase();
+
+    const mapped = mapping[collectionKey]?.[String(tokenId)];
+    if (!mapped) {
+      return res.status(404).json({ error: "Token not found in mapping" });
+    }
+
+    const jsonFile = mapped.token_uri || `${tokenId}.json`;
+    const imageFile = mapped.image_file || `${tokenId}.png`;
+
+    const filePath = path.join(METADATA_JSON_DIR, collectionKey, jsonFile);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "Metadata file missing" });
+    }
+
+    const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+
+    return res.json({
+      ...data,
+      image_file: imageFile,
     });
-    return {
-      tokenId,
-      traits: [
-        Number(traits.attack),
-        Number(traits.defense),
-        Number(traits.vitality),
-        Number(traits.agility),
-        Number(traits.core)
-      ],
-      background: traits.background || "Unknown",
-      tokenURI: `metadata/${tokenId}`
-    };
-  });
-
-  res.json({ metadata });
-});
-
-app.use(
-  "/images",
-  express.static(
-    path.join(__dirname, "metadata-cache/images")
-  )
-);
-
-app.get("/games", (req, res) => {
-  try {
-    const raw = fs.readFileSync(GAMES_FILE, "utf8");
-    const games = JSON.parse(raw);
-    res.json(games);
   } catch (err) {
-    console.error("Failed to read games.json", err);
-    res.status(500).json({ error: "Failed to load games" });
+    console.error("Metadata route error:", err);
+    return res.status(500).json({ error: "Failed to load metadata" });
   }
 });
 
-// Endpoint to return burn total
+// ---------------- VALIDATE ----------------
+app.post("/games/validate", (req, res) => {
+  try {
+    const { nfts } = req.body;
+
+    if (!Array.isArray(nfts)) {
+      return res.status(400).json({ error: "Invalid NFTs payload" });
+    }
+
+    const mapping = loadMapping();
+
+    const metadata = nfts.map(({ address, tokenId }) => {
+      const collection =
+        address?.toLowerCase().includes("8cfbb04c") ? "VQLE" : "VKIN";
+
+      const mapped = mapping[collection]?.[String(tokenId)];
+      if (!mapped) {
+        throw new Error(`Missing mapping for ${collection} token ${tokenId}`);
+      }
+
+      const jsonFile = mapped.token_uri || `${tokenId}.json`;
+      const filePath = path.join(METADATA_JSON_DIR, collection, jsonFile);
+
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`Metadata file missing for ${collection} token ${tokenId}`);
+      }
+
+      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+
+      const traits = {};
+      for (const attr of data.attributes || []) {
+        traits[attr.trait_type.toLowerCase()] = attr.value;
+      }
+
+      return {
+        tokenId,
+        traits: [
+          Number(traits.attack),
+          Number(traits.defense),
+          Number(traits.vitality),
+          Number(traits.agility),
+          Number(traits.core),
+        ],
+        background: traits.background || "Unknown",
+        tokenURI: `metadata/${collection}/${tokenId}`,
+      };
+    });
+
+    return res.json({ metadata });
+  } catch (err) {
+    console.error("POST /games/validate error:", err);
+    return res.status(500).json({ error: err.message || "Validation failed" });
+  }
+});
+
+// ---------------- BURN TOTAL ----------------
 app.get("/burn-total", (req, res) => {
   try {
-    const total = readBurnTotal(); // should return BigInt
-    res.json({ totalBurnWei: total.toString() });
+    const total = readBurnTotal();
+    return res.json({ totalBurnWei: total.toString() });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to read burn total" });
+    console.error("Failed to read burn total:", err);
+    return res.status(500).json({ error: "Failed to read burn total" });
   }
 });
 
-console.log("Owner cache file path will be:", path.join(__dirname, "cache/owners.json"));
+// ---------------- WEEKLY LEADERBOARD HELPERS ----------------
+function ensureWeeklyLeaderboardFile() {
+  const weeklyDir = path.dirname(weeklyFilePath);
 
-// 1️⃣ Initialize file if missing
-function initializeWeeklyLeaderboard() {
+  if (!fs.existsSync(weeklyDir)) {
+    fs.mkdirSync(weeklyDir, { recursive: true });
+  }
+
   if (!fs.existsSync(weeklyFilePath)) {
     console.log("Weekly leaderboard file not found. Creating default...");
     fs.writeFileSync(weeklyFilePath, JSON.stringify({}), "utf8");
   }
 }
 
-// 2️⃣ Backfill top 3 for past weeks
 function backfillWeeklyLeaderboard(games) {
   let weeklyData = {};
 
@@ -219,50 +195,55 @@ function backfillWeeklyLeaderboard(games) {
 
     const weekDateKey = weekStart.toISOString().split("T")[0];
 
-    // skip if week already exists
     if (weeklyData[weekDateKey]) {
       current.setDate(current.getDate() + 7);
       continue;
     }
 
-    const weeklyGames = games.filter(g => {
-      const gTime = new Date(g.date).getTime();
-      return gTime >= weekStartTime &&
-             gTime < weekEndTime &&
-             g.settled &&
-             !g.cancelled;
+    const weeklyGames = games.filter((g) => {
+      const dateValue = g.settledAt || g.createdAt || g.date;
+      if (!dateValue) return false;
+
+      const gTime = new Date(dateValue).getTime();
+
+      return (
+        gTime >= weekStartTime &&
+        gTime < weekEndTime &&
+        g.settled &&
+        !g.cancelled
+      );
     });
 
     const stats = {};
 
-    weeklyGames.forEach(g => {
+    weeklyGames.forEach((g) => {
       const p1 = g.player1?.toLowerCase();
       const p2 = g.player2?.toLowerCase();
       const winner = g.winner?.toLowerCase();
 
-if (!stats[player]) {
-  stats[player] = { wins: 0, played: 0 };
-}
+      if (p1) {
+        if (!stats[p1]) stats[p1] = { wins: 0, played: 0 };
+        stats[p1].played += 1;
+      }
 
-stats[player].played = (stats[player].played || 0) + 1;
+      if (p2) {
+        if (!stats[p2]) stats[p2] = { wins: 0, played: 0 };
+        stats[p2].played += 1;
+      }
 
-if (winner && stats[winner]) {
-stats[winner].wins = (stats[winner].wins || 0) + 1;}
+      if (winner && stats[winner]) {
+        stats[winner].wins += 1;
+      }
     });
 
-Object.values(stats).forEach(s => {
-  s.wins = Number(s.wins);
-  s.played = Number(s.played);
-});
-
-const top3 = Object.entries(stats)
+    const top3 = Object.entries(stats)
       .map(([address, data]) => ({
         address,
-        wins: data.wins,
-        played: data.played,
+        wins: Number(data.wins),
+        played: Number(data.played),
         winRate: data.played
           ? Math.round((Number(data.wins) / Number(data.played)) * 100)
-          : 0
+          : 0,
       }))
       .sort((a, b) => b.wins - a.wins || b.winRate - a.winRate)
       .slice(0, 3);
@@ -277,10 +258,51 @@ const top3 = Object.entries(stats)
   fs.writeFileSync(weeklyFilePath, JSON.stringify(weeklyData, null, 2), "utf8");
 }
 
-// 3️⃣ Run on server startup
-initializeWeeklyLeaderboard();
+// ---------------- STARTUP ----------------
+try {
+  ensureDataPaths();
+  ensureWeeklyLeaderboardFile();
+  initAdminWallet();
+} catch (err) {
+  console.error("❌ Failed to initialize backend:", err.message);
+  process.exit(1);
+}
 
-// Read games once for backfill
-const allGames = JSON.parse(fs.readFileSync(GAMES_FILE, "utf8"));
+app.listen(PORT, () => {
+  console.log(`🚀 Backend server running on port ${PORT}`);
+});
 
-backfillWeeklyLeaderboard(allGames);
+// ---------------- RECONCILE ON STARTUP ----------------
+(async () => {
+  try {
+    await reconcileActiveGamesScheduled();
+    console.log("[SERVER] Reconciliation complete");
+  } catch (err) {
+    console.error("[SERVER] Reconciliation failed", err);
+  }
+})();
+
+// ---------------- WEEKLY LEADERBOARD BACKFILL ----------------
+try {
+  const allGames = readGames();
+  backfillWeeklyLeaderboard(allGames);
+  console.log("[SERVER] Weekly leaderboard backfill complete");
+} catch (err) {
+  console.error("[SERVER] Weekly leaderboard backfill failed", err);
+}
+
+// ---------------- DEBUG ROUTE LOGGING ----------------
+setTimeout(() => {
+  try {
+    const routes = app._router?.stack
+      ?.filter((r) => r.route)
+      ?.map(
+        (r) =>
+          `${Object.keys(r.route.methods)[0].toUpperCase()} ${r.route.path}`
+      );
+
+    console.log("✅ Mounted direct app routes:", routes || []);
+  } catch (err) {
+    console.error("Route logging error:", err);
+  }
+}, 0);

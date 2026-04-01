@@ -16,7 +16,7 @@ if (!fs.existsSync(STORE_FILE)) {
 }
 
 // SAVE WEEKLY
-router.post("/weekly", (req, res) => {
+router.post("/weekly", async (req, res) => {
   try {
     const { weekStart, top3 } = req.body;
 
@@ -26,41 +26,23 @@ router.post("/weekly", (req, res) => {
 
     const weekDate = new Date(weekStart).toISOString().split("T")[0];
 
-    let fileData = {};
-    if (fs.existsSync(STORE_FILE)) {
-      fileData = JSON.parse(fs.readFileSync(STORE_FILE, "utf-8"));
-    }
+    await saveWeeklyLeaderboard(weekDate, top3);
 
-    fileData[weekDate] = top3;
-
-    fs.writeFileSync(STORE_FILE, JSON.stringify(fileData, null, 2));
-
-    res.json({ message: "Weekly leaderboard saved" });
+    return res.json({ message: "Weekly leaderboard saved" });
   } catch (err) {
     console.error("Error saving weekly leaderboard:", err);
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // GET ALL WEEKS
-router.get("/weekly", (req, res) => {
+router.get("/weekly", async (req, res) => {
   try {
-    if (!fs.existsSync(STORE_FILE)) return res.json({});
-
-    const data = fs.readFileSync(STORE_FILE, "utf-8");
-    const leaderboards = JSON.parse(data);
-
-    const sortedWeeks = Object.keys(leaderboards)
-      .sort((a, b) => new Date(b) - new Date(a))
-      .reduce((acc, key) => {
-        acc[key] = leaderboards[key];
-        return acc;
-      }, {});
-
-    res.json(sortedWeeks);
+    const sortedWeeks = await getWeeklyLeaderboardsSorted();
+    return res.json(sortedWeeks);
   } catch (err) {
     console.error("Failed to read weekly leaderboards:", err);
-    res.status(500).json({ error: "Failed to read weekly leaderboards" });
+    return res.status(500).json({ error: "Failed to read weekly leaderboards" });
   }
 });
 
