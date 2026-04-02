@@ -2721,6 +2721,80 @@ onClick={createGame} // <-- THIS IS REQUIRED
     : "🏆 All-Time Top 10"}
 </h2>
 
+<div
+  style={{
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 16,
+  }}
+>
+  {/* All-Time */}
+  <button
+    type="button"
+    onClick={() => {
+      setShowWeekly(false);
+      setShowWeeklyHistory(false);
+    }}
+    style={{
+      padding: "9px 14px",
+      borderRadius: 999,
+      border: !showWeekly ? "1px solid #18bb1a" : "1px solid #333",
+      background: !showWeekly ? "rgba(24,187,26,0.14)" : "#111",
+      color: !showWeekly ? "#18bb1a" : "#ddd",
+      fontSize: 15,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: !showWeekly ? "0 0 12px rgba(24,187,26,0.18)" : "none",
+      transition: "all 0.2s ease",
+    }}
+  >
+    {!showWeekly ? "✓ " : ""}All-Time
+  </button>
+
+  {/* Weekly */}
+  <button
+    type="button"
+    onClick={() => setShowWeekly(true)}
+    style={{
+      padding: "9px 14px",
+      borderRadius: 999,
+      border: showWeekly ? "1px solid #18bb1a" : "1px solid #333",
+      background: showWeekly ? "rgba(24,187,26,0.14)" : "#111",
+      color: showWeekly ? "#18bb1a" : "#ddd",
+      fontSize: 15,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: showWeekly ? "0 0 12px rgba(24,187,26,0.18)" : "none",
+      transition: "all 0.2s ease",
+    }}
+  >
+    {showWeekly ? "✓ " : ""}Weekly
+  </button>
+
+  {/* Previous 6 Weeks */}
+  {showWeekly && (
+    <button
+      type="button"
+      onClick={() => setShowWeeklyHistory((prev) => !prev)}
+      style={{
+        padding: "9px 14px",
+        borderRadius: 999,
+        border: showWeeklyHistory ? "1px solid #4da3ff" : "1px solid #333",
+        background: showWeeklyHistory ? "rgba(77,163,255,0.14)" : "#111",
+        color: showWeeklyHistory ? "#4da3ff" : "#aaa",
+        fontSize: 15,
+        fontWeight: 700,
+        cursor: "pointer",
+        boxShadow: showWeeklyHistory ? "0 0 12px rgba(77,163,255,0.16)" : "none",
+        transition: "all 0.2s ease",
+      }}
+    >
+      {showWeeklyHistory ? "✓ " : ""}Prev 6 Weeks
+    </button>
+  )}
+</div>
+
 {renderLeaderboardCard(false)}
 {showWeekly && showWeeklyHistory && renderWeeklyHistory()}
         </div>
@@ -2808,6 +2882,80 @@ onClick={createGame} // <-- THIS IS REQUIRED
     ? `🏆 Weekly Top 3 (${weeklyHistory.week})`
     : "🏆 All-Time Top 10"}
 </h2>
+
+<div
+  style={{
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  }}
+>
+  {/* All-Time */}
+  <button
+    type="button"
+    onClick={() => {
+      setShowWeekly(false);
+      setShowWeeklyHistory(false);
+    }}
+    style={{
+      padding: "8px 12px",
+      borderRadius: 999,
+      border: !showWeekly ? "1px solid #18bb1a" : "1px solid #333",
+      background: !showWeekly ? "rgba(24,187,26,0.14)" : "#111",
+      color: !showWeekly ? "#18bb1a" : "#ddd",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: !showWeekly ? "0 0 10px rgba(24,187,26,0.18)" : "none",
+      transition: "all 0.2s ease",
+    }}
+  >
+    {!showWeekly ? "✓ " : ""}All-Time
+  </button>
+
+  {/* Weekly */}
+  <button
+    type="button"
+    onClick={() => setShowWeekly(true)}
+    style={{
+      padding: "8px 12px",
+      borderRadius: 999,
+      border: showWeekly ? "1px solid #18bb1a" : "1px solid #333",
+      background: showWeekly ? "rgba(24,187,26,0.14)" : "#111",
+      color: showWeekly ? "#18bb1a" : "#ddd",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: showWeekly ? "0 0 10px rgba(24,187,26,0.18)" : "none",
+      transition: "all 0.2s ease",
+    }}
+  >
+    {showWeekly ? "✓ " : ""}Weekly
+  </button>
+
+  {/* Previous 6 Weeks */}
+  {showWeekly && (
+    <button
+      type="button"
+      onClick={() => setShowWeeklyHistory((prev) => !prev)}
+      style={{
+        padding: "8px 12px",
+        borderRadius: 999,
+        border: showWeeklyHistory ? "1px solid #4da3ff" : "1px solid #333",
+        background: showWeeklyHistory ? "rgba(77,163,255,0.14)" : "#111",
+        color: showWeeklyHistory ? "#4da3ff" : "#aaa",
+        fontSize: 13,
+        fontWeight: 700,
+        cursor: "pointer",
+        boxShadow: showWeeklyHistory ? "0 0 10px rgba(77,163,255,0.16)" : "none",
+        transition: "all 0.2s ease",
+      }}
+    >
+      {showWeeklyHistory ? "✓ " : ""}Prev 6 Weeks
+    </button>
+  )}
+</div>
 
 {renderLeaderboardCard(true)}
 {showWeekly && showWeeklyHistory && renderWeeklyHistory()}
