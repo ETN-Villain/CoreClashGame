@@ -1499,7 +1499,135 @@ if (loading) {
   );
 }
 
-/* ---------------- MAIN APP ---------------- */
+const leaderboardRows = showWeekly ? weeklyLeaderboard : leaderboard;
+
+const sortedWeeklyArchive = Object.entries(weeklyArchive || {})
+  .filter(([_, players]) => Array.isArray(players) && players.length > 0)
+  .sort((a, b) => new Date(b[0]) - new Date(a[0]));
+
+const previousWeeklyArchive = sortedWeeklyArchive.slice(1, 6);
+
+const renderLeaderboardCard = (mobile = false) => (
+  <div
+    style={{
+      background: "#111",
+      padding: mobile ? 16 : 24,
+      borderRadius: 12,
+      border: "1px solid #333",
+      display: "flex",
+      flexDirection: "column",
+      gap: 4,
+    }}
+  >
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "2fr 1fr 1fr 1fr",
+        fontSize: mobile ? 13 : 16,
+        opacity: 0.7,
+        borderBottom: "1px solid #333",
+        paddingBottom: 6,
+        marginBottom: 6,
+      }}
+    >
+      <span>Player</span>
+      <span style={{ textAlign: "center" }}>P</span>
+      <span style={{ textAlign: "center" }}>W</span>
+      <span style={{ textAlign: "center" }}>%</span>
+    </div>
+
+    {leaderboardRows.map((entry, index) => {
+      const medalColor = ["#FFD700", "#C0C0C0", "#CD7F32"][index] || "#fff";
+      const isCurrentUser = entry.address === account?.toLowerCase();
+
+      return (
+        <div
+          key={`${entry.address}-${showWeekly ? "weekly" : "alltime"}`}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr 1fr 1fr",
+            padding: mobile ? "6px 0" : "8px 0",
+            borderBottom: "1px solid #222",
+            fontSize: mobile ? 14 : 16,
+            color: isCurrentUser ? "#4da3ff" : medalColor,
+            fontWeight: isCurrentUser ? "bold" : "normal",
+          }}
+        >
+          <span>
+            #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
+          </span>
+          <span style={{ textAlign: "center" }}>{entry.played}</span>
+          <span style={{ textAlign: "center" }}>{entry.wins}</span>
+          <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+        </div>
+      );
+    })}
+
+    {leaderboardRows.length === 0 && (
+      <div
+        style={{
+          opacity: 0.6,
+          padding: mobile ? "10px 0" : "12px 0",
+          textAlign: "center",
+        }}
+      >
+        No games to display.
+      </div>
+    )}
+  </div>
+);
+
+const renderWeeklyHistory = () =>
+  showWeekly &&
+  previousWeeklyArchive.length > 0 && (
+    <div style={{ marginTop: 20 }}>
+      <h3
+        style={{
+          color: "#aaa",
+          fontSize: 16,
+          marginBottom: 10,
+        }}
+      >
+        Previous Weeks
+      </h3>
+
+      {previousWeeklyArchive.map(([week, players]) => (
+        <div
+          key={week}
+          style={{
+            background: "#0d0d0d",
+            border: "1px solid #222",
+            borderRadius: 8,
+            padding: 12,
+            marginBottom: 10,
+          }}
+        >
+          <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 6 }}>
+            Week of {week}
+          </div>
+
+          {players.map((p, i) => (
+            <div
+              key={`${week}-${p.address}`}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 14,
+                padding: "2px 0",
+              }}
+            >
+              <span>
+                #{i + 1} — {p.address.slice(0, 6)}…{p.address.slice(-4)}
+              </span>
+              <span>{p.wins}W / {p.played}P</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+
+  /* ---------------- MAIN APP ---------------- */
 return (
 <div
   style={{
@@ -2508,7 +2636,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
         </div>
       )}
 
-      {/* ---------------- LEADERBOARD SECTION ---------------- */}
+     {/* ---------------- LEADERBOARD SECTION ---------------- */}
       {!isMobile && (
         <div style={{ marginBottom: 30 }}>
           <div
@@ -2549,7 +2677,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
           </h2>
 
           {renderLeaderboardCard(false)}
-          {weeklyHistory()}
+          {renderWeeklyHistory()}
         </div>
       )}
 
