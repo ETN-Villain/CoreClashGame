@@ -2549,7 +2549,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
           </h2>
 
           {renderLeaderboardCard(false)}
-          {renderWeeklyHistory()}
+          {weeklyHistory()}
         </div>
       )}
 
