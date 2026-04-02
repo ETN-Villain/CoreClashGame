@@ -1263,6 +1263,7 @@ const archivedSettled = sortedSettledGames.slice(10);
 
 /* ---------------- LEADERBOARD ---------------- */
 const [showWeekly, setShowWeekly] = useState(false);
+const [showWeeklyHistory, setShowWeeklyHistory] = useState(false);
 
 const leaderboard = useMemo(() => {
   const stats = {};
@@ -1505,7 +1506,7 @@ const sortedWeeklyArchive = Object.entries(weeklyArchive || {})
   .filter(([_, players]) => Array.isArray(players) && players.length > 0)
   .sort((a, b) => new Date(b[0]) - new Date(a[0]));
 
-const previousWeeklyArchive = sortedWeeklyArchive.slice(1, 6);
+const previousWeeklyArchive = sortedWeeklyArchive.slice(1, 7);
 
 const renderLeaderboardCard = (mobile = false) => (
   <div
@@ -2638,28 +2639,54 @@ onClick={createGame} // <-- THIS IS REQUIRED
 
      {/* ---------------- LEADERBOARD SECTION ---------------- */}
       {!isMobile && (
-        <div style={{ marginBottom: 30 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              marginBottom: 12,
-            }}
-          >
-            <input
-              type="checkbox"
-              id="weeklyToggleDesktop"
-              checked={showWeekly}
-              onChange={(e) => setShowWeekly(e.target.checked)}
-            />
-            <label
-              htmlFor="weeklyToggleDesktop"
-              style={{ fontSize: 16, color: "#fff", fontWeight: 500 }}
-            >
-              Show Weekly Top 3
-            </label>
-          </div>
+<div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 16,
+    marginBottom: 12,
+    flexWrap: "wrap",
+  }}
+>
+  {/* Weekly toggle */}
+  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <input
+      type="checkbox"
+      id="weeklyToggleDesktop"
+      checked={showWeekly}
+onChange={(e) => {
+  setShowWeekly(e.target.checked);
+  if (!e.target.checked) setShowWeeklyHistory(false);
+}}
+    />
+    <label
+      htmlFor="weeklyToggleDesktop"
+      style={{ fontSize: 16, color: "#fff", fontWeight: 500 }}
+    >
+      Weekly Top 3
+    </label>
+  </div>
+
+  {/* History toggle (only when weekly is on) */}
+  {showWeekly && (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <input
+        type="checkbox"
+        id="weeklyHistoryToggleDesktop"
+        checked={showWeeklyHistory}
+onChange={(e) => {
+  setShowWeekly(e.target.checked);
+  if (!e.target.checked) setShowWeeklyHistory(false);
+}}
+      />
+      <label
+        htmlFor="weeklyHistoryToggleDesktop"
+        style={{ fontSize: 16, color: "#aaa", fontWeight: 500 }}
+      >
+        Previous Leaders
+      </label>
+    </div>
+  )}
 
           <h2
             style={{
@@ -2677,33 +2704,59 @@ onClick={createGame} // <-- THIS IS REQUIRED
           </h2>
 
           {renderLeaderboardCard(false)}
-          {renderWeeklyHistory()}
+          {showWeekly && showWeeklyHistory && renderWeeklyHistory()}
         </div>
       )}
 
       {isMobile && activeTab === "leaderboard" && (
-        <div style={{ marginTop: 20 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              marginBottom: 12,
-            }}
-          >
-            <input
-              type="checkbox"
-              id="weeklyToggleMobile"
-              checked={showWeekly}
-              onChange={(e) => setShowWeekly(e.target.checked)}
-            />
-            <label
-              htmlFor="weeklyToggleMobile"
-              style={{ fontSize: 14, color: "#fff", fontWeight: 500 }}
-            >
-              Show Weekly Top 3
-            </label>
-          </div>
+<div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
+    flexWrap: "wrap",
+  }}
+>
+  {/* Weekly */}
+  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <input
+      type="checkbox"
+      id="weeklyToggleMobile"
+      checked={showWeekly}
+onChange={(e) => {
+  setShowWeekly(e.target.checked);
+  if (!e.target.checked) setShowWeeklyHistory(false);
+}}
+    />
+    <label
+      htmlFor="weeklyToggleMobile"
+      style={{ fontSize: 14, color: "#fff", fontWeight: 500 }}
+    >
+      Weekly Top 3
+    </label>
+  </div>
+
+  {/* History */}
+  {showWeekly && (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <input
+        type="checkbox"
+        id="weeklyHistoryToggleMobile"
+        checked={showWeeklyHistory}
+onChange={(e) => {
+  setShowWeekly(e.target.checked);
+  if (!e.target.checked) setShowWeeklyHistory(false);
+}}
+      />
+      <label
+        htmlFor="weeklyHistoryToggleMobile"
+        style={{ fontSize: 13, color: "#aaa", fontWeight: 500 }}
+      >
+        History
+      </label>
+    </div>
+  )}
 
           <h2
             style={{
