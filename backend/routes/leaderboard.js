@@ -2,7 +2,7 @@ import express from "express";
 import {
   saveWeeklyLeaderboard,
   getWeeklyLeaderboardsSorted,
-} from "../store/weeklyLeaderboard.js";
+} from "../store/weeklyLeaderboardStore.js";
 
 const router = express.Router();
 
