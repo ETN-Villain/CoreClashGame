@@ -114,6 +114,7 @@ useEffect(() => {
   const [showArchive, setShowArchive] = useState(false);
   const [pendingAutoRevealGameId, setPendingAutoRevealGameId] = useState(null);
   const [activeTab, setActiveTab] = useState("open");
+  const [weeklyArchive, setWeeklyArchive] = useState({});
 
   /* ---------------- LOADING SCREEN ---------------- */
   const [loading, setLoading] = useState(true);
@@ -1267,14 +1268,14 @@ const leaderboard = useMemo(() => {
   const stats = {};
 
   games
-    .filter(g => g.settled && !g.cancelled)
-    .forEach(g => {
+    .filter((g) => g.settled && !g.cancelled)
+    .forEach((g) => {
       const p1 = g.player1?.toLowerCase();
       const p2 = g.player2?.toLowerCase();
       const winner = g.winner?.toLowerCase();
       const isTie = g.tie;
 
-      [p1, p2].forEach(player => {
+      [p1, p2].forEach((player) => {
         if (!player || player === ethers.ZeroAddress.toLowerCase()) return;
 
         if (!stats[player]) stats[player] = { wins: 0, played: 0 };
@@ -1285,7 +1286,6 @@ const leaderboard = useMemo(() => {
         if (!stats[winner]) stats[winner] = { wins: 0, played: 0 };
         stats[winner].wins += 1;
       }
-      // No need to do anything for ties: they just count in `played`, not in `wins`
     });
 
   return Object.entries(stats)
@@ -1302,20 +1302,77 @@ const leaderboard = useMemo(() => {
     .slice(0, 10);
 }, [games]);
 
-/* ---------------- WEEKLY LEADERBOARD (Top 3, fixed weeks) ---------------- */
-const [weeklyHistory, setWeeklyHistory] = useState({ latest: [], week: null });
+/* ---------------- WEEKLY LEADERBOARD (LIVE FROM games) ---------------- */
+const weeklyHistory = useMemo(() => {
+  const stats = {};
+
+  const now = new Date();
+
+  // Monday-start UTC week
+  const weekStart = new Date(now);
+  const day = weekStart.getUTCDay(); // 0 = Sunday
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  weekStart.setUTCDate(weekStart.getUTCDate() + diffToMonday);
+  weekStart.setUTCHours(0, 0, 0, 0);
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+
+  games
+    .filter((g) => g.settled && !g.cancelled)
+    .forEach((g) => {
+      const resultDate = g.settledAt || g.createdAt || g.date;
+      if (!resultDate) return;
+
+      const gameTime = new Date(resultDate);
+      if (Number.isNaN(gameTime.getTime())) return;
+
+      if (gameTime < weekStart || gameTime >= weekEnd) return;
+
+      const p1 = g.player1?.toLowerCase();
+      const p2 = g.player2?.toLowerCase();
+      const winner = g.winner?.toLowerCase();
+      const isTie = !!g.tie;
+
+      [p1, p2].forEach((player) => {
+        if (!player || player === ethers.ZeroAddress.toLowerCase()) return;
+
+        if (!stats[player]) stats[player] = { wins: 0, played: 0 };
+        stats[player].played += 1;
+      });
+
+      if (!isTie && winner && winner !== ethers.ZeroAddress.toLowerCase()) {
+        if (!stats[winner]) stats[winner] = { wins: 0, played: 0 };
+        stats[winner].wins += 1;
+      }
+    });
+
+  const latest = Object.entries(stats)
+    .map(([address, data]) => ({
+      address,
+      wins: data.wins,
+      played: data.played,
+      winRate: data.played > 0 ? Math.round((data.wins / data.played) * 100) : 0,
+    }))
+    .sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return b.winRate - a.winRate;
+    })
+    .slice(0, 3);
+
+  return {
+    latest,
+    week: weekStart.toISOString().split("T")[0],
+  };
+}, [games]);
+
 const weeklyLeaderboard = weeklyHistory.latest || [];
 
-// Fetch weekly leaderboard from backend
+// Fetch weekly archive from backend on load
 useEffect(() => {
-fetch(`${BACKEND_URL}/leaderboard/weekly`)
+  fetch(`${BACKEND_URL}/leaderboard/weekly`)
     .then(res => res.json())
-    .then(data => {
-      const weeks = Object.keys(data).sort((a, b) => new Date(b) - new Date(a));
-      const latestWeek = weeks[0];
-      const top3 = data[latestWeek] || [];
-      setWeeklyHistory({ latest: top3, week: latestWeek });
-    })
+    .then(setWeeklyArchive)
     .catch(console.error);
 }, []);
 
@@ -1442,7 +1499,135 @@ if (loading) {
   );
 }
 
-/* ---------------- MAIN APP ---------------- */
+const leaderboardRows = showWeekly ? weeklyLeaderboard : leaderboard;
+
+const sortedWeeklyArchive = Object.entries(weeklyArchive || {})
+  .filter(([_, players]) => Array.isArray(players) && players.length > 0)
+  .sort((a, b) => new Date(b[0]) - new Date(a[0]));
+
+const previousWeeklyArchive = sortedWeeklyArchive.slice(1, 6);
+
+const renderLeaderboardCard = (mobile = false) => (
+  <div
+    style={{
+      background: "#111",
+      padding: mobile ? 16 : 24,
+      borderRadius: 12,
+      border: "1px solid #333",
+      display: "flex",
+      flexDirection: "column",
+      gap: 4,
+    }}
+  >
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "2fr 1fr 1fr 1fr",
+        fontSize: mobile ? 13 : 16,
+        opacity: 0.7,
+        borderBottom: "1px solid #333",
+        paddingBottom: 6,
+        marginBottom: 6,
+      }}
+    >
+      <span>Player</span>
+      <span style={{ textAlign: "center" }}>P</span>
+      <span style={{ textAlign: "center" }}>W</span>
+      <span style={{ textAlign: "center" }}>%</span>
+    </div>
+
+    {leaderboardRows.map((entry, index) => {
+      const medalColor = ["#FFD700", "#C0C0C0", "#CD7F32"][index] || "#fff";
+      const isCurrentUser = entry.address === account?.toLowerCase();
+
+      return (
+        <div
+          key={`${entry.address}-${showWeekly ? "weekly" : "alltime"}`}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr 1fr 1fr",
+            padding: mobile ? "6px 0" : "8px 0",
+            borderBottom: "1px solid #222",
+            fontSize: mobile ? 14 : 16,
+            color: isCurrentUser ? "#4da3ff" : medalColor,
+            fontWeight: isCurrentUser ? "bold" : "normal",
+          }}
+        >
+          <span>
+            #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
+          </span>
+          <span style={{ textAlign: "center" }}>{entry.played}</span>
+          <span style={{ textAlign: "center" }}>{entry.wins}</span>
+          <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+        </div>
+      );
+    })}
+
+    {leaderboardRows.length === 0 && (
+      <div
+        style={{
+          opacity: 0.6,
+          padding: mobile ? "10px 0" : "12px 0",
+          textAlign: "center",
+        }}
+      >
+        No games to display.
+      </div>
+    )}
+  </div>
+);
+
+const renderWeeklyHistory = () =>
+  showWeekly &&
+  previousWeeklyArchive.length > 0 && (
+    <div style={{ marginTop: 20 }}>
+      <h3
+        style={{
+          color: "#aaa",
+          fontSize: 16,
+          marginBottom: 10,
+        }}
+      >
+        Previous Weeks
+      </h3>
+
+      {previousWeeklyArchive.map(([week, players]) => (
+        <div
+          key={week}
+          style={{
+            background: "#0d0d0d",
+            border: "1px solid #222",
+            borderRadius: 8,
+            padding: 12,
+            marginBottom: 10,
+          }}
+        >
+          <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 6 }}>
+            Week of {week}
+          </div>
+
+          {players.map((p, i) => (
+            <div
+              key={`${week}-${p.address}`}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 14,
+                padding: "2px 0",
+              }}
+            >
+              <span>
+                #{i + 1} — {p.address.slice(0, 6)}…{p.address.slice(-4)}
+              </span>
+              <span>{p.wins}W / {p.played}P</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+
+  /* ---------------- MAIN APP ---------------- */
 return (
 <div
   style={{
@@ -2314,555 +2499,497 @@ onClick={createGame} // <-- THIS IS REQUIRED
     Core Clashes
   </h2>
 
-<button 
-  type="button"
-  onClick={loadGames}
-  disabled={loadingGames}
-  style={{
-    background: "#222",
-    color: "#18bb1a",
-    border: "1px solid #18bb1a",
-    padding: isMobile ? "6px 12px" : "8px 16px",
-    borderRadius: 4,
-    cursor: loadingGames ? "not-allowed" : "pointer",
-    fontSize: isMobile ? 13 : 16,
-    opacity: loadingGames ? 0.6 : 1,
-  }}
->
-  🔄 Refresh Games
-</button>
+  <button
+    type="button"
+    onClick={loadGames}
+    disabled={loadingGames}
+    style={{
+      background: "#222",
+      color: "#18bb1a",
+      border: "1px solid #18bb1a",
+      padding: isMobile ? "6px 12px" : "8px 16px",
+      borderRadius: 4,
+      cursor: loadingGames ? "not-allowed" : "pointer",
+      fontSize: isMobile ? 13 : 16,
+      opacity: loadingGames ? 0.6 : 1,
+    }}
+  >
+    🔄 Refresh Games
+  </button>
 </div>
 
 <div
   style={{
-display: "flex",
-flexDirection: "column",
-gap: 20,
+    display: "flex",
+    flexDirection: "column",
+    gap: 20,
   }}
 >
+  {showDeviceWarning && (
+    <div
+      style={{
+        position: "fixed",
+        top: 20,
+        left: 20,
+        zIndex: 99999,
+        maxWidth: "400px",
+        width: "90%",
+        backgroundColor: "#18bb1a",
+        borderRadius: "12px",
+        padding: isMobile ? "15px 20px" : "20px 30px",
+        boxShadow: "0 0 20px rgba(255, 255, 255, 0.99)",
+        fontSize: isMobile ? "14px" : "16px",
+      }}
+    >
+      <h3 style={{ marginTop: 0 }}>⚠ Important: Reveal File Backup</h3>
 
-{showDeviceWarning && (
-  <div
-    style={{
-      position: "fixed",
-      top: 20,        // small offset from top
-      left: 20,       // small offset from left
-      zIndex: 99999,
-      maxWidth: "400px",
-      width: "90%",
-      backgroundColor: "#18bb1a",
-      borderRadius: "12px",
-      padding: isMobile ? "15px 20px" : "20px 30px",
-      boxShadow: "0 0 20px rgba(255, 255, 255, 0.99)",
-      fontSize: isMobile ? "14px" : "16px",
-    }}
-  >
-    <h3 style={{ marginTop: 0 }}>⚠ Important: Reveal File Backup</h3>
+      <p>
+        If you are using <b>MetaMask Mobile</b>, the reveal file will NOT
+        automatically download.
+      </p>
 
-    <p>
-      If you are using <b>MetaMask Mobile</b>, the reveal file will NOT
-      automatically download.
-    </p>
+      <p>
+        If the reveal file is not saved, you will be unable to reveal and
+        will forfeit the game and your stake.
+      </p>
 
-    <p>
-      If the reveal file is not saved, you will be unable to reveal and
-      will forfeit the game and your stake.
-    </p>
+      <p style={{ fontSize: isMobile ? 12 : 14, opacity: 0.8 }}>
+        By continuing, you confirm that you understand this risk and have
+        ensured your reveal file can be securely saved.
+      </p>
 
-    <p style={{ fontSize: isMobile ? 12 : 14, opacity: 0.8 }}>
-      By continuing, you confirm that you understand this risk and have
-      ensured your reveal file can be securely saved.
-    </p>
+      <div style={{ marginTop: 15, display: "flex", gap: "10px" }}>
+        <button
+          onClick={() => {
+            setDeviceConfirmed(true);
+            setShowDeviceWarning(false);
+            createGame();
+          }}
+          style={{
+            backgroundColor: "#1a75ff",
+            color: "#fff",
+            border: "none",
+            padding: isMobile ? "8px 15px" : "12px 20px",
+            borderRadius: 8,
+            cursor: "pointer",
+            fontWeight: "bold",
+          }}
+        >
+          I Understand – Continue
+        </button>
 
-    <div style={{ marginTop: 15, display: "flex", gap: "10px" }}>
-      <button
-        onClick={() => {
-          setDeviceConfirmed(true);
-          setShowDeviceWarning(false);
-          createGame();
-        }}
-        style={{
-          backgroundColor: "#1a75ff",
-          color: "#fff",
-          border: "none",
-          padding: isMobile ? "8px 15px" : "12px 20px",
-          borderRadius: 8,
-          cursor: "pointer",
-          fontWeight: "bold",
-        }}
-      >
-        I Understand – Continue
-      </button>
-
-      <button
-        onClick={() => setShowDeviceWarning(false)}
-        style={{
-          padding: isMobile ? "8px 15px" : "12px 20px",
-          borderRadius: 8,
-          cursor: "pointer",
-          border: "1px solid #ccc",
-          backgroundColor: "#f9f9f9",
-        }}
-      >
-        Cancel
-      </button>
+        <button
+          onClick={() => setShowDeviceWarning(false)}
+          style={{
+            padding: isMobile ? "8px 15px" : "12px 20px",
+            borderRadius: 8,
+            cursor: "pointer",
+            border: "1px solid #ccc",
+            backgroundColor: "#f9f9f9",
+          }}
+        >
+          Cancel
+        </button>
+      </div>
     </div>
-  </div>
-)}
+  )}
 
-{/* ---------------- GAMES GRID CONTAINER ---------------- */}
-{(!isMobile || account) && (
-  <div style={{ width: "100%", minWidth: 0, marginTop: isMobile ? 0 : 40 }}>
+  {/* ---------------- GAMES GRID CONTAINER ---------------- */}
+  {(!isMobile || account) && (
+    <div style={{ width: "100%", minWidth: 0, marginTop: isMobile ? 0 : 40 }}>
+      {/* ---------------- TABS (MOBILE ONLY) ---------------- */}
+      {isMobile && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 6,
+            marginBottom: 16,
+          }}
+        >
+          {[
+            { key: "open", label: `Open (${openGames.length})` },
+            { key: "active", label: `Active (${activeGames.length})` },
+            { key: "settled", label: `Settled (${latestSettled.length})` },
+            { key: "leaderboard", label: "Leaderboard" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                padding: "8px 6px",
+                borderRadius: 8,
+                border: "1px solid #333",
+                background: activeTab === tab.key ? "#18bb1a" : "#111",
+                color: activeTab === tab.key ? "#000" : "#fff",
+                fontWeight: "bold",
+                cursor: "pointer",
+                fontSize: 12,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-    {/* ---------------- TABS (MOBILE ONLY) ---------------- */}
-    {isMobile && (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 6,
-          marginBottom: 16,
-        }}
-      >
-        {[
-          { key: "open", label: `Open (${openGames.length})` },
-          { key: "active", label: `Active (${activeGames.length})` },
-          { key: "settled", label: `Settled (${latestSettled.length})` },
-          { key: "leaderboard", label: "Leaderboard" },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+     {/* ---------------- LEADERBOARD SECTION ---------------- */}
+      {!isMobile && (
+        <div style={{ marginBottom: 30 }}>
+          <div
             style={{
-              padding: "8px 6px",
-              borderRadius: 8,
-              border: "1px solid #333",
-              background: activeTab === tab.key ? "#18bb1a" : "#111",
-              color: activeTab === tab.key ? "#000" : "#fff",
-              fontWeight: "bold",
-              cursor: "pointer",
-              fontSize: 12,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 12,
             }}
           >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-    )}
-
-    {/* ---------------- LEADERBOARD (DESKTOP ONLY) ---------------- */}
-    {!isMobile && (
-      <div style={{ marginBottom: 30 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-          <input
-            type="checkbox"
-            id="weeklyToggle"
-            checked={showWeekly}
-            onChange={e => setShowWeekly(e.target.checked)}
-          />
-          <label
-            htmlFor="weeklyToggle"
-            style={{ fontSize: 16, color: "#fff", fontWeight: 500 }}
-          >
-            Show Weekly Top 3
-          </label>
-        </div>
-
-        <h2 style={{
-          color: "#18bb1a",
-          fontWeight: "bold",
-          fontSize: 30,
-          textTransform: "uppercase",
-          textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
-          marginBottom: 12,
-        }}>
-          {showWeekly ? "🏆 Weekly Top 3" : "🏆 All-Time Top 10"}
-        </h2>
-
-        <div style={{
-          background: "#111",
-          padding: 24,
-          borderRadius: 12,
-          border: "1px solid #333",
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-        }}>
-          {/* Header */}
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "2fr 1fr 1fr 1fr",
-            fontSize: 16,
-            opacity: 0.7,
-            borderBottom: "1px solid #333",
-            paddingBottom: 6,
-            marginBottom: 6
-          }}>
-            <span>Player</span>
-            <span>P</span>
-            <span>W</span>
-            <span>%</span>
+            <input
+              type="checkbox"
+              id="weeklyToggleDesktop"
+              checked={showWeekly}
+              onChange={(e) => setShowWeekly(e.target.checked)}
+            />
+            <label
+              htmlFor="weeklyToggleDesktop"
+              style={{ fontSize: 16, color: "#fff", fontWeight: 500 }}
+            >
+              Show Weekly Top 3
+            </label>
           </div>
 
-          {/* Entries */}
-          {(showWeekly ? weeklyHistory.latest || [] : leaderboard).map((entry, index) => {
-            const medalColor = ["#FFD700", "#C0C0C0", "#CD7F32"][index] || "#fff";
-            const isCurrentUser = entry.address === account?.toLowerCase();
+          <h2
+            style={{
+              color: "#18bb1a",
+              fontWeight: "bold",
+              fontSize: 30,
+              textTransform: "uppercase",
+              textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
+              marginBottom: 12,
+            }}
+          >
+            {showWeekly
+              ? `🏆 Weekly Top 3 (${weeklyHistory.week})`
+              : "🏆 All-Time Top 10"}
+          </h2>
 
-            return (
-              <div
-                key={entry.address + (showWeekly ? "-weekly" : "-alltime")}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "2fr 1fr 1fr 1fr",
-                  padding: "8px 0",
-                  borderBottom: "1px solid #222",
-                  fontSize: 16,
-                  color: isCurrentUser ? "#4da3ff" : medalColor,
-                  fontWeight: isCurrentUser ? "bold" : "normal"
-                }}
-              >
-                <span>#{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}</span>
-                <span style={{ textAlign: "center" }}>{entry.played}</span>
-                <span style={{ textAlign: "center" }}>{entry.wins}</span>
-                <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
-              </div>
-            );
-          })}
+          {renderLeaderboardCard(false)}
+          {renderWeeklyHistory()}
+        </div>
+      )}
 
-          {(showWeekly
-            ? (weeklyHistory.latest?.length === 0)
-            : leaderboard.length === 0) && (
-            <div style={{ opacity: 0.6, padding: "12px 0", textAlign: "center" }}>
-              No games to display.
+      {isMobile && activeTab === "leaderboard" && (
+        <div style={{ marginTop: 20 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 12,
+            }}
+          >
+            <input
+              type="checkbox"
+              id="weeklyToggleMobile"
+              checked={showWeekly}
+              onChange={(e) => setShowWeekly(e.target.checked)}
+            />
+            <label
+              htmlFor="weeklyToggleMobile"
+              style={{ fontSize: 14, color: "#fff", fontWeight: 500 }}
+            >
+              Show Weekly Top 3
+            </label>
+          </div>
+
+          <h2
+            style={{
+              color: "#18bb1a",
+              fontWeight: "bold",
+              fontSize: 24,
+              textTransform: "uppercase",
+              textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
+              marginBottom: 12,
+            }}
+          >
+            {showWeekly
+              ? `🏆 Weekly Top 3 (${weeklyHistory.week})`
+              : "🏆 All-Time Top 10"}
+          </h2>
+
+          {renderLeaderboardCard(true)}
+        </div>
+      )}
+
+      {/* ---------------- GAMES GRID ---------------- */}
+      {(!isMobile || activeTab !== "leaderboard") && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+            gap: 20,
+          }}
+        >
+          {/* OPEN */}
+          {(!isMobile || activeTab === "open") && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <h3>🟢 Open ({openGames.length})</h3>
+              {openGames.map((g) => (
+                <div key={g.id} style={{ width: "100%" }}>
+                  <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+                </div>
+              ))}
             </div>
           )}
-        </div>
-      </div>
-    )}
 
-    {/* ---------------- GAMES GRID ---------------- */}
-    {( !isMobile || activeTab !== "leaderboard" ) && (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
-          gap: 20,
-        }}
-      >
-
-        {/* OPEN */}
-        {(!isMobile || activeTab === "open") && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <h3>🟢 Open ({openGames.length})</h3>
-            {openGames.map((g) => (
-              <div key={g.id} style={{ width: "100%" }}>
-                <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ACTIVE */}
-        {(!isMobile || activeTab === "active") && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <h3>🟡 Active ({activeGames.length})</h3>
-            {activeGames.map((g) => (
-              <div key={g.id} style={{ width: "100%" }}>
-                <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* SETTLED */}
-        {(!isMobile || activeTab === "settled") && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <label>
-                <input type="checkbox" checked={showResolved} onChange={() => setShowResolved(v => !v)} /> Settled
-              </label>
-              <label>
-                <input type="checkbox" checked={showCancelled} onChange={() => setShowCancelled(v => !v)} /> Cancelled
-              </label>
-              <label>
-                <input type="checkbox" checked={showArchive} onChange={() => setShowArchive(v => !v)} /> Archive
-              </label>
+          {/* ACTIVE */}
+          {(!isMobile || activeTab === "active") && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <h3>🟡 Active ({activeGames.length})</h3>
+              {activeGames.map((g) => (
+                <div key={g.id} style={{ width: "100%" }}>
+                  <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+                </div>
+              ))}
             </div>
+          )}
 
-            {showResolved && latestSettled.length > 0 && (
-              <>
-                <h3>🔵 Settled ({latestSettled.length})</h3>
-                {[...latestSettled]
-                  .sort((a, b) => Number(b.settledAt) - Number(a.settledAt))
-                  .map((g) => (
+          {/* SETTLED */}
+          {(!isMobile || activeTab === "settled") && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showResolved}
+                    onChange={() => setShowResolved((v) => !v)}
+                  />{" "}
+                  Settled
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showCancelled}
+                    onChange={() => setShowCancelled((v) => !v)}
+                  />{" "}
+                  Cancelled
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showArchive}
+                    onChange={() => setShowArchive((v) => !v)}
+                  />{" "}
+                  Archive
+                </label>
+              </div>
+
+              {showResolved && latestSettled.length > 0 && (
+                <>
+                  <h3>🔵 Settled ({latestSettled.length})</h3>
+                  {[...latestSettled]
+                    .sort((a, b) => Number(b.settledAt) - Number(a.settledAt))
+                    .map((g) => (
+                      <div key={g.id} style={{ width: "100%" }}>
+                        <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+                      </div>
+                    ))}
+                </>
+              )}
+
+              {showCancelled && cancelledGames.length > 0 && (
+                <>
+                  <h3>❌ Cancelled ({cancelledGames.length})</h3>
+                  {cancelledGames.map((g) => (
                     <div key={g.id} style={{ width: "100%" }}>
                       <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
                     </div>
                   ))}
-              </>
-            )}
+                </>
+              )}
 
-            {showCancelled && cancelledGames.length > 0 && (
-              <>
-                <h3>❌ Cancelled ({cancelledGames.length})</h3>
-                {cancelledGames.map((g) => (
-                  <div key={g.id} style={{ width: "100%" }}>
-                    <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-                  </div>
-                ))}
-              </>
-            )}
+              {showArchive && archivedSettled.length > 0 && (
+                <>
+                  <h3>📦 Archive ({archivedSettled.length})</h3>
+                  {archivedSettled.map((g) => (
+                    <div key={g.id} style={{ width: "100%" }}>
+                      <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )}
 
-            {showArchive && archivedSettled.length > 0 && (
-              <>
-                <h3>📦 Archive ({archivedSettled.length})</h3>
-                {archivedSettled.map((g) => (
-                  <div key={g.id} style={{ width: "100%" }}>
-                    <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-                  </div>
-                ))}
-              </>
-            )}
+  {/* ---------------- HELP MODAL ---------------- */}
+  {helpModal && (
+    <div
+      onClick={() => setHelpModal(null)}
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        background: "rgba(0,0,0,0.7)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 999,
+        padding: 16,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: 520,
+          maxHeight: "80vh",
+          overflowY: "auto",
+          background: "#111",
+          border: "1px solid #333",
+          borderRadius: 12,
+          padding: 20,
+          color: "#ddd",
+          boxShadow: "0 0 16px rgba(0,0,0,0.9)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <h2 style={{ color: "#18bb1a", margin: 0 }}>
+            {helpModal === "how" ? "How To Play" : "Game Info"}
+          </h2>
+          <button
+            onClick={() => setHelpModal(null)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#aaa",
+              fontSize: 20,
+              cursor: "pointer",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {helpModal === "how" && (
+          <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+            <b>CORE CLASH</b>
+            <br />
+            <br />
+            <b>Connect Wallet</b>
+            <br />
+            <br />
+            <b>Create Game</b>
+            <br />
+            1. Add stake amount
+            <br />
+            2. Select your Clash Team
+            <br />
+            3. Press <b>Validate Team</b>
+            <br />
+            4. Press <b>Create Game</b>
+            <br />
+            5. Approve wallet transactions
+            <br />
+            6. Reveal file downloads automatically
+            <br />
+            <br />
+            <b>Join Game</b>
+            <br />
+            1. Select your Clash Team
+            <br />
+            2. Press <b>Validate Team</b>
+            <br />
+            3. Find game in Open
+            <br />
+            4. Press Join Game
+            <br />
+            5. Approve wallet transactions
+            <br />
+            6. Reveal file downloads automatically
+            <br />
+            <br />
+            <b>Reveal & Settle</b>
+            <br />
+            Auto-reveal will request wallet confirmation.
+            <br />
+            If it fails, upload your reveal file manually.
+            <br />
+            Once both players reveal, the game settles automatically.
           </div>
         )}
 
-      </div>
-    )}
-
-{/* ---------------- LEADERBOARD (MOBILE TAB) ---------------- */}
-{isMobile && activeTab === "leaderboard" && (
-  <div style={{ marginTop: 20 }}>
-
-    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-      <input
-        type="checkbox"
-        id="weeklyToggle"
-        checked={showWeekly}
-        onChange={e => setShowWeekly(e.target.checked)}
-      />
-      <label
-        htmlFor="weeklyToggle"
-        style={{ fontSize: 14, color: "#fff", fontWeight: 500 }}
-      >
-        Show Weekly Top 3
-      </label>
-    </div>
-
-    <h2 style={{
-      color: "#18bb1a",
-      fontWeight: "bold",
-      fontSize: 24, // 👈 slightly smaller for mobile
-      textTransform: "uppercase",
-      textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
-      marginBottom: 12,
-    }}>
-      {showWeekly ? "🏆 Weekly Top 3" : "🏆 All-Time Top 10"}
-    </h2>
-
-    <div style={{
-      background: "#111",
-      padding: 16,
-      borderRadius: 12,
-      border: "1px solid #333",
-      display: "flex",
-      flexDirection: "column",
-      gap: 4,
-    }}>
-      {/* Header */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "2fr 1fr 1fr 1fr",
-        fontSize: 13,
-        opacity: 0.7,
-        borderBottom: "1px solid #333",
-        paddingBottom: 6,
-        marginBottom: 6
-      }}>
-        <span>Player</span>
-        <span>P</span>
-        <span>W</span>
-        <span>%</span>
-      </div>
-
-      {/* Entries */}
-      {(showWeekly ? weeklyHistory.latest || [] : leaderboard).map((entry, index) => {
-        const medalColor = ["#FFD700", "#C0C0C0", "#CD7F32"][index] || "#fff";
-        const isCurrentUser = entry.address === account?.toLowerCase();
-
-        return (
-          <div
-            key={entry.address + (showWeekly ? "-weekly" : "-alltime")}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr 1fr 1fr",
-              padding: "6px 0",
-              borderBottom: "1px solid #222",
-              fontSize: 14,
-              color: isCurrentUser ? "#4da3ff" : medalColor,
-              fontWeight: isCurrentUser ? "bold" : "normal"
-            }}
-          >
-            <span>
-              #{index + 1} — {entry.address.slice(0, 6)}…{entry.address.slice(-4)}
-            </span>
-            <span style={{ textAlign: "center" }}>{entry.played}</span>
-            <span style={{ textAlign: "center" }}>{entry.wins}</span>
-            <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+        {helpModal === "info" && (
+          <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+            <b>Your Clash Team</b>
+            <br />
+            <br />
+            • 3 NFTs from approved collections
+            <br />
+            • Only 1 rare background allowed (Gold, Verdant Green, Rose Gold, Silver)
+            <br />
+            • Only 1 of each character
+            <br />
+            • You must own the NFT
+            <br />
+            • You cannot join your own game
+            <br />
+            <br />
+            <b>The Clash</b>
+            <br />
+            <br />
+            Slot 1 vs Slot 1
+            <br />
+            Slot 2 vs Slot 2
+            <br />
+            Slot 3 vs Slot 3
+            <br />
+            <br />
+            Each round results in a win or tie.
+            <br />
+            Score difference breaks ties.
+            <br />
+            <br />
+            <b>Fees</b>
+            <br />
+            <br />
+            5% of the pot
+            <br />
+            • 2% ETN_Villain
+            <br />
+            • 2% dApp host
+            <br />
+            • 1% CORE burn
+            <br />
+            <br />
+            <b>Payout</b>
+            <br />
+            <br />
+            Winner receives 95% of the pot.
+            <br />
+            If tied, 100% returned to players.
           </div>
-        );
-      })}
-
-      {(showWeekly
-        ? (weeklyHistory.latest?.length === 0)
-        : leaderboard.length === 0) && (
-        <div style={{ opacity: 0.6, padding: "10px 0", textAlign: "center" }}>
-          No games to display.
-        </div>
-      )}
-    </div>
-
-  </div>
-)}
-  </div>
-)}
-
-{/* ---------------- HELP MODAL ---------------- */}
-{helpModal && (
-  <div
-    onClick={() => setHelpModal(null)}
-    style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      background: "rgba(0,0,0,0.7)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 999,
-      padding: 16,
-    }}
-  >
-    <div
-      onClick={(e) => e.stopPropagation()}
-      style={{
-        width: "100%",
-        maxWidth: 520,
-        maxHeight: "80vh",
-        overflowY: "auto",
-        background: "#111",
-        border: "1px solid #333",
-        borderRadius: 12,
-        padding: 20,
-        color: "#ddd",
-        boxShadow: "0 0 16px rgba(0,0,0,0.9)",
-      }}
-    >
-     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <h2 style={{ color: "#18bb1a", margin: 0 }}>
-          {helpModal === "how" ? "How To Play" : "Game Info"}
-        </h2>
-        <button
-          onClick={() => setHelpModal(null)}
-          style={{ background: "none", border: "none", color: "#aaa", fontSize: 20, cursor: "pointer" }}
-        >
-          ✕
-        </button>
+        )}
       </div>
-      
-      {helpModal === "how" && (
-        <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-          <b>CORE CLASH</b>
-
-          <br /><br />
-
-          <b>Connect Wallet</b>
-
-          <br /><br />
-
-          <b>Create Game</b>
-          <br />1. Add stake amount
-          <br />2. Select your Clash Team
-          <br />3. Press <b>Validate Team</b>
-          <br />4. Press <b>Create Game</b>
-          <br />5. Approve wallet transactions
-          <br />6. Reveal file downloads automatically
-
-          <br /><br />
-
-          <b>Join Game</b>
-          <br />1. Select your Clash Team
-          <br />2. Press <b>Validate Team</b>
-          <br />3. Find game in Open
-          <br />4. Press Join Game
-          <br />5. Approve wallet transactions
-          <br />6. Reveal file downloads automatically
-
-          <br /><br />
-
-          <b>Reveal & Settle</b>
-          <br />Auto-reveal will request wallet confirmation.
-          <br />If it fails, upload your reveal file manually.
-          <br />Once both players reveal, the game settles automatically.
-        </div>
-      )}
-
-      {helpModal === "info" && (
-        <div style={{ fontSize: 14, lineHeight: 1.6 }}>
-          <b>Your Clash Team</b>
-
-          <br /><br />
-
-          • 3 NFTs from approved collections  
-          • Only 1 rare background allowed (Gold, Verdant Green, Rose Gold, Silver)  
-          • Only 1 of each character  
-          • You must own the NFT  
-          • You cannot join your own game  
-
-          <br /><br />
-
-          <b>The Clash</b>
-
-          <br /><br />
-
-          Slot 1 vs Slot 1  
-          Slot 2 vs Slot 2  
-          Slot 3 vs Slot 3  
-
-          Each round results in a win or tie.  
-          Score difference breaks ties.
-
-          <br /><br />
-
-          <b>Fees</b>
-
-          <br /><br />
-
-          5% of the pot  
-          • 2% ETN_Villain  
-          • 2% dApp host  
-          • 1% CORE burn  
-
-          <br /><br />
-
-          <b>Payout</b>
-
-          <br /><br />
-
-          Winner receives 95% of the pot.  
-          If tied, 100% returned to players.
-        </div>
-      )}
     </div>
-  </div>
-)}
+  )}
 </div>
 </div>
 </div>
-  );
+);
 }
