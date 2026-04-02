@@ -17,6 +17,9 @@ import {
   WHITELISTED_TOKENS,
   CORE_TOKEN,
   WHITELISTED_NFTS,
+  VKIN_CONTRACT_ADDRESS,
+  VQLE_CONTRACT_ADDRESS,
+  SCIONS_CONTRACT_ADDRESS,
   RARE_BACKGROUNDS,
   ADMIN_ADDRESS,
   ADDRESS_TO_COLLECTION_KEY,
@@ -33,6 +36,8 @@ import {
 } from "./appMedia/media.js";
 
 import GameCard from "./gameCard.jsx";
+
+import "./App.css";
 
 export default function App() {
 /* ---------------- GAME SETUP ---------------- */
@@ -1377,10 +1382,15 @@ if (loading) {
           textAlign: "center",
         }}
       >
-        <img
-          src={CoreClashLogo}
-          alt="Core Clash"
-          style={{ width: "90%", maxWidth: 500,}}        />
+<img
+  src={CoreClashLogo}
+  alt="Core Clash"
+  style={{
+    width: "90%",
+    maxWidth: 500,
+    animation: "logoPulse 2.4s ease-in-out infinite",
+  }}
+/>
 
         {/* Powered By */}
         <p
@@ -1476,17 +1486,18 @@ return (
     padding: 0,
   }}
 >
-  {/* LEFT: Logo */}
-  <img
-    src={CoreClashLogo}
-    alt="Core Clash"
-    style={{
-      height: isMobile ? 80 : 80,
-      width: "auto",
-      pointerEvents: "none",
-      display: "block",
-    }}
-  />
+{/* LEFT: Logo */}
+<img
+  src={CoreClashLogo}
+  alt="Core Clash"
+  style={{
+    height: isMobile ? 80 : 80,
+    width: "auto",
+    pointerEvents: "none",
+    display: "block",
+    animation: "logoPulse 2.4s ease-in-out infinite",
+  }}
+/>
 
 {/* ---------------- WALLET BUTTONS ---------------- */}
 <div
@@ -2026,11 +2037,18 @@ style={{
             (x) => x.address?.toLowerCase() === nftOption.nftAddress?.toLowerCase()
           )?.label;
 
+const rawAddr = (nftOption.nftAddress || "")
+  .toString()
+  .trim()
+  .toLowerCase();
+
 let collectionKey;
-if (label === "Verdant Kin" || label === "Scions") {
+if (rawAddr === VKIN_CONTRACT_ADDRESS.toLowerCase()) {
   collectionKey = "VKIN";
-} else if (label === "VQLE") {
+} else if (rawAddr === VQLE_CONTRACT_ADDRESS.toLowerCase()) {
   collectionKey = "VQLE";
+} else if (rawAddr === SCIONS_CONTRACT_ADDRESS.toLowerCase()) {
+  collectionKey = "SCIONS"; // mapping uses VKIN-style ids for Scions
 } else {
   collectionKey = null;
 }
@@ -2285,12 +2303,12 @@ onClick={createGame} // <-- THIS IS REQUIRED
   <h2
     style={{
       fontWeight: "bold",
-      fontSize: isMobile ? 26 : 30,
-      letterSpacing: 1.5,
+      fontSize: isMobile ? 30 : 36,
+      letterSpacing: 2,
       textTransform: "uppercase",
       color: "#18bb1a",
       marginBottom: 6,
-      textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
+      animation: "coreNeonFlicker 2.2s infinite",
     }}
   >
     Core Clashes
