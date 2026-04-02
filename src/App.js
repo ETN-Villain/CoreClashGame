@@ -37,6 +37,8 @@ import {
 
 import GameCard from "./gameCard.jsx";
 
+import "./App.css";
+
 export default function App() {
 /* ---------------- GAME SETUP ---------------- */
   const [stakeToken, setStakeToken] = useState("");
