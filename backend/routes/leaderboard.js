@@ -1,19 +1,10 @@
 import express from "express";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import {
+  saveWeeklyLeaderboard,
+  getWeeklyLeaderboardsSorted,
+} from "../store/weeklyLeaderboard.js";
 
 const router = express.Router();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const STORE_FILE = path.join(__dirname, "../store/weeklyLeaderboards.json");
-
-// Ensure file exists
-if (!fs.existsSync(STORE_FILE)) {
-  fs.writeFileSync(STORE_FILE, JSON.stringify({}));
-}
 
 // SAVE WEEKLY
 router.post("/weekly", async (req, res) => {

@@ -122,12 +122,21 @@ router.get("/owned/:wallet", async (req, res) => {
   const wallet = req.params.wallet.toLowerCase();
   console.log("🔎 Owned NFTs request for:", wallet);
 
-  const cache = readOwnerCache();
-  let walletCache = cache[wallet] || { VKIN: [], VQLE: [] };
+const cache = readOwnerCache();
+let walletCache = cache[wallet] || {};
+
+walletCache = {
+  VKIN: Array.isArray(walletCache.VKIN) ? walletCache.VKIN : [],
+  VQLE: Array.isArray(walletCache.VQLE) ? walletCache.VQLE : [],
+  SCIONS: Array.isArray(walletCache.SCIONS) ? walletCache.SCIONS : [],
+};
 
   // Force scan if cache is empty
-  if (walletCache.VKIN.length === 0 && walletCache.VQLE.length === 0) {
-    console.log("Cache miss/empty — scanning blockchain for", wallet);
+if (
+  walletCache.VKIN.length === 0 &&
+  walletCache.VQLE.length === 0 &&
+  walletCache.SCIONS.length === 0
+) { console.log("Cache miss/empty — scanning blockchain for", wallet);
 
     try {
       const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -164,7 +173,7 @@ router.get("/owned/:wallet", async (req, res) => {
 const result = [];
 
 // VKIN
-for (const tokenId of walletCache.VKIN) {
+for (const tokenId of walletCache.VKIN || []) {
   const mapped = mapping["VKIN"]?.[tokenId];
   const jsonFile = mapped?.token_uri || `${tokenId}.json`;
   const jsonPath = path.join(METADATA_JSON_DIR, "VKIN", jsonFile);
@@ -193,7 +202,7 @@ for (const tokenId of walletCache.VKIN) {
 }
 
 // VQLE (same pattern)
-for (const tokenId of walletCache.VQLE) {
+for (const tokenId of walletCache.VQLE || []) {
   const mapped = mapping["VQLE"]?.[tokenId];
   const jsonFile = mapped?.token_uri || `${tokenId}.json`;
   const jsonPath = path.join(METADATA_JSON_DIR, "VQLE", jsonFile);
@@ -222,7 +231,7 @@ for (const tokenId of walletCache.VQLE) {
 }
 
 // SCIONS (same pattern)
-for (const tokenId of walletCache.SCIONS) {
+for (const tokenId of walletCache.SCIONS || []) {
   const mapped = mapping["SCIONS"]?.[tokenId];
   const jsonFile = mapped?.token_uri || `${tokenId}.json`;
   const jsonPath = path.join(METADATA_JSON_DIR, "SCIONS", jsonFile);
