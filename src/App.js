@@ -2866,32 +2866,73 @@ onClick={createGame} // <-- THIS IS REQUIRED
           {/* SETTLED */}
           {(!isMobile || activeTab === "settled") && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={showResolved}
-                    onChange={() => setShowResolved((v) => !v)}
-                  />{" "}
-                  Settled
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={showCancelled}
-                    onChange={() => setShowCancelled((v) => !v)}
-                  />{" "}
-                  Cancelled
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={showArchive}
-                    onChange={() => setShowArchive((v) => !v)}
-                  />{" "}
-                  Archive
-                </label>
-              </div>
+<div
+  style={{
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+  }}
+>
+  {/* Settled */}
+  <button
+    type="button"
+    onClick={() => setShowResolved((v) => !v)}
+    style={{
+      padding: "8px 12px",
+      borderRadius: 999,
+      border: showResolved ? "1px solid #18bb1a" : "1px solid #333",
+      background: showResolved ? "rgba(24,187,26,0.14)" : "#111",
+      color: showResolved ? "#18bb1a" : "#ddd",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: showResolved ? "0 0 10px rgba(24,187,26,0.18)" : "none",
+      transition: "all 0.2s ease",
+    }}
+  >
+    {showResolved ? "✓ " : ""}Settled
+  </button>
+
+  {/* Cancelled */}
+  <button
+    type="button"
+    onClick={() => setShowCancelled((v) => !v)}
+    style={{
+      padding: "8px 12px",
+      borderRadius: 999,
+      border: showCancelled ? "1px solid #ff4d4d" : "1px solid #333",
+      background: showCancelled ? "rgba(255,77,77,0.14)" : "#111",
+      color: showCancelled ? "#ff4d4d" : "#ddd",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: showCancelled ? "0 0 10px rgba(255,77,77,0.18)" : "none",
+      transition: "all 0.2s ease",
+    }}
+  >
+    {showCancelled ? "✓ " : ""}Cancelled
+  </button>
+
+  {/* Archive */}
+  <button
+    type="button"
+    onClick={() => setShowArchive((v) => !v)}
+    style={{
+      padding: "8px 12px",
+      borderRadius: 999,
+      border: showArchive ? "1px solid #4da3ff" : "1px solid #333",
+      background: showArchive ? "rgba(77,163,255,0.14)" : "#111",
+      color: showArchive ? "#4da3ff" : "#aaa",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: showArchive ? "0 0 10px rgba(77,163,255,0.16)" : "none",
+      transition: "all 0.2s ease",
+    }}
+  >
+    {showArchive ? "✓ " : ""}Archive
+  </button>
+</div>
 
               {showResolved && latestSettled.length > 0 && (
                 <>
