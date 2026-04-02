@@ -93,3 +93,44 @@ html, body {
   0% { text-shadow: 0 0 8px #FFD700, 0 0 16px #FFD700; }
   100% { text-shadow: 0 0 16px #FFD700, 0 0 32px #FFD700; }
 }
+
+@keyframes coreGlow {
+  0% {
+    text-shadow: 0 0 6px #18bb1a, 0 0 12px #18bb1a;
+    opacity: 0.9;
+  }
+  50% {
+    text-shadow: 0 0 14px #18bb1a, 0 0 28px #18bb1a;
+    opacity: 1;
+  }
+  100% {
+    text-shadow: 0 0 6px #18bb1a, 0 0 12px #18bb1a;
+    opacity: 0.9;
+  }
+}
+
+@keyframes coreNeonFlicker {
+  0%, 18%, 22%, 25%, 53%, 57%, 100% {
+    opacity: 1;
+    text-shadow:
+      0 0 4px #18bb1a,
+      0 0 8px #18bb1a,
+      0 0 16px #18bb1a,
+      0 0 32px #18bb1a;
+  }
+
+  20%, 24%, 55% {
+    opacity: 0.75;
+    text-shadow:
+      0 0 2px #18bb1a,
+      0 0 5px #18bb1a,
+      0 0 10px #18bb1a;
+  }
+
+  21%, 56% {
+    opacity: 0.45;
+    text-shadow:
+      0 0 1px #18bb1a,
+      0 0 3px #18bb1a;
+  }
+}

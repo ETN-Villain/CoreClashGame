@@ -2026,11 +2026,18 @@ style={{
             (x) => x.address?.toLowerCase() === nftOption.nftAddress?.toLowerCase()
           )?.label;
 
+const rawAddr = (nftOption.nftAddress || "")
+  .toString()
+  .trim()
+  .toLowerCase();
+
 let collectionKey;
-if (label === "Verdant Kin" || label === "Scions") {
+if (rawAddr === VKIN_CONTRACT_ADDRESS.toLowerCase()) {
   collectionKey = "VKIN";
-} else if (label === "VQLE") {
+} else if (rawAddr === VQLE_CONTRACT_ADDRESS.toLowerCase()) {
   collectionKey = "VQLE";
+} else if (rawAddr === SCIONS_CONTRACT_ADDRESS.toLowerCase()) {
+  collectionKey = "SCIONS"; // mapping uses VKIN-style ids for Scions
 } else {
   collectionKey = null;
 }
@@ -2285,12 +2292,12 @@ onClick={createGame} // <-- THIS IS REQUIRED
   <h2
     style={{
       fontWeight: "bold",
-      fontSize: isMobile ? 26 : 30,
-      letterSpacing: 1.5,
+      fontSize: isMobile ? 30 : 36,
+      letterSpacing: 2,
       textTransform: "uppercase",
       color: "#18bb1a",
       marginBottom: 6,
-      textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
+      animation: "coreNeonFlicker 2.2s infinite",
     }}
   >
     Core Clashes
