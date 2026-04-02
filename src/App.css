@@ -134,3 +134,18 @@ html, body {
       0 0 3px #18bb1a;
   }
 }
+
+@keyframes logoPulse {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #18bb1a);
+  }
+  50% {
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 12px #18bb1a);
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #18bb1a);
+  }
+}

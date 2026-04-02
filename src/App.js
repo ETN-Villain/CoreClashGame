@@ -1377,10 +1377,15 @@ if (loading) {
           textAlign: "center",
         }}
       >
-        <img
-          src={CoreClashLogo}
-          alt="Core Clash"
-          style={{ width: "90%", maxWidth: 500,}}        />
+<img
+  src={CoreClashLogo}
+  alt="Core Clash"
+  style={{
+    width: "90%",
+    maxWidth: 500,
+    animation: "logoPulse 2.4s ease-in-out infinite",
+  }}
+/>
 
         {/* Powered By */}
         <p
@@ -1476,17 +1481,18 @@ return (
     padding: 0,
   }}
 >
-  {/* LEFT: Logo */}
-  <img
-    src={CoreClashLogo}
-    alt="Core Clash"
-    style={{
-      height: isMobile ? 80 : 80,
-      width: "auto",
-      pointerEvents: "none",
-      display: "block",
-    }}
-  />
+{/* LEFT: Logo */}
+<img
+  src={CoreClashLogo}
+  alt="Core Clash"
+  style={{
+    height: isMobile ? 80 : 80,
+    width: "auto",
+    pointerEvents: "none",
+    display: "block",
+    animation: "logoPulse 2.4s ease-in-out infinite",
+  }}
+/>
 
 {/* ---------------- WALLET BUTTONS ---------------- */}
 <div
