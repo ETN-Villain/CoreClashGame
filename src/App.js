@@ -2649,59 +2649,80 @@ onClick={createGame} // <-- THIS IS REQUIRED
   }}
 >
   {/* Weekly toggle */}
-  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <input
-      type="checkbox"
-      id="weeklyToggleDesktop"
-      checked={showWeekly}
-onChange={(e) => {
-  setShowWeekly(e.target.checked);
-  if (!e.target.checked) setShowWeeklyHistory(false);
-}}
-    />
-    <label
-      htmlFor="weeklyToggleDesktop"
-      style={{ fontSize: 16, color: "#fff", fontWeight: 500 }}
+<div
+  style={{
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 12,
+  }}
+>
+  {/* Weekly toggle */}
+  <button
+    type="button"
+    onClick={() => {
+      setShowWeekly((prev) => {
+        const next = !prev;
+        if (!next) setShowWeeklyHistory(false);
+        return next;
+      });
+    }}
+    style={{
+      padding: "9px 14px",
+      borderRadius: 999,
+      border: showWeekly ? "1px solid #18bb1a" : "1px solid #333",
+      background: showWeekly ? "rgba(24,187,26,0.14)" : "#111",
+      color: showWeekly ? "#18bb1a" : "#ddd",
+      fontSize: 15,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: showWeekly ? "0 0 12px rgba(24,187,26,0.18)" : "none",
+      transition: "all 0.2s ease",
+    }}
+  >
+    {showWeekly ? "✓ " : ""}Weekly Top 3
+  </button>
+
+  {/* History toggle */}
+  {showWeekly && (
+    <button
+      type="button"
+      onClick={() => setShowWeeklyHistory((prev) => !prev)}
+      style={{
+        padding: "9px 14px",
+        borderRadius: 999,
+        border: showWeeklyHistory ? "1px solid #4da3ff" : "1px solid #333",
+        background: showWeeklyHistory ? "rgba(77,163,255,0.14)" : "#111",
+        color: showWeeklyHistory ? "#4da3ff" : "#aaa",
+        fontSize: 15,
+        fontWeight: 700,
+        cursor: "pointer",
+        boxShadow: showWeeklyHistory ? "0 0 12px rgba(77,163,255,0.16)" : "none",
+        transition: "all 0.2s ease",
+      }}
     >
-      Weekly Top 3
-    </label>
-  </div>
+      {showWeeklyHistory ? "✓ " : ""}Prev 6 Weeks
+    </button>
+  )}
+</div>
 
-{/* History toggle (only when weekly is on) */}
-{showWeekly && (
-  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <input
-      type="checkbox"
-      id="weeklyHistoryToggleDesktop"
-      checked={showWeeklyHistory}
-      onChange={(e) => setShowWeeklyHistory(e.target.checked)}
-    />
-    <label
-      htmlFor="weeklyHistoryToggleDesktop"
-      style={{ fontSize: 16, color: "#aaa", fontWeight: 500 }}
-    >
-      Prev 6 Weeks Leaders
-    </label>
-  </div>
-)}
+<h2
+  style={{
+    color: "#18bb1a",
+    fontWeight: "bold",
+    fontSize: 30,
+    textTransform: "uppercase",
+    textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
+    marginBottom: 12,
+  }}
+>
+  {showWeekly
+    ? `🏆 Weekly Top 3 (${weeklyHistory.week})`
+    : "🏆 All-Time Top 10"}
+</h2>
 
-          <h2
-            style={{
-              color: "#18bb1a",
-              fontWeight: "bold",
-              fontSize: 30,
-              textTransform: "uppercase",
-              textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
-              marginBottom: 12,
-            }}
-          >
-            {showWeekly
-              ? `🏆 Weekly Top 3 (${weeklyHistory.week})`
-              : "🏆 All-Time Top 10"}
-          </h2>
-
-          {renderLeaderboardCard(false)}
-          {showWeekly && showWeeklyHistory && renderWeeklyHistory()}
+{renderLeaderboardCard(false)}
+{showWeekly && showWeeklyHistory && renderWeeklyHistory()}
         </div>
       )}
 
@@ -2716,57 +2737,80 @@ onChange={(e) => {
   }}
 >
   {/* Weekly */}
-  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <input
-      type="checkbox"
-      id="weeklyToggleMobile"
-      checked={showWeekly}
-onChange={(e) => {
-  setShowWeekly(e.target.checked);
-  if (!e.target.checked) setShowWeeklyHistory(false);
-}}
-    />
-    <label
-      htmlFor="weeklyToggleMobile"
-      style={{ fontSize: 14, color: "#fff", fontWeight: 500 }}
-    >
-      Weekly Top 3
-    </label>
-  </div>
+<div
+  style={{
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  }}
+>
+  {/* Weekly toggle */}
+  <button
+    type="button"
+    onClick={() => {
+      setShowWeekly((prev) => {
+        const next = !prev;
+        if (!next) setShowWeeklyHistory(false);
+        return next;
+      });
+    }}
+    style={{
+      padding: "8px 12px",
+      borderRadius: 999,
+      border: showWeekly ? "1px solid #18bb1a" : "1px solid #333",
+      background: showWeekly ? "rgba(24,187,26,0.14)" : "#111",
+      color: showWeekly ? "#18bb1a" : "#ddd",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: showWeekly ? "0 0 10px rgba(24,187,26,0.18)" : "none",
+      transition: "all 0.2s ease",
+    }}
+  >
+    {showWeekly ? "✓ " : ""}Weekly Top 3
+  </button>
 
-{/* History */}
-{showWeekly && (
-  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <input
-      type="checkbox"
-      id="weeklyHistoryToggleMobile"
-      checked={showWeeklyHistory}
-      onChange={(e) => setShowWeeklyHistory(e.target.checked)}
-    />
-    <label
-      htmlFor="weeklyHistoryToggleMobile"
-      style={{ fontSize: 13, color: "#aaa", fontWeight: 500 }}
+  {/* History toggle */}
+  {showWeekly && (
+    <button
+      type="button"
+      onClick={() => setShowWeeklyHistory((prev) => !prev)}
+      style={{
+        padding: "8px 12px",
+        borderRadius: 999,
+        border: showWeeklyHistory ? "1px solid #4da3ff" : "1px solid #333",
+        background: showWeeklyHistory ? "rgba(77,163,255,0.14)" : "#111",
+        color: showWeeklyHistory ? "#4da3ff" : "#aaa",
+        fontSize: 13,
+        fontWeight: 700,
+        cursor: "pointer",
+        boxShadow: showWeeklyHistory ? "0 0 10px rgba(77,163,255,0.16)" : "none",
+        transition: "all 0.2s ease",
+      }}
     >
-      Prev 6 Weeks Leaders
-    </label>
-  </div>
-)}
-          <h2
-            style={{
-              color: "#18bb1a",
-              fontWeight: "bold",
-              fontSize: 24,
-              textTransform: "uppercase",
-              textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
-              marginBottom: 12,
-            }}
-          >
-            {showWeekly
-              ? `🏆 Weekly Top 3 (${weeklyHistory.week})`
-              : "🏆 All-Time Top 10"}
-          </h2>
+      {showWeeklyHistory ? "✓ " : ""}Prev 6 Weeks
+    </button>
+  )}
+</div>
 
-          {renderLeaderboardCard(true)}
+<h2
+  style={{
+    color: "#18bb1a",
+    fontWeight: "bold",
+    fontSize: 24,
+    textTransform: "uppercase",
+    textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
+    marginBottom: 12,
+  }}
+>
+  {showWeekly
+    ? `🏆 Weekly Top 3 (${weeklyHistory.week})`
+    : "🏆 All-Time Top 10"}
+</h2>
+
+{renderLeaderboardCard(true)}
+{showWeekly && showWeeklyHistory && renderWeeklyHistory()}
         </div>
       )}
 
