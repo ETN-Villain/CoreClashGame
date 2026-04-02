@@ -18,7 +18,7 @@ import gamesRouter from "./routes/games.js";
 import sseRouter from "./routes/sse.js";
 import nftsRouter from "./routes/nfts.js";
 import leaderboardRouter from "./routes/leaderboard.js";
-import { backfillWeeklyLeaderboardsFromGames } from "./store/weeklyLeaderboard.js";
+import { backfillWeeklyLeaderboardsFromGames } from "./store/weeklyLeaderboardStore.js";
 
 import { reconcileActiveGamesScheduled } from "./reconcile.js";
 import "./eventListener.js";
