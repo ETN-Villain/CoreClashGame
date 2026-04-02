@@ -2667,26 +2667,23 @@ onChange={(e) => {
     </label>
   </div>
 
-  {/* History toggle (only when weekly is on) */}
-  {showWeekly && (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <input
-        type="checkbox"
-        id="weeklyHistoryToggleDesktop"
-        checked={showWeeklyHistory}
-onChange={(e) => {
-  setShowWeekly(e.target.checked);
-  if (!e.target.checked) setShowWeeklyHistory(false);
-}}
-      />
-      <label
-        htmlFor="weeklyHistoryToggleDesktop"
-        style={{ fontSize: 16, color: "#aaa", fontWeight: 500 }}
-      >
-        Previous Leaders
-      </label>
-    </div>
-  )}
+{/* History toggle (only when weekly is on) */}
+{showWeekly && (
+  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <input
+      type="checkbox"
+      id="weeklyHistoryToggleDesktop"
+      checked={showWeeklyHistory}
+      onChange={(e) => setShowWeeklyHistory(e.target.checked)}
+    />
+    <label
+      htmlFor="weeklyHistoryToggleDesktop"
+      style={{ fontSize: 16, color: "#aaa", fontWeight: 500 }}
+    >
+      Prev 6 Weeks Leaders
+    </label>
+  </div>
+)}
 
           <h2
             style={{
@@ -2737,27 +2734,23 @@ onChange={(e) => {
     </label>
   </div>
 
-  {/* History */}
-  {showWeekly && (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <input
-        type="checkbox"
-        id="weeklyHistoryToggleMobile"
-        checked={showWeeklyHistory}
-onChange={(e) => {
-  setShowWeekly(e.target.checked);
-  if (!e.target.checked) setShowWeeklyHistory(false);
-}}
-      />
-      <label
-        htmlFor="weeklyHistoryToggleMobile"
-        style={{ fontSize: 13, color: "#aaa", fontWeight: 500 }}
-      >
-        History
-      </label>
-    </div>
-  )}
-
+{/* History */}
+{showWeekly && (
+  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <input
+      type="checkbox"
+      id="weeklyHistoryToggleMobile"
+      checked={showWeeklyHistory}
+      onChange={(e) => setShowWeeklyHistory(e.target.checked)}
+    />
+    <label
+      htmlFor="weeklyHistoryToggleMobile"
+      style={{ fontSize: 13, color: "#aaa", fontWeight: 500 }}
+    >
+      Prev 6 Weeks Leaders
+    </label>
+  </div>
+)}
           <h2
             style={{
               color: "#18bb1a",
