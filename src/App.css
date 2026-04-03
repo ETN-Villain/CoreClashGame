@@ -149,36 +149,3 @@ html, body {
     filter: drop-shadow(0 0 4px #18bb1a);
   }
 }
-
-@keyframes flameMove {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-.flame-bg {
-  position: relative;
-  overflow: hidden;
-}
-
-.flame-bg::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    120deg,
-    rgba(255, 80, 0, 0.15),
-    rgba(255, 140, 0, 0.2),
-    rgba(255, 0, 0, 0.15),
-    rgba(255, 200, 0, 0.2)
-  );
-  background-size: 300% 300%;
-  animation: flameMove 6s ease-in-out infinite;
-  z-index: 0;
-  pointer-events: none;
-}
-
-.flame-bg > * {
-  position: relative;
-  z-index: 1;
-}

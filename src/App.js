@@ -2221,19 +2221,18 @@ return (
 
 {/* ---------------- TOTAL CORE BURNED ---------------- */}
 <div
-  className="flame-bg"
-  style={{
-    marginTop: 20,
-    width: isMobile ? "100%" : undefined,
-    padding: "16px 12px",
-    background: "#111",
-    borderRadius: 12,
-    border: "1px solid #333",
-    textAlign: "center",
-    boxShadow: "0 0 12px rgba(255,100,0,0.25)", // 🔥 warmer glow
-    boxSizing: "border-box",
-    marginBottom: 12,
-  }}
+style={{
+  marginTop: 20,
+  width: isMobile ? "100%" : undefined,
+  padding: "16px 12px",
+  background: "#111",
+  borderRadius: 12,
+  border: "1px solid #333",
+  textAlign: "center",
+  boxShadow: "0 0 12px rgba(24,187,26,0.15)",
+  boxSizing: "border-box", // ✅ THIS FIXES IT PROPERLY
+  marginBottom: 12,
+}}
 >
   {/* Label */}
   <div
