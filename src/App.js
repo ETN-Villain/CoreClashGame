@@ -3013,51 +3013,75 @@ onClick={createGame} // <-- THIS IS REQUIRED
         marginBottom: 12,
       }}
     >
-      {/* All-Time */}
       <button
         type="button"
         onClick={() => {
+          setLeaderboardMode("alltime");
           setShowWeekly(false);
           setShowWeeklyHistory(false);
         }}
         style={{
           padding: "8px 12px",
           borderRadius: 999,
-          border: !showWeekly ? "1px solid #18bb1a" : "1px solid #333",
-          background: !showWeekly ? "rgba(24,187,26,0.14)" : "#111",
-          color: !showWeekly ? "#18bb1a" : "#ddd",
+          border: isAllTimeMode ? "1px solid #18bb1a" : "1px solid #333",
+          background: isAllTimeMode ? "rgba(24,187,26,0.14)" : "#111",
+          color: isAllTimeMode ? "#18bb1a" : "#ddd",
           fontSize: 13,
           fontWeight: 700,
           cursor: "pointer",
-          boxShadow: !showWeekly ? "0 0 10px rgba(24,187,26,0.18)" : "none",
+          boxShadow: isAllTimeMode ? "0 0 10px rgba(24,187,26,0.18)" : "none",
           transition: "all 0.2s ease",
         }}
       >
-        {!showWeekly ? "✓ " : ""}All-Time
+        {isAllTimeMode ? "✓ " : ""}All-Time
       </button>
 
-      {/* Weekly */}
       <button
         type="button"
-        onClick={() => setShowWeekly(true)}
+        onClick={() => {
+          setLeaderboardMode("weekly");
+          setShowWeekly(true);
+        }}
         style={{
           padding: "8px 12px",
           borderRadius: 999,
-          border: showWeekly ? "1px solid #18bb1a" : "1px solid #333",
-          background: showWeekly ? "rgba(24,187,26,0.14)" : "#111",
-          color: showWeekly ? "#18bb1a" : "#ddd",
+          border: isWeeklyMode ? "1px solid #18bb1a" : "1px solid #333",
+          background: isWeeklyMode ? "rgba(24,187,26,0.14)" : "#111",
+          color: isWeeklyMode ? "#18bb1a" : "#ddd",
           fontSize: 13,
           fontWeight: 700,
           cursor: "pointer",
-          boxShadow: showWeekly ? "0 0 10px rgba(24,187,26,0.18)" : "none",
+          boxShadow: isWeeklyMode ? "0 0 10px rgba(24,187,26,0.18)" : "none",
           transition: "all 0.2s ease",
         }}
       >
-        {showWeekly ? "✓ " : ""}Weekly
+        {isWeeklyMode ? "✓ " : ""}Weekly
       </button>
 
-      {/* Prev 6 Weeks */}
-      {showWeekly && (
+      <button
+        type="button"
+        onClick={() => {
+          setLeaderboardMode("characters");
+          setShowWeekly(false);
+          setShowWeeklyHistory(false);
+        }}
+        style={{
+          padding: "8px 12px",
+          borderRadius: 999,
+          border: isCharacterMode ? "1px solid #18bb1a" : "1px solid #333",
+          background: isCharacterMode ? "rgba(24,187,26,0.14)" : "#111",
+          color: isCharacterMode ? "#18bb1a" : "#ddd",
+          fontSize: 13,
+          fontWeight: 700,
+          cursor: "pointer",
+          boxShadow: isCharacterMode ? "0 0 10px rgba(24,187,26,0.18)" : "none",
+          transition: "all 0.2s ease",
+        }}
+      >
+        {isCharacterMode ? "✓ " : ""}Characters
+      </button>
+
+      {isWeeklyMode && (
         <button
           type="button"
           onClick={() => setShowWeeklyHistory((prev) => !prev)}
@@ -3089,13 +3113,18 @@ onClick={createGame} // <-- THIS IS REQUIRED
         marginBottom: 12,
       }}
     >
-      {showWeekly
+      {isCharacterMode
+        ? "🏆 Character Leaderboard (Rolling 6 Weeks)"
+        : isWeeklyMode
         ? `🏆 Weekly Top 3 (${weeklyHistory.week})`
         : "🏆 All-Time Top 10"}
     </h2>
 
-    {renderLeaderboardCard(true)}
-    {showWeekly && showWeeklyHistory && renderWeeklyHistory()}
+    {isCharacterMode
+      ? renderCharacterLeaderboardCard(true)
+      : renderLeaderboardCard(true)}
+
+    {isWeeklyMode && showWeeklyHistory && renderWeeklyHistory()}
   </div>
 )}
 
