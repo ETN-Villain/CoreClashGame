@@ -1421,23 +1421,30 @@ const characterLeaderboard = useMemo(() => {
 
       if (!player1Reveal || !player2Reveal || rounds.length === 0) return;
 
-      const buildTeam = (reveal) => {
-        const nftContracts = reveal.nftContracts || [];
-        const tokenURIs = reveal.tokenURIs || [];
-        const backgrounds = reveal.backgrounds || [];
+const buildTeam = (reveal) => {
+  const nftContracts = Array.isArray(reveal?.nftContracts) ? reveal.nftContracts : [];
+  const tokenURIs = Array.isArray(reveal?.tokenURIs) ? reveal.tokenURIs : [];
+  const backgrounds = Array.isArray(reveal?.backgrounds) ? reveal.backgrounds : [];
 
-        return tokenURIs.map((tokenURI, idx) => {
-          const collectionKey = resolveCollectionKeyFromAddress(nftContracts[idx]);
-          const nameKey = `${collectionKey}:${tokenURI}`;
-          const rawName = characterNameMap[nameKey] || tokenURI?.replace(/\.json$/i, "") || "Unknown";
-          const baseName = rawName.replace(/\s*#\d+$/i, "").trim();
-          const background = backgrounds[idx] || "Unknown";
-          const label = `${baseName} ${background}`;
-          const entryKey = `${baseName}||${background}`;
+  return tokenURIs.map((tokenURI, idx) => {
+    const collectionKey = resolveCollectionKeyFromAddress(nftContracts[idx]);
+    const nameKey = `${collectionKey}:${tokenURI}`;
 
-          return { entryKey, label };
-        });
-      };
+    const rawName =
+      typeof characterNameMap[nameKey] === "string"
+        ? characterNameMap[nameKey]
+        : typeof tokenURI === "string"
+        ? tokenURI.replace(/\.json$/i, "")
+        : "Unknown";
+
+    const baseName = String(rawName).replace(/\s*#\d+$/i, "").trim();
+    const background = typeof backgrounds[idx] === "string" ? backgrounds[idx] : "Unknown";
+    const label = `${baseName} ${background}`;
+    const entryKey = `${baseName}||${background}`;
+
+    return { entryKey, label };
+  });
+};
 
       const p1Team = buildTeam(player1Reveal);
       const p2Team = buildTeam(player2Reveal);
