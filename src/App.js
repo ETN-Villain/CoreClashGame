@@ -1262,8 +1262,13 @@ const latestSettled = sortedSettledGames.slice(0, 10);
 const archivedSettled = sortedSettledGames.slice(10);
 
 /* ---------------- LEADERBOARD ---------------- */
+const [leaderboardMode, setLeaderboardMode] = useState("alltime"); // "alltime" | "weekly" | "characters"
 const [showWeekly, setShowWeekly] = useState(false);
 const [showWeeklyHistory, setShowWeeklyHistory] = useState(false);
+
+const isAllTimeMode = leaderboardMode === "alltime";
+const isWeeklyMode = leaderboardMode === "weekly";
+const isCharacterMode = leaderboardMode === "characters";
 
 const leaderboard = useMemo(() => {
   const stats = {};
@@ -1302,6 +1307,166 @@ const leaderboard = useMemo(() => {
     })
     .slice(0, 10);
 }, [games]);
+
+const [characterNameMap, setCharacterNameMap] = useState({});
+
+const resolveCollectionKeyFromAddress = (rawAddr) => {
+  const addr = (rawAddr || "").toLowerCase();
+
+  if (addr === VKIN_CONTRACT_ADDRESS.toLowerCase()) return "VKIN";
+  if (addr === VQLE_CONTRACT_ADDRESS.toLowerCase()) return "VQLE";
+  if (addr === SCIONS_CONTRACT_ADDRESS.toLowerCase()) return "SCIONS";
+  return null;
+};
+
+useEffect(() => {
+  const loadCharacterNames = async () => {
+    try {
+      const needed = new Map();
+
+      games
+        .filter((g) => g.settled && !g.cancelled)
+        .forEach((g) => {
+          [g.player1Reveal, g.player2Reveal].forEach((reveal) => {
+            if (!reveal) return;
+
+            const nftContracts = reveal.nftContracts || [];
+            const tokenURIs = reveal.tokenURIs || [];
+
+            tokenURIs.forEach((tokenURI, idx) => {
+              const collectionKey = resolveCollectionKeyFromAddress(nftContracts[idx]);
+              if (!collectionKey || !tokenURI) return;
+
+              const key = `${collectionKey}:${tokenURI}`;
+              if (!characterNameMap[key]) {
+                needed.set(key, { collectionKey, tokenURI });
+              }
+            });
+          });
+        });
+
+      if (needed.size === 0) return;
+
+      const entries = await Promise.all(
+        [...needed.values()].map(async ({ collectionKey, tokenURI }) => {
+          try {
+            const tokenIdGuess = tokenURI.replace(/\.json$/i, "");
+            const res = await fetch(`${BACKEND_URL}/metadata/${collectionKey}/${tokenIdGuess}`);
+            if (!res.ok) throw new Error("metadata fetch failed");
+            const meta = await res.json();
+            return [`${collectionKey}:${tokenURI}`, meta.name || tokenURI];
+          } catch {
+            return [`${collectionKey}:${tokenURI}`, tokenURI.replace(/\.json$/i, "")];
+          }
+        })
+      );
+
+      setCharacterNameMap((prev) => ({
+        ...prev,
+        ...Object.fromEntries(entries),
+      }));
+    } catch (err) {
+      console.error("Failed to load character names:", err);
+    }
+  };
+
+  loadCharacterNames();
+}, [games, BACKEND_URL]); // eslint-disable-line react-hooks/exhaustive-deps
+
+const characterLeaderboard = useMemo(() => {
+  const stats = {};
+
+  const now = new Date();
+  const start = new Date(now);
+  start.setUTCDate(start.getUTCDate() - 42); // rolling 6 weeks
+  start.setUTCHours(0, 0, 0, 0);
+
+  const addPlayed = (entryKey, label) => {
+    if (!stats[entryKey]) {
+      stats[entryKey] = {
+        label,
+        wins: 0,
+        played: 0,
+        winRate: 0,
+      };
+    }
+    stats[entryKey].played += 1;
+  };
+
+  const addWin = (entryKey, label) => {
+    if (!stats[entryKey]) {
+      stats[entryKey] = {
+        label,
+        wins: 0,
+        played: 0,
+        winRate: 0,
+      };
+    }
+    stats[entryKey].wins += 1;
+  };
+
+  games
+    .filter((g) => g.settled && !g.cancelled)
+    .forEach((g) => {
+      const resultDate = g.settledAt || g.createdAt || g.date;
+      if (!resultDate) return;
+
+      const gameTime = new Date(resultDate);
+      if (Number.isNaN(gameTime.getTime())) return;
+      if (gameTime < start) return;
+
+      const player1Reveal = g.player1Reveal;
+      const player2Reveal = g.player2Reveal;
+      const rounds = Array.isArray(g.roundResults) ? g.roundResults : [];
+
+      if (!player1Reveal || !player2Reveal || rounds.length === 0) return;
+
+      const buildTeam = (reveal) => {
+        const nftContracts = reveal.nftContracts || [];
+        const tokenURIs = reveal.tokenURIs || [];
+        const backgrounds = reveal.backgrounds || [];
+
+        return tokenURIs.map((tokenURI, idx) => {
+          const collectionKey = resolveCollectionKeyFromAddress(nftContracts[idx]);
+          const nameKey = `${collectionKey}:${tokenURI}`;
+          const rawName = characterNameMap[nameKey] || tokenURI?.replace(/\.json$/i, "") || "Unknown";
+          const baseName = rawName.replace(/\s*#\d+$/i, "").trim();
+          const background = backgrounds[idx] || "Unknown";
+          const label = `${baseName} ${background}`;
+          const entryKey = `${baseName}||${background}`;
+
+          return { entryKey, label };
+        });
+      };
+
+      const p1Team = buildTeam(player1Reveal);
+      const p2Team = buildTeam(player2Reveal);
+
+      // Each character played once if present in a settled game
+      p1Team.forEach(({ entryKey, label }) => addPlayed(entryKey, label));
+      p2Team.forEach(({ entryKey, label }) => addPlayed(entryKey, label));
+
+      // Round winners map to slots 0/1/2
+      rounds.forEach((round, idx) => {
+        if (round.winner === "player1" && p1Team[idx]) {
+          addWin(p1Team[idx].entryKey, p1Team[idx].label);
+        } else if (round.winner === "player2" && p2Team[idx]) {
+          addWin(p2Team[idx].entryKey, p2Team[idx].label);
+        }
+      });
+    });
+
+  return Object.values(stats)
+    .map((entry) => ({
+      ...entry,
+      winRate: entry.played > 0 ? Math.round((entry.wins / entry.played) * 100) : 0,
+    }))
+    .sort((a, b) => {
+      if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return b.played - a.played;
+    });
+}, [games, characterNameMap]);
 
 /* ---------------- WEEKLY LEADERBOARD (LIVE FROM games) ---------------- */
 const weeklyHistory = useMemo(() => {
@@ -1627,6 +1792,74 @@ const renderWeeklyHistory = () =>
       ))}
     </div>
   );
+
+  const renderCharacterLeaderboardCard = (mobile = false) => (
+  <div
+    style={{
+      background: "#111",
+      padding: mobile ? 16 : 24,
+      borderRadius: 12,
+      border: "1px solid #333",
+      display: "flex",
+      flexDirection: "column",
+      gap: 4,
+    }}
+  >
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: mobile ? "2.4fr 1fr 1fr 1fr" : "2.8fr 1fr 1fr 1fr",
+        fontSize: mobile ? 13 : 16,
+        opacity: 0.7,
+        borderBottom: "1px solid #333",
+        paddingBottom: 6,
+        marginBottom: 6,
+      }}
+    >
+      <span>Character</span>
+      <span style={{ textAlign: "center" }}>P</span>
+      <span style={{ textAlign: "center" }}>W</span>
+      <span style={{ textAlign: "center" }}>%</span>
+    </div>
+
+    {characterLeaderboard.slice(0, 25).map((entry, index) => {
+      const medalColor = ["#FFD700", "#C0C0C0", "#CD7F32"][index] || "#fff";
+
+      return (
+        <div
+          key={entry.label}
+          style={{
+            display: "grid",
+            gridTemplateColumns: mobile ? "2.4fr 1fr 1fr 1fr" : "2.8fr 1fr 1fr 1fr",
+            padding: mobile ? "6px 0" : "8px 0",
+            borderBottom: "1px solid #222",
+            fontSize: mobile ? 14 : 16,
+            color: medalColor,
+          }}
+        >
+          <span>
+            #{index + 1} — {entry.label}
+          </span>
+          <span style={{ textAlign: "center" }}>{entry.played}</span>
+          <span style={{ textAlign: "center" }}>{entry.wins}</span>
+          <span style={{ textAlign: "center" }}>{entry.winRate}%</span>
+        </div>
+      );
+    })}
+
+    {characterLeaderboard.length === 0 && (
+      <div
+        style={{
+          opacity: 0.6,
+          padding: mobile ? "10px 0" : "12px 0",
+          textAlign: "center",
+        }}
+      >
+        No character stats to display.
+      </div>
+    )}
+  </div>
+);
 
   /* ---------------- MAIN APP ---------------- */
 return (
@@ -2640,97 +2873,126 @@ onClick={createGame} // <-- THIS IS REQUIRED
      {/* ---------------- LEADERBOARD SECTION ---------------- */}
 {!isMobile && (
   <div style={{ marginBottom: 30 }}>
-    <div
+<div
+  style={{
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 16,
+  }}
+>
+  <button
+    type="button"
+    onClick={() => {
+      setLeaderboardMode("alltime");
+      setShowWeekly(false);
+      setShowWeeklyHistory(false);
+    }}
+    style={{
+      padding: "9px 14px",
+      borderRadius: 999,
+      border: isAllTimeMode ? "1px solid #18bb1a" : "1px solid #333",
+      background: isAllTimeMode ? "rgba(24,187,26,0.14)" : "#111",
+      color: isAllTimeMode ? "#18bb1a" : "#ddd",
+      fontSize: 15,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: isAllTimeMode ? "0 0 12px rgba(24,187,26,0.18)" : "none",
+      transition: "all 0.2s ease",
+    }}
+  >
+    {isAllTimeMode ? "✓ " : ""}All-Time
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      setLeaderboardMode("weekly");
+      setShowWeekly(true);
+    }}
+    style={{
+      padding: "9px 14px",
+      borderRadius: 999,
+      border: isWeeklyMode ? "1px solid #18bb1a" : "1px solid #333",
+      background: isWeeklyMode ? "rgba(24,187,26,0.14)" : "#111",
+      color: isWeeklyMode ? "#18bb1a" : "#ddd",
+      fontSize: 15,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: isWeeklyMode ? "0 0 12px rgba(24,187,26,0.18)" : "none",
+      transition: "all 0.2s ease",
+    }}
+  >
+    {isWeeklyMode ? "✓ " : ""}Weekly
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      setLeaderboardMode("characters");
+      setShowWeekly(false);
+      setShowWeeklyHistory(false);
+    }}
+    style={{
+      padding: "9px 14px",
+      borderRadius: 999,
+      border: isCharacterMode ? "1px solid #18bb1a" : "1px solid #333",
+      background: isCharacterMode ? "rgba(24,187,26,0.14)" : "#111",
+      color: isCharacterMode ? "#18bb1a" : "#ddd",
+      fontSize: 15,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: isCharacterMode ? "0 0 12px rgba(24,187,26,0.18)" : "none",
+      transition: "all 0.2s ease",
+    }}
+  >
+    {isCharacterMode ? "✓ " : ""}Characters
+  </button>
+
+  {isWeeklyMode && (
+    <button
+      type="button"
+      onClick={() => setShowWeeklyHistory((prev) => !prev)}
       style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 10,
-        marginBottom: 16,
+        padding: "9px 14px",
+        borderRadius: 999,
+        border: showWeeklyHistory ? "1px solid #4da3ff" : "1px solid #333",
+        background: showWeeklyHistory ? "rgba(77,163,255,0.14)" : "#111",
+        color: showWeeklyHistory ? "#4da3ff" : "#aaa",
+        fontSize: 15,
+        fontWeight: 700,
+        cursor: "pointer",
+        boxShadow: showWeeklyHistory ? "0 0 12px rgba(77,163,255,0.16)" : "none",
+        transition: "all 0.2s ease",
       }}
     >
-      {/* All-Time */}
-      <button
-        type="button"
-        onClick={() => {
-          setShowWeekly(false);
-          setShowWeeklyHistory(false);
-        }}
-        style={{
-          padding: "9px 14px",
-          borderRadius: 999,
-          border: !showWeekly ? "1px solid #18bb1a" : "1px solid #333",
-          background: !showWeekly ? "rgba(24,187,26,0.14)" : "#111",
-          color: !showWeekly ? "#18bb1a" : "#ddd",
-          fontSize: 15,
-          fontWeight: 700,
-          cursor: "pointer",
-          boxShadow: !showWeekly ? "0 0 12px rgba(24,187,26,0.18)" : "none",
-          transition: "all 0.2s ease",
-        }}
-      >
-        {!showWeekly ? "✓ " : ""}All-Time
-      </button>
+      {showWeeklyHistory ? "✓ " : ""}Prev 6 Weeks
+    </button>
+  )}
+</div>
 
-      {/* Weekly */}
-      <button
-        type="button"
-        onClick={() => setShowWeekly(true)}
-        style={{
-          padding: "9px 14px",
-          borderRadius: 999,
-          border: showWeekly ? "1px solid #18bb1a" : "1px solid #333",
-          background: showWeekly ? "rgba(24,187,26,0.14)" : "#111",
-          color: showWeekly ? "#18bb1a" : "#ddd",
-          fontSize: 15,
-          fontWeight: 700,
-          cursor: "pointer",
-          boxShadow: showWeekly ? "0 0 12px rgba(24,187,26,0.18)" : "none",
-          transition: "all 0.2s ease",
-        }}
-      >
-        {showWeekly ? "✓ " : ""}Weekly
-      </button>
+<h2
+  style={{
+    color: "#18bb1a",
+    fontWeight: "bold",
+    fontSize: 30,
+    textTransform: "uppercase",
+    textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
+    marginBottom: 12,
+  }}
+>
+  {isCharacterMode
+    ? "🏆 Character Leaderboard (Rolling 6 Weeks)"
+    : isWeeklyMode
+    ? `🏆 Weekly Top 3 (${weeklyHistory.week})`
+    : "🏆 All-Time Top 10"}
+</h2>
 
-      {/* Previous 6 Weeks */}
-      {showWeekly && (
-        <button
-          type="button"
-          onClick={() => setShowWeeklyHistory((prev) => !prev)}
-          style={{
-            padding: "9px 14px",
-            borderRadius: 999,
-            border: showWeeklyHistory ? "1px solid #4da3ff" : "1px solid #333",
-            background: showWeeklyHistory ? "rgba(77,163,255,0.14)" : "#111",
-            color: showWeeklyHistory ? "#4da3ff" : "#aaa",
-            fontSize: 15,
-            fontWeight: 700,
-            cursor: "pointer",
-            boxShadow: showWeeklyHistory ? "0 0 12px rgba(77,163,255,0.16)" : "none",
-            transition: "all 0.2s ease",
-          }}
-        >
-          {showWeeklyHistory ? "✓ " : ""}Prev 6 Weeks
-        </button>
-      )}
-    </div>
+{isCharacterMode
+  ? renderCharacterLeaderboardCard(false)
+  : renderLeaderboardCard(false)}
 
-    <h2
-      style={{
-        color: "#18bb1a",
-        fontWeight: "bold",
-        fontSize: 30,
-        textTransform: "uppercase",
-        textShadow: "0 0 8px #18bb1a, 0 0 16px #18bb1a",
-        marginBottom: 12,
-      }}
-    >
-      {showWeekly
-        ? `🏆 Weekly Top 3 (${weeklyHistory.week})`
-        : "🏆 All-Time Top 10"}
-    </h2>
-
-    {renderLeaderboardCard(false)}
-    {showWeekly && showWeeklyHistory && renderWeeklyHistory()}
+{isWeeklyMode && showWeeklyHistory && renderWeeklyHistory()}
   </div>
 )}
 
