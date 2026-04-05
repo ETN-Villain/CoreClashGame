@@ -3114,7 +3114,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
       }}
     >
       {isCharacterMode
-        ? "🏆 Character Leaderboard (Rolling 6 Weeks)"
+        ? "🏆 Character Leaderboard (Rolling 4 Weeks)"
         : isWeeklyMode
         ? `🏆 Weekly Top 3 (${weeklyHistory.week})`
         : "🏆 All-Time Top 10"}
