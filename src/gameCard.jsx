@@ -760,7 +760,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
       textShadow: "0 0 8px rgba(24,187,26,0.4)",
     }}
   >
-    © {new Date().getFullYear()} Planet Zephyros × ETN_Villain
+    © {new Date().getFullYear()} Planet Zephyros × @ETN_Villain
   </div>
 
   {/* Divider line (subtle polish) */}
