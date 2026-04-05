@@ -2416,7 +2416,7 @@ style={{
       marginBottom: 8,
     }}
   >
-    Build Your Clash Team (Choose 1 from each row)
+    Build Your Team (Choose 1 from each row)
   </h3>
 
 {/* ---------------- NFT GALLERY ---------------- */}
@@ -2852,7 +2852,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
             { key: "open", label: `Open (${openGames.length})` },
             { key: "active", label: `Active (${activeGames.length})` },
             { key: "settled", label: `Settled (${latestSettled.length})` },
-            { key: "leaderboard", label: "Leaderboards" },
+            { key: "leaderboard", label: "Leaderboard" },
           ].map((tab) => (
             <button
               key={tab.key}
