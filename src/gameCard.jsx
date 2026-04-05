@@ -101,14 +101,14 @@ function getGameStatus(g) {
   }
 
   if (g.settled) {
-    return { label: "Settled On-Chain", color: "#18bb1a", link: `https://blockexplorer.electroneum.com/tx/${g.settleTxHash}`};
+    return { label: "🔗Settled On-Chain", color: "#18bb1a", link: `https://blockexplorer.electroneum.com/tx/${g.settleTxHash}`};
   }
 
 if (
   g.player1 &&
   (!g.player2 || g.player2 === ethers.ZeroAddress)
 ) {
-  return { label: "Waiting for Opponent", color: "#f0b90b" };
+  return { label: "⏳Waiting for Opponent", color: "#f0b90b" };
 }
 
 if (
@@ -117,7 +117,7 @@ if (
   g.player2 !== ethers.ZeroAddress &&
   (!g.player1Reveal || !g.player2Reveal)
 ) {
-  return { label: "Awaiting Reveals", color: "#888" };
+  return { label: "⏳Awaiting Reveals", color: "#888" };
 }
 
   if (g.roundResults && g.roundResults.length > 0 && !g.backendWinner) {
@@ -460,7 +460,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
   <>
     {/* Player 1 */}
     <div>
-      🟥 Player 1: {g.player1 ? `0x...${g.player1.slice(-5)}` : "Waiting for opponent"}
+      🟥 Player 1: {g.player1 ? `0x...${g.player1.slice(-5)}` : "⏳Waiting for opponent"}
     </div>
 
     {/* Player 2 */}
@@ -468,7 +468,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
       🟦 Player 2:{" "}
       {g.player2 && g.player2 !== ethers.ZeroAddress
         ? `0x...${g.player2.slice(-5)}`
-        : "Waiting for opponent"}
+        : "⏳Waiting for opponent"}
     </div>
 
 <div style={{ fontSize: 14, marginTop: 6, opacity: isCancelled ? 0.6 : 1 }}>
