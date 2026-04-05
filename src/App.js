@@ -1408,7 +1408,7 @@ const characterLeaderboard = useMemo(() => {
   games
     .filter((g) => g.settled && !g.cancelled)
     .forEach((g) => {
-      const resultDate = g.settledAt || g.createdAt || g.date;
+      const resultDate = g.settledAt;
       if (!resultDate) return;
 
       const gameTime = new Date(resultDate);
