@@ -1378,7 +1378,7 @@ const characterLeaderboard = useMemo(() => {
 
   const now = new Date();
   const start = new Date(now);
-  start.setUTCDate(start.getUTCDate() - 42); // rolling 6 weeks
+  start.setUTCDate(start.getUTCDate() - 28); // rolling 4 weeks
   start.setUTCHours(0, 0, 0, 0);
 
   const addPlayed = (entryKey, label) => {
@@ -2310,7 +2310,7 @@ style={{
         margin: 0,
       }}
     >
-      Create Game
+      Create Clash
     </h2>
 
     {/* HELP BUTTONS */}
@@ -2416,7 +2416,7 @@ style={{
       marginBottom: 8,
     }}
   >
-    Your Clash Team (3)
+    Build Your Clash Team (Choose 1 from each row)
   </h3>
 
 {/* ---------------- NFT GALLERY ---------------- */}
@@ -2852,7 +2852,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
             { key: "open", label: `Open (${openGames.length})` },
             { key: "active", label: `Active (${activeGames.length})` },
             { key: "settled", label: `Settled (${latestSettled.length})` },
-            { key: "leaderboard", label: "Leaderboard" },
+            { key: "leaderboard", label: "Leaderboards" },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -2989,7 +2989,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
   }}
 >
   {isCharacterMode
-    ? "🏆 Character Leaderboard (Rolling 6 Weeks)"
+    ? "🏆 Character Leaderboard (Rolling 4 Weeks)"
     : isWeeklyMode
     ? `🏆 Weekly Top 3 (${weeklyHistory.week})`
     : "🏆 All-Time Top 10"}
@@ -3140,7 +3140,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
           {/* OPEN */}
           {(!isMobile || activeTab === "open") && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <h3>🟢 Open ({openGames.length})</h3>
+              <h3>🟢 Open Clashes ({openGames.length})</h3>
               {openGames.map((g) => (
                 <div key={g.id} style={{ width: "100%" }}>
                   <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
@@ -3152,7 +3152,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
           {/* ACTIVE */}
           {(!isMobile || activeTab === "active") && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <h3>🟡 Active ({activeGames.length})</h3>
+              <h3>🟡 Active Clashes ({activeGames.length})</h3>
               {activeGames.map((g) => (
                 <div key={g.id} style={{ width: "100%" }}>
                   <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
@@ -3234,7 +3234,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
 
               {showResolved && latestSettled.length > 0 && (
                 <>
-                  <h3>🔵 Settled ({latestSettled.length})</h3>
+                  <h3>🔵 Settled Clashes ({latestSettled.length})</h3>
                   {[...latestSettled]
                     .sort((a, b) => Number(b.settledAt) - Number(a.settledAt))
                     .map((g) => (
@@ -3247,7 +3247,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
 
               {showCancelled && cancelledGames.length > 0 && (
                 <>
-                  <h3>❌ Cancelled ({cancelledGames.length})</h3>
+                  <h3>❌ Cancelled Clashes ({cancelledGames.length})</h3>
                   {cancelledGames.map((g) => (
                     <div key={g.id} style={{ width: "100%" }}>
                       <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
@@ -3258,7 +3258,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
 
               {showArchive && archivedSettled.length > 0 && (
                 <>
-                  <h3>📦 Archive ({archivedSettled.length})</h3>
+                  <h3>📦 Archived Clashes ({archivedSettled.length})</h3>
                   {archivedSettled.map((g) => (
                     <div key={g.id} style={{ width: "100%" }}>
                       <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
