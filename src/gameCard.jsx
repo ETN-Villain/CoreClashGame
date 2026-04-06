@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import React from "react";
+import { React, useEffect, useState } from "react";
 import mapping from "./mapping.json"; // Frontend mapping
 import { BACKEND_URL, ADMIN_ADDRESS } from "./config.js"
 
@@ -90,6 +90,7 @@ const isAdmin =
   account.toLowerCase() === ADMIN_ADDRESS.toLowerCase();
 
 const canManualSettleUser = isAdmin || isPlayer1 || isPlayer2;
+const bothRevealed = g.player1Revealed && g.player2Revealed;
 
 const backupExists = (() => {
   if (!account || !g?.id) return false;
@@ -100,6 +101,10 @@ const backupExists = (() => {
   const tokenIds = localStorage.getItem(`${prefix}_tokenIds`);
   return !!salt && !!nftContracts && !!tokenIds;
 })();
+
+const isCancelled = g.cancelled === true || g.cancelled === "true";
+const isSettled = g.settled === true || g.settled === "true";
+
 
   // ---------- Game Status Logic ----------
 function getGameStatus(g) {
@@ -188,6 +193,8 @@ const revealDeadlineTs = g.player2JoinedAt
   ? new Date(g.player2JoinedAt).getTime() + FIVE_DAYS_MS
   : null;
 
+const [now, setNow] = useState(Date.now());
+
 const revealDeadlinePassed = revealDeadlineTs ? now >= revealDeadlineTs : false;
 
 const timeRemaining = revealDeadlineTs
@@ -200,8 +207,6 @@ const canManualSettle =
   !isSettled &&
   !isCancelled &&
   canManualSettleUser;
-
-const [now, setNow] = useState(Date.now());
 
 useEffect(() => {
   const timer = setInterval(() => {
@@ -227,9 +232,6 @@ function formatTimeRemaining(ms) {
 const isPlayer2Empty =
   g.player2?.toLowerCase() === ethers.ZeroAddress.toLowerCase();
   
-  const isCancelled = g.cancelled === true || g.cancelled === "true";
-const isSettled = g.settled === true || g.settled === "true";
-
 const canJoin =
   isPlayer2Empty &&
   !isPlayer1 &&
@@ -238,7 +240,6 @@ const canJoin =
   !isSettled &&
   !!account;
 
-  const bothRevealed = g.player1Revealed && g.player2Revealed;
   const canSettle = bothRevealed && !isSettled && !isCancelled;
   const status = getGameStatus(g);
   const BadgeWrapper = status.link ? "a" : "div";
