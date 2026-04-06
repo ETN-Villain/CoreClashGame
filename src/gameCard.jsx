@@ -592,15 +592,9 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
 {g.player2 !== ethers.ZeroAddress &&
   !isSettled &&
   !isCancelled &&
-  (
     ((isPlayer1 && !g.player1Revealed) ||
-     (isPlayer2 && !g.player2Revealed)) ||
-    revealDeadlinePassed
-  ) && (
+     (isPlayer2 && !g.player2Revealed)) && (
     <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-      {/* Upload Reveal (only if still allowed) */}
-      {!revealDeadlinePassed && (
-        <>
           <button
             onClick={() => document.getElementById(`reveal-file-${g.id}`).click()}
             style={{
@@ -621,12 +615,12 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
             style={{ display: "none" }}
             onChange={handleRevealFile}
           />
-        </>
+        </div>
       )}
 
 {/* Settle after 5 days */}
 {revealDeadlineTs && !bothRevealed && !isSettled && !isCancelled && (
-  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+  <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
     {!revealDeadlinePassed ? (
       <div style={{ fontSize: 12, color: "#ffb74d" }}>
         ⏳ Reveal deadline in: {formatTimeRemaining(timeRemaining)}
@@ -654,8 +648,6 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
     )}
   </div>
 )}
-  </div>
-  )}
 
 {/* Manual settle for fully revealed games */}
 {canSettle && !isCancelled && (
@@ -792,6 +784,6 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
 </div>
 )}
     </div>
-  </div>
+    </div>
   );
 }
