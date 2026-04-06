@@ -590,28 +590,30 @@ const loadGames = useCallback(async () => {
     const backendGames = await res.json();
 
     // 3️⃣ Merge on-chain + backend
-    const merged = backendGames.map((backendGame) => {
-      const onChainGame = loadedOnChain.find(g => g.id === backendGame.id) || {};
+const merged = backendGames.map((backendGame) => {
+  const onChainGame = loadedOnChain.find(g => g.id === backendGame.id) || {};
 
-      return {
-        id: backendGame.id,
-        player1: onChainGame.player1 || backendGame.player1 || ethers.ZeroAddress,
-        player2: onChainGame.player2 || backendGame.player2 || ethers.ZeroAddress,
-        stakeAmount: onChainGame.stakeAmount?.toString() || "0",
-        stakeToken: backendGame.stakeToken || onChainGame.stakeToken,
-        player1Revealed: !!backendGame.player1Revealed,
-        player2Revealed: !!backendGame.player2Revealed,
-        player1Reveal: backendGame.player1Reveal || null,
-        player2Reveal: backendGame.player2Reveal || null,
-        roundResults: backendGame.roundResults || [],
-        winner: backendGame.winner || onChainGame.winner || ethers.ZeroAddress,
-        tie: !!backendGame.tie,
-        settled: backendGame.settled === true || onChainGame.settled === true,
-        settledAt: backendGame.settledAt || null,
-        settleTxHash: backendGame.settleTxHash || null,
-        cancelled: backendGame.cancelled === true,
-      };
-    });
+  return {
+    id: backendGame.id,
+    player1: onChainGame.player1 || backendGame.player1 || ethers.ZeroAddress,
+    player2: onChainGame.player2 || backendGame.player2 || ethers.ZeroAddress,
+    stakeAmount: onChainGame.stakeAmount?.toString() || "0",
+    stakeToken: backendGame.stakeToken || onChainGame.stakeToken,
+    player1Revealed: !!backendGame.player1Revealed,
+    player2Revealed: !!backendGame.player2Revealed,
+    player1Reveal: backendGame.player1Reveal || null,
+    player2Reveal: backendGame.player2Reveal || null,
+    player2JoinedAt: backendGame.player2JoinedAt || null,
+    createdAt: backendGame.createdAt || null,
+    roundResults: backendGame.roundResults || [],
+    winner: backendGame.winner || onChainGame.winner || ethers.ZeroAddress,
+    tie: !!backendGame.tie,
+    settled: backendGame.settled === true || onChainGame.settled === true,
+    settledAt: backendGame.settledAt || null,
+    settleTxHash: backendGame.settleTxHash || null,
+    cancelled: backendGame.cancelled === true,
+  };
+});
 
     setGames(merged);
   } catch (err) {
