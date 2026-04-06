@@ -875,7 +875,7 @@ const gameOnChain = await contractRead.games(numericGameId);
 const joinRes = await fetch(`${BACKEND_URL}/games/${numericGameId}/join`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ player2: gameOnChain.player2 }),
+  body: JSON.stringify({ player2: gameOnChain.player2, player2JoinedAt: new Date().toISOString() }),
 });
 
 if (!joinRes.ok) {
