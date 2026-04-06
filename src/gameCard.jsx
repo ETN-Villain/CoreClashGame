@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { React, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import mapping from "./mapping.json"; // Frontend mapping
 import { BACKEND_URL, ADMIN_ADDRESS } from "./config.js"
 
