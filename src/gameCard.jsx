@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
-import React from "react";
+import { React, useEffect, useState } from "react";
 import mapping from "./mapping.json"; // Frontend mapping
-import { BACKEND_URL } from "./config.js"
+import { BACKEND_URL, ADMIN_ADDRESS } from "./config.js"
 
 const addressToCollection = {
   "0x3fc7665b1f6033ff901405cddf31c2e04b8a2ab4": "VKIN",
@@ -84,6 +84,14 @@ export default function GameCard({
   const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
   const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
 
+const isAdmin =
+  account &&
+  ADMIN_ADDRESS &&
+  account.toLowerCase() === ADMIN_ADDRESS.toLowerCase();
+
+const canManualSettleUser = isAdmin || isPlayer1 || isPlayer2;
+const bothRevealed = g.player1Revealed && g.player2Revealed;
+
 const backupExists = (() => {
   if (!account || !g?.id) return false;
 
@@ -93,6 +101,10 @@ const backupExists = (() => {
   const tokenIds = localStorage.getItem(`${prefix}_tokenIds`);
   return !!salt && !!nftContracts && !!tokenIds;
 })();
+
+const isCancelled = g.cancelled === true || g.cancelled === "true";
+const isSettled = g.settled === true || g.settled === "true";
+
 
   // ---------- Game Status Logic ----------
 function getGameStatus(g) {
@@ -177,17 +189,49 @@ const formatTokenAmount = (value) => {
 };
 
 /* ----- Deadline Calculation ----- */
-const revealDeadlinePassed =
-  g.player2JoinedAt &&
-  Date.now() - new Date(g.player2JoinedAt).getTime() >= FIVE_DAYS_MS;
+const revealDeadlineTs = g.player2JoinedAt
+  ? new Date(g.player2JoinedAt).getTime() + FIVE_DAYS_MS
+  : null;
+
+const [now, setNow] = useState(Date.now());
+
+const revealDeadlinePassed = revealDeadlineTs ? now >= revealDeadlineTs : false;
+
+const timeRemaining = revealDeadlineTs
+  ? Math.max(revealDeadlineTs - now, 0)
+  : 0;
+
+const canManualSettle =
+  revealDeadlinePassed &&
+  !bothRevealed &&
+  !isSettled &&
+  !isCancelled &&
+  canManualSettleUser;
+
+useEffect(() => {
+  const timer = setInterval(() => {
+    setNow(Date.now());
+  }, 1000);
+
+  return () => clearInterval(timer);
+}, []);
+
+function formatTimeRemaining(ms) {
+  if (ms <= 0) return "00d 00h 00m 00s";
+
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${String(days).padStart(2, "0")}d ${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+}
 
   /* --------- GAME STATES --------- */
 const isPlayer2Empty =
   g.player2?.toLowerCase() === ethers.ZeroAddress.toLowerCase();
   
-  const isCancelled = g.cancelled === true || g.cancelled === "true";
-const isSettled = g.settled === true || g.settled === "true";
-
 const canJoin =
   isPlayer2Empty &&
   !isPlayer1 &&
@@ -196,7 +240,6 @@ const canJoin =
   !isSettled &&
   !!account;
 
-  const bothRevealed = g.player1Revealed && g.player2Revealed;
   const canSettle = bothRevealed && !isSettled && !isCancelled;
   const status = getGameStatus(g);
   const BadgeWrapper = status.link ? "a" : "div";
@@ -582,24 +625,33 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
       )}
 
 {/* Settle after 5 days */}
-{revealDeadlinePassed && (
+{revealDeadlineTs && !bothRevealed && !isSettled && !isCancelled && (
   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-    <button
-      onClick={() => manualSettleGame(g.id)}
-      style={{
-        background: "#ff9800",
-        color: "#000",
-        padding: "6px 12px",
-        borderRadius: 4,
-        cursor: "pointer",
-      }}
-    >
-      Settle Game
-    </button>
+    {!revealDeadlinePassed ? (
+      <div style={{ fontSize: 12, color: "#ffb74d" }}>
+        ⏳ Reveal deadline in: {formatTimeRemaining(timeRemaining)}
+      </div>
+    ) : (
+      <div style={{ fontSize: 12, color: "#ffb74d" }}>
+        ⏱ Reveal window expired
+      </div>
+    )}
 
-    <div style={{ fontSize: 12, color: "#ffb74d" }}>
-      ⏱ Reveal window expired
-    </div>
+    {canManualSettle && (
+      <button
+        onClick={() => manualSettleGame(g.id)}
+        style={{
+          background: "#ff9800",
+          color: "#000",
+          padding: "6px 12px",
+          borderRadius: 4,
+          cursor: "pointer",
+          border: "none",
+        }}
+      >
+        Settle Game
+      </button>
+    )}
   </div>
 )}
   </div>
