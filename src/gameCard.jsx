@@ -189,18 +189,20 @@ const formatTokenAmount = (value) => {
 };
 
 /* ----- Deadline Calculation ----- */
-const revealDeadlineTs = g.player2JoinedAt
-  ? new Date(g.player2JoinedAt).getTime() + FIVE_DAYS_MS
+const joinedTs = g.player2JoinedAt ? Date.parse(g.player2JoinedAt) : NaN;
+
+const revealDeadlineTs = Number.isFinite(joinedTs)
+  ? joinedTs + FIVE_DAYS_MS
   : null;
 
 const [now, setNow] = useState(Date.now());
 
-const revealDeadlinePassed = revealDeadlineTs ? now >= revealDeadlineTs : false;
+const revealDeadlinePassed =
+  revealDeadlineTs !== null ? now >= revealDeadlineTs : false;
 
-const timeRemaining = revealDeadlineTs
-  ? Math.max(revealDeadlineTs - now, 0)
-  : 0;
-
+const timeRemaining =
+  revealDeadlineTs !== null ? Math.max(revealDeadlineTs - now, 0) : 0;
+  
 const canManualSettle =
   revealDeadlinePassed &&
   !bothRevealed &&
@@ -619,7 +621,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
       )}
 
 {/* Settle after 5 days */}
-{revealDeadlineTs && !bothRevealed && !isSettled && !isCancelled && (
+{revealDeadlineTs !== null && !bothRevealed && !isSettled && !isCancelled && (
   <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
     {!revealDeadlinePassed ? (
       <div style={{ fontSize: 12, color: "#ffb74d" }}>
