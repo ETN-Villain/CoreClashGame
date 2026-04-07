@@ -4,9 +4,9 @@ import ForestOfGlobes from "./ForestOfGlobes.png";
 import HowToPlayImg from "./HowToPlay.jpg";
 import GameInfoImg from "./GameInfo.jpg";
 import ElectroSwapImg from "./electroswap.jpg";
-import VerdantKinBannerImg from "./VerdantKinBanner.jpg";
+import VerdantKinBannerImg from "./VerdantKinBanner.png";
 import AetherScionsBannerImg from "./AetherScionsBanner.png";
-import VerdantQueenBannerImg from "./QueenBanner.jpg";
+import VerdantQueenBannerImg from "./QueenBanner.png";
 import ElectroneumImg from "./Electroneum.png";
 
 export const CoreClashLogo = CoreClashLogoImg;
