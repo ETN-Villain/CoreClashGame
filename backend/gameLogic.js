@@ -29,6 +29,64 @@ const addressToCollection = {
   "0xac620b1a3de23f4eb0a69663613babf73f6c535d": "SCIONS",
 };
 
+// Collection → faction mapping
+const collectionToFaction = {
+  VKIN: "KIN",
+  VQLE: "KIN",
+  SCIONS: "SCIONS",
+};
+
+function getCollectionFromContract(contractAddr) {
+  if (!contractAddr) return null;
+  return addressToCollection[contractAddr.toLowerCase()] || null;
+}
+
+function getFactionFromCollection(collection) {
+  if (!collection) return null;
+  return collectionToFaction[collection] || null;
+}
+
+/**
+ * Returns faction name if all 3 NFTs belong to the same faction.
+ * Examples:
+ * - VKIN + VKIN + VKIN => KIN
+ * - VKIN + VKIN + VQLE => KIN
+ * - VQLE + VQLE + VKIN => KIN
+ * - SCIONS + SCIONS + SCIONS => SCIONS
+ * - VKIN + SCIONS + VQLE => null
+ */
+function getTeamFactionBonus(contracts) {
+  if (!Array.isArray(contracts) || contracts.length !== 3) return null;
+
+  const collections = contracts.map(getCollectionFromContract);
+
+  // reject unknown collections
+  if (collections.some((c) => !c)) return null;
+
+  const factions = collections.map(getFactionFromCollection);
+
+  // reject unknown factions
+  if (factions.some((f) => !f)) return null;
+
+  const allSameFaction = factions.every((f) => f === factions[0]);
+  return allSameFaction ? factions[0] : null;
+}
+
+/**
+ * Apply +10% Attack to each NFT in the team.
+ * Attack is traits[0].
+ * Uses Math.ceil() to round up.
+ */
+function applyAttackBoost(traitsArr, boostPercent = 10) {
+  const multiplier = 1 + boostPercent / 100;
+
+  return traitsArr.map((traits) => {
+    const boosted = [...traits];
+    boosted[0] = Math.ceil(boosted[0] * multiplier);
+    return boosted;
+  });
+}
+
 export const fetchNFT = async (collection, tokenId) => {
   try {
     const collectionMap = tokenMapping[collection];
@@ -38,7 +96,9 @@ export const fetchNFT = async (collection, tokenId) => {
 
     const mapped = collectionMap[String(tokenId)];
     if (!mapped || !mapped.token_uri) {
-      throw new Error(`No token_uri mapping for ${collection} tokenId ${tokenId}`);
+      throw new Error(
+        `No token_uri mapping for ${collection} tokenId ${tokenId}`
+      );
     }
 
     const jsonFile = mapped.token_uri;
@@ -52,9 +112,13 @@ export const fetchNFT = async (collection, tokenId) => {
 
     const raw = fs.readFileSync(filePath, "utf8");
     return JSON.parse(raw);
-
   } catch (err) {
-    console.error("Failed to fetch NFT metadata:", collection, tokenId, err.message);
+    console.error(
+      "Failed to fetch NFT metadata:",
+      collection,
+      tokenId,
+      err.message
+    );
     return null;
   }
 };
@@ -78,8 +142,8 @@ export function getRoundResult(traits1, traits2) {
   const damage2 = atk1 > def2 ? atk1 - def2 : 0;
   const mod2 = core2 > damage2 ? core2 - damage2 : 0;
 
-  let p1_wins = 0,
-      p2_wins = 0;
+  let p1_wins = 0;
+  let p2_wins = 0;
 
   // primary comparison
   if (mod1 > mod2) p1_wins = 1;
@@ -100,9 +164,6 @@ export function getRoundResult(traits1, traits2) {
 
 /**
  * Compute game winner over 3 rounds
- */
-/**
- * Compute game winner over 3 rounds (Option A)
  * traits1Arr and traits2Arr are arrays of 3 NFT trait arrays
  */
 export function computeWinner(traits1Arr, traits2Arr) {
@@ -124,11 +185,8 @@ export function computeWinner(traits1Arr, traits2Arr) {
 
     roundResults.push({
       round: i + 1,
-      winner:
-        p1_wins ? "player1" :
-        p2_wins ? "player2" :
-        "tie",
-      diff: round_diff
+      winner: p1_wins ? "player1" : p2_wins ? "player2" : "tie",
+      diff: round_diff,
     });
   }
 
@@ -180,6 +238,15 @@ export async function resolveGame(game) {
     throw new Error("Invalid reveal data structure");
   }
 
+  if (
+    p1TokenIds.length < 3 ||
+    p2TokenIds.length < 3 ||
+    p1Contracts.length < 3 ||
+    p2Contracts.length < 3
+  ) {
+    throw new Error("Each player must reveal exactly 3 NFTs");
+  }
+
   console.log("Resolving game:", {
     id: game.id,
     p1Tokens: p1TokenIds,
@@ -211,7 +278,12 @@ export async function resolveGame(game) {
   for (let i = 0; i < 3; i++) {
     const tokenId = p1TokenIds[i];
     const contractAddr = p1Contracts[i]?.toLowerCase() || "";
-    const collection = addressToCollection[contractAddr] || "VKIN";
+    const collection = getCollectionFromContract(contractAddr);
+
+    if (!collection) {
+      console.error("Unknown P1 contract address", contractAddr);
+      return null;
+    }
 
     console.log(`P1 token ${i}: ${collection} ${tokenId}`);
 
@@ -229,8 +301,12 @@ export async function resolveGame(game) {
   for (let i = 0; i < 3; i++) {
     const tokenId = p2TokenIds[i];
     const contractAddr = p2Contracts[i]?.toLowerCase() || "";
-    const collection = addressToCollection[contractAddr] || "VKIN";
-    const uri = p2Uris[i];
+    const collection = getCollectionFromContract(contractAddr);
+
+    if (!collection) {
+      console.error("Unknown P2 contract address", contractAddr);
+      return null;
+    }
 
     console.log(`P2 token ${i}: ${collection} ${tokenId}`);
 
@@ -244,8 +320,29 @@ export async function resolveGame(game) {
     traits2.push(extractTraits(nftData));
   }
 
+  // ---- Team faction bonus: +10% attack if all 3 are from same faction ----
+  const p1FactionBonus = getTeamFactionBonus(p1Contracts);
+  const p2FactionBonus = getTeamFactionBonus(p2Contracts);
+
+  let finalTraits1 = traits1;
+  let finalTraits2 = traits2;
+
+  if (p1FactionBonus) {
+    console.log(
+      `P1 faction bonus applied: ${p1FactionBonus} (+10% attack, rounded up)`
+    );
+    finalTraits1 = applyAttackBoost(traits1, 10);
+  }
+
+  if (p2FactionBonus) {
+    console.log(
+      `P2 faction bonus applied: ${p2FactionBonus} (+10% attack, rounded up)`
+    );
+    finalTraits2 = applyAttackBoost(traits2, 10);
+  }
+
   // ---- Compute winner ----
-  const { winner, roundResults } = computeWinner(traits1, traits2);
+  const { winner, roundResults } = computeWinner(finalTraits1, finalTraits2);
 
   const winnerAddress =
     winner === "tie"
@@ -260,11 +357,19 @@ export async function resolveGame(game) {
   game.tie = winner === "tie";
   game.settledAt = new Date().toISOString();
 
+  // Optional debugging / UI support
+  game.player1FactionBonus = p1FactionBonus;
+  game.player2FactionBonus = p2FactionBonus;
+  game.player1Traits = finalTraits1;
+  game.player2Traits = finalTraits2;
+
   console.log("Game resolved:", {
     gameId: game.id,
     winner: game.winner,
     tie: game.tie,
     rounds: roundResults.length,
+    p1FactionBonus,
+    p2FactionBonus,
   });
 
   return game;

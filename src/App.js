@@ -3445,6 +3445,8 @@ onClick={createGame} // <-- THIS IS REQUIRED
             <br />
             • You cannot join your own game
             <br />
+            • Pick 3 from the same faction for 10% attack boost
+            <br />
             <br />
             <b>The Clash</b>
             <br />
