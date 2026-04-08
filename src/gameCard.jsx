@@ -820,22 +820,14 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
       ? "PLAYER 1 WINS!"
       : "PLAYER 2 WINS!"}
   </div>
-) : isMissedRevealSettled ? (
-  <div
-    style={{
-      fontWeight: "bold",
-      marginBottom: 6,
-      fontSize: 20,
-      letterSpacing: 0.5,
-      textTransform: "uppercase",
-      color: "#ffb347",
-      textShadow: "0 0 8px #ffb347, 0 0 16px #ffb347",
-    }}
-  >
-    ⌛ Settled After Missed Reveal
-  </div>
 ) : (
   <div style={{ fontSize: 18, color: "#888" }}>🤝 Tie Game</div>
+)}
+
+{isMissedRevealSettled && (
+  <div style={{ fontSize: 13, marginBottom: 6, color: "#ffb347" }}>
+    ⌛ Settled After Missed Reveal
+  </div>
 )}
 
   {/* Total Pot */}
