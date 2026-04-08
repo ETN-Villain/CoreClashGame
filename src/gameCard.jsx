@@ -115,8 +115,19 @@ const isPreJoinCancelled =
 function getGameStatus(g) {
 const isTrue = (v) => v === true || v === "true";
   
-  const p1Revealed = !!g.player1Reveal || isTrue(g.backendPlayer1Revealed);
-  const p2Revealed = !!g.player2Reveal || isTrue(g.backendPlayer2Revealed);
+const isSettled = isTrue(g.settled);
+const isCancelled = isTrue(g.cancelled);
+
+const hasPlayer2 = g.player2 && g.player2 !== ethers.ZeroAddress;
+
+const p1Revealed = !!g.player1Reveal || isTrue(g.backendPlayer1Revealed);
+const p2Revealed = !!g.player2Reveal || isTrue(g.backendPlayer2Revealed);
+
+const isMissedRevealSettled =
+  isSettled &&
+  isCancelled &&
+  hasPlayer2 &&
+  (!p1Revealed || !p2Revealed);
 
   const missedRevealDeadline =
     isTrue(g.settled) &&
@@ -125,7 +136,7 @@ const isTrue = (v) => v === true || v === "true";
 
   if (missedRevealDeadline) {
     return {
-      label: "Settled - Missing Reveal(s)",
+      label: "🔗 Settled - Missing Reveal(s)",
       color: "#ff9f43",
       link: g.settleTxHash
       ? `https://blockexplorer.electroneum.com/tx/${g.settleTxHash}`
@@ -762,9 +773,9 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
     boxShadow: "0 0 10px rgba(0,0,0,0.5)"
   }}
 >
-{/* Winner Card */}
-{isSettled && g.winner && (
-<div
+{/* Settled Result Card */}
+{isSettled && (g.winner || isMissedRevealSettled) && (
+  <div
   style={{
     marginTop: 2,
     padding: 8,
@@ -775,30 +786,47 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
     color: "#fff",
   }}
 >
-  {/* Determine winner */}
-  {winnerAddress ? (
-    <div
-      style={{
-        fontWeight: "bold",
-        marginBottom: 6,
-        fontSize: 22,
-        letterSpacing: 1,
-        textTransform: "uppercase",
-        color:
-          winnerAddress.toLowerCase() === g.player1.toLowerCase()
-            ? "#ff2d55" // Neon red
-            : "#4da3ff", // Neon blue
-        textShadow:
-          winnerAddress.toLowerCase() === g.player1.toLowerCase()
-            ? "0 0 8px #ff2d55, 0 0 16px #ff2d55"
-            : "0 0 8px #4da3ff, 0 0 16px #4da3ff",
-      }}
-    >
-      🏆 {winnerAddress.toLowerCase() === g.player1.toLowerCase() ? "PLAYER 1 WINS!" : "PLAYER 2 WINS!"}
-    </div>
-  ) : (
-    <div style={{ fontSize: 18, color: "#888" }}>🤝 Tie Game</div>
-  )}
+{/* Determine result */}
+{winnerAddress ? (
+  <div
+    style={{
+      fontWeight: "bold",
+      marginBottom: 6,
+      fontSize: 22,
+      letterSpacing: 1,
+      textTransform: "uppercase",
+      color:
+        winnerAddress.toLowerCase() === g.player1.toLowerCase()
+          ? "#ff2d55"
+          : "#4da3ff",
+      textShadow:
+        winnerAddress.toLowerCase() === g.player1.toLowerCase()
+          ? "0 0 8px #ff2d55, 0 0 16px #ff2d55"
+          : "0 0 8px #4da3ff, 0 0 16px #4da3ff",
+    }}
+  >
+    🏆{" "}
+    {winnerAddress.toLowerCase() === g.player1.toLowerCase()
+      ? "PLAYER 1 WINS!"
+      : "PLAYER 2 WINS!"}
+  </div>
+) : isMissedRevealSettled ? (
+  <div
+    style={{
+      fontWeight: "bold",
+      marginBottom: 6,
+      fontSize: 20,
+      letterSpacing: 0.5,
+      textTransform: "uppercase",
+      color: "#ffb347",
+      textShadow: "0 0 8px #ffb347, 0 0 16px #ffb347",
+    }}
+  >
+    ⌛ Settled After Missed Reveal
+  </div>
+) : (
+  <div style={{ fontSize: 18, color: "#888" }}>🤝 Tie Game</div>
+)}
   
   {/* Total Pot */}
   <div style={{ fontSize: 14, marginBottom: 4 }}>
