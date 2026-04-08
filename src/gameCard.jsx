@@ -187,23 +187,14 @@ const stakeWei = BigInt(rawStake);
 // Compute totals (WEI-SAFE)
 const totalPotWei = stakeWei * 2n;
 
-const winnerAddress = g.winner;
-const tie = !winnerAddress || winnerAddress === ethers.ZeroAddress;
-
 // 1% burn
 const burnPercent = 1;
 const burnWei = (totalPotWei * BigInt(burnPercent)) / 100n;
-
-// Player winnings (95% if not tie)
-const playerWinningsWei = tie
-  ? totalPotWei / 2n
-  : (totalPotWei * 95n) / 100n;
 
 // 🔽 Keep original const names (formatted for UI)\
 const stakeAmount = ethers.formatUnits(stakeWei, 18);
 const totalPot = ethers.formatUnits(totalPotWei, 18);
 const burnAmount = ethers.formatUnits(burnWei, 18);
-const playerWinnings = ethers.formatUnits(playerWinningsWei, 18);
 const hasStakeAmount = stakeAmount !== undefined && stakeAmount !== null && stakeAmount !== "";
 const displayStake = hasStakeAmount ? Number(stakeAmount) : null;
 
@@ -277,6 +268,29 @@ const canJoin =
   const status = getGameStatus(g);
   const BadgeWrapper = status.link ? "a" : "div";
 
+const hasPlayer2 = !!g.player2 && g.player2 !== ethers.ZeroAddress;
+
+const p1Revealed = !!g.player1Reveal || isTrue(g.backendPlayer1Revealed);
+const p2Revealed = !!g.player2Reveal || isTrue(g.backendPlayer2Revealed);
+
+const isMissedRevealSettled =
+  isSettled &&
+  isCancelled &&
+  hasPlayer2 &&
+  (!p1Revealed || !p2Revealed);
+
+const winnerAddress =
+  g.winner ||
+  (isMissedRevealSettled
+    ? p1Revealed && !p2Revealed
+      ? g.player1
+      : p2Revealed && !p1Revealed
+      ? g.player2
+      : null
+    : null);
+    
+const tie = !winnerAddress || winnerAddress === ethers.ZeroAddress;
+
 const winnerIsPlayer1 =
   isSettled &&
   winnerAddress &&
@@ -289,16 +303,12 @@ const winnerIsPlayer2 =
   g.player2 &&
   winnerAddress.toLowerCase() === g.player2.toLowerCase();
 
-const hasPlayer2 = g.player2 && g.player2 !== ethers.ZeroAddress;
+// Player winnings (95% if not tie)
+const playerWinningsWei = tie
+  ? totalPotWei / 2n
+  : (totalPotWei * 95n) / 100n;
 
-const p1Revealed = !!g.player1Reveal || isTrue(g.backendPlayer1Revealed);
-const p2Revealed = !!g.player2Reveal || isTrue(g.backendPlayer2Revealed);
-
-  const isMissedRevealSettled =
-  isSettled &&
-  isCancelled &&
-  hasPlayer2 &&
-  (!p1Revealed || !p2Revealed);
+const playerWinnings = ethers.formatUnits(playerWinningsWei, 18);
 
 /* ---------------- Reveal File Re-download Handler ---------------- */
 const getRevealBackup = (account, gameId) => {
@@ -774,7 +784,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
   }}
 >
 {/* Settled Result Card */}
-{isSettled && (g.winner || isMissedRevealSettled) && (
+{isSettled && (winnerAddress || isMissedRevealSettled) && (
   <div
   style={{
     marginTop: 2,
