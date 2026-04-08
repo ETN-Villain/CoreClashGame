@@ -106,31 +106,57 @@ const isCancelled = g.cancelled === true || g.cancelled === "true";
 const isSettled = g.settled === true || g.settled === "true";
 
 
-  // ---------- Game Status Logic ----------
+// ---------- Game Status Logic ----------
 function getGameStatus(g) {
-  if (g.cancelled) {
+  const isTrue = (v) => v === true || v === "true";
+
+  const p1Revealed = !!g.player1Reveal || isTrue(g.backendPlayer1Revealed);
+  const p2Revealed = !!g.player2Reveal || isTrue(g.backendPlayer2Revealed);
+
+  const missedRevealDeadline =
+    isTrue(g.settled) &&
+    isTrue(g.cancelled) &&
+    (!p1Revealed || !p2Revealed);
+
+  if (missedRevealDeadline) {
+    return {
+      label: "Settled - Missing Reveal(s)",
+      color: "#ff9f43",
+      link: g.settleTxHash
+      ? `https://blockexplorer.electroneum.com/tx/${g.settleTxHash}`
+      : undefined,
+    };
+  }
+
+  if (isTrue(g.cancelled)) {
     return { label: "Cancelled", color: "#ff4444" };
   }
 
-  if (g.settled) {
-    return { label: "🔗Settled On-Chain", color: "#18bb1a", link: `https://blockexplorer.electroneum.com/tx/${g.settleTxHash}`};
+  if (isTrue(g.settled)) {
+    return {
+      label: "🔗 Settled On-Chain",
+      color: "#18bb1a",
+      link: g.settleTxHash
+        ? `https://blockexplorer.electroneum.com/tx/${g.settleTxHash}`
+        : undefined,
+    };
   }
 
-if (
-  g.player1 &&
-  (!g.player2 || g.player2 === ethers.ZeroAddress)
-) {
-  return { label: "⏳Waiting for Opponent", color: "#f0b90b" };
-}
+  if (
+    g.player1 &&
+    (!g.player2 || g.player2 === ethers.ZeroAddress)
+  ) {
+    return { label: "⏳ Waiting for Opponent", color: "#f0b90b" };
+  }
 
-if (
-  g.player1 &&
-  g.player2 &&
-  g.player2 !== ethers.ZeroAddress &&
-  (!g.player1Reveal || !g.player2Reveal)
-) {
-  return { label: "⏳Awaiting Reveals", color: "#888" };
-}
+  if (
+    g.player1 &&
+    g.player2 &&
+    g.player2 !== ethers.ZeroAddress &&
+    (!g.player1Reveal || !g.player2Reveal)
+  ) {
+    return { label: "⏳ Awaiting Reveals", color: "#888" };
+  }
 
   if (g.roundResults && g.roundResults.length > 0 && !g.backendWinner) {
     return { label: "Winner Ready to Post", color: "#4da3ff" };

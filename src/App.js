@@ -1248,16 +1248,18 @@ const activeGames = games
   )
   .sort((a, b) => b.id - a.id);
 
+const isTrue = (v) => v === true || v === "true";
+
 const settledGames = games
-  .filter((g) => g.settled && !g.cancelled)
+  .filter((g) => isTrue(g.settled))
   .sort((a, b) => b.id - a.id);
 
 const cancelledGames = games
-  .filter((g) => g.cancelled && showCancelled) // only show if showCancelled checked
+  .filter((g) => isTrue(g.cancelled))
   .sort((a, b) => b.id - a.id);
-
+  
 const sortedSettledGames = [...settledGames]
-  .filter(g => g.settledAt)
+  .filter((g) => g.settledAt)
   .sort((a, b) => new Date(b.settledAt) - new Date(a.settledAt));
 
 const latestSettled = sortedSettledGames.slice(0, 10);
