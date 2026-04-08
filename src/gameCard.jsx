@@ -279,6 +279,19 @@ const isMissedRevealSettled =
   hasPlayer2 &&
   (!p1Revealed || !p2Revealed);
 
+// UI-only winner resolution for missed-reveal settled games
+const displayWinnerAddress = (() => {
+  if (g.winner && g.winner !== ethers.ZeroAddress) {
+    return g.winner;
+  }
+  if (isMissedRevealSettled) {
+    if (p1Revealed && !p2Revealed) return g.player1;
+    if (p2Revealed && !p1Revealed) return g.player2;
+  }
+
+  return null;
+})();
+
 const winnerAddress =
   g.winner ||
   (isMissedRevealSettled
@@ -289,7 +302,7 @@ const winnerAddress =
       : null
     : null);
     
-const tie = !winnerAddress || winnerAddress === ethers.ZeroAddress;
+const tie = !displayWinnerAddress || displayWinnerAddress === ethers.ZeroAddress;
 
 const winnerIsPlayer1 =
   isSettled &&
@@ -784,7 +797,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
   }}
 >
 {/* Settled Result Card */}
-{isSettled && (winnerAddress || isMissedRevealSettled) && (
+{isSettled && (displayWinnerAddress || isMissedRevealSettled) && (
   <div
   style={{
     marginTop: 2,
@@ -797,7 +810,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
   }}
 >
 {/* Determine result */}
-{winnerAddress ? (
+{displayWinnerAddress ? (
   <div
     style={{
       fontWeight: "bold",
@@ -806,17 +819,17 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
       letterSpacing: 1,
       textTransform: "uppercase",
       color:
-        winnerAddress.toLowerCase() === g.player1.toLowerCase()
+        displayWinnerAddress.toLowerCase() === g.player1.toLowerCase()
           ? "#ff2d55"
           : "#4da3ff",
       textShadow:
-        winnerAddress.toLowerCase() === g.player1.toLowerCase()
+        displayWinnerAddress.toLowerCase() === g.player1.toLowerCase()
           ? "0 0 8px #ff2d55, 0 0 16px #ff2d55"
           : "0 0 8px #4da3ff, 0 0 16px #4da3ff",
     }}
   >
     🏆{" "}
-    {winnerAddress.toLowerCase() === g.player1.toLowerCase()
+    {displayWinnerAddress.toLowerCase() === g.player1.toLowerCase()
       ? "PLAYER 1 WINS!"
       : "PLAYER 2 WINS!"}
   </div>
@@ -826,7 +839,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
 
 {isMissedRevealSettled && (
   <div style={{ fontSize: 13, marginBottom: 6, color: "#ffb347" }}>
-    ⌛ Settled After Missed Reveal
+    Settled After Missed Reveal
   </div>
 )}
 
