@@ -115,19 +115,8 @@ const isPreJoinCancelled =
 function getGameStatus(g) {
 const isTrue = (v) => v === true || v === "true";
   
-const isSettled = isTrue(g.settled);
-const isCancelled = isTrue(g.cancelled);
-
-const hasPlayer2 = g.player2 && g.player2 !== ethers.ZeroAddress;
-
 const p1Revealed = !!g.player1Reveal || isTrue(g.backendPlayer1Revealed);
 const p2Revealed = !!g.player2Reveal || isTrue(g.backendPlayer2Revealed);
-
-const isMissedRevealSettled =
-  isSettled &&
-  isCancelled &&
-  hasPlayer2 &&
-  (!p1Revealed || !p2Revealed);
 
   const missedRevealDeadline =
     isTrue(g.settled) &&
@@ -299,6 +288,17 @@ const winnerIsPlayer2 =
   winnerAddress &&
   g.player2 &&
   winnerAddress.toLowerCase() === g.player2.toLowerCase();
+
+const hasPlayer2 = g.player2 && g.player2 !== ethers.ZeroAddress;
+
+const p1Revealed = !!g.player1Reveal || isTrue(g.backendPlayer1Revealed);
+const p2Revealed = !!g.player2Reveal || isTrue(g.backendPlayer2Revealed);
+
+  const isMissedRevealSettled =
+  isSettled &&
+  isCancelled &&
+  hasPlayer2 &&
+  (!p1Revealed || !p2Revealed);
 
 /* ---------------- Reveal File Re-download Handler ---------------- */
 const getRevealBackup = (account, gameId) => {
@@ -827,7 +827,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
 ) : (
   <div style={{ fontSize: 18, color: "#888" }}>🤝 Tie Game</div>
 )}
-  
+
   {/* Total Pot */}
   <div style={{ fontSize: 14, marginBottom: 4 }}>
     Total Pot: {formatTokenAmount(totalPot)} $CORE
