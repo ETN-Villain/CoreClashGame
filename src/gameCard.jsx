@@ -102,14 +102,19 @@ const backupExists = (() => {
   return !!salt && !!nftContracts && !!tokenIds;
 })();
 
-const isCancelled = g.cancelled === true || g.cancelled === "true";
-const isSettled = g.settled === true || g.settled === "true";
+const isTrue = (v) => v === true || v === "true";
 
+const isSettled = isTrue(g.settled);
+const isCancelled = isTrue(g.cancelled);
+
+const isPreJoinCancelled =
+  isCancelled &&
+  (!g.player2 || g.player2 === ethers.ZeroAddress);
 
 // ---------- Game Status Logic ----------
 function getGameStatus(g) {
-  const isTrue = (v) => v === true || v === "true";
-
+const isTrue = (v) => v === true || v === "true";
+  
   const p1Revealed = !!g.player1Reveal || isTrue(g.backendPlayer1Revealed);
   const p2Revealed = !!g.player2Reveal || isTrue(g.backendPlayer2Revealed);
 
@@ -483,27 +488,27 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
         backgroundColor: isCancelled ? "#111" : "transparent",
       }}
     >
-      {/* Cancelled Banner */}
-      {isCancelled && (
-        <div
-          style={{
-            backgroundColor: "rgba(255, 68, 68, 0.2)",
-            border: "1px solid #ff4444",
-            borderRadius: 6,
-            padding: "12px",
-            marginBottom: 12,
-            color: "#ff5555",
-            fontWeight: "bold",
-            textAlign: "center",
-            fontSize: 16,
-          }}
-        >
-          ⚠️ Game Cancelled
-          <div style={{ fontSize: 13, fontWeight: "normal", marginTop: 4, opacity: 0.9 }}>
-            Stake refunded on-chain
-          </div>
-        </div>
-      )}
+{/* Cancelled Banner */}
+{isPreJoinCancelled && (
+  <div
+    style={{
+      backgroundColor: "rgba(255, 68, 68, 0.2)",
+      border: "1px solid #ff4444",
+      borderRadius: 6,
+      padding: "12px",
+      marginBottom: 12,
+      color: "#ff5555",
+      fontWeight: "bold",
+      textAlign: "center",
+      fontSize: 16,
+    }}
+  >
+    ⚠️ Game Cancelled
+    <div style={{ fontSize: 13, fontWeight: "normal", marginTop: 4, opacity: 0.9 }}>
+      Stake refunded on-chain
+    </div>
+  </div>
+)}
 
       <h3 style={{ marginTop: 0, marginBottom: 6 }}>Game #{g.id}</h3>
 
