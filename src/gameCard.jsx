@@ -279,6 +279,9 @@ const isMissedRevealSettled =
   hasPlayer2 &&
   (!p1Revealed || !p2Revealed);
 
+const showTeamsSection =
+  bothRevealed || isMissedRevealSettled;
+
 // UI-only winner resolution for missed-reveal settled games
 const displayWinnerAddress = (() => {
   if (g.winner && g.winner !== ethers.ZeroAddress) {
@@ -510,9 +513,6 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
     </div>
   );
 };
-
-const showTeamsSection =
-  bothRevealed || isMissedRevealSettled;
 
   /* ---------------- Render JSX ---------------- */
   return (
