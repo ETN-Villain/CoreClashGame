@@ -2000,82 +2000,88 @@ const AdPlaceholder = () => (
       Sponsored
     </div>
 
-{/* Title with Logo */}
+{/* Ad Header */}
 <div
   style={{
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    margintop: 6,
-    marginBottom: 6,
+    marginTop: 8,
+    marginBottom: 10,
+    textAlign: "center",
   }}
 >
+  <div
+    style={{
+      fontSize: 10,
+      fontWeight: 700,
+      letterSpacing: 1.4,
+      textTransform: "uppercase",
+      color: "#18bb1a",
+      opacity: 0.8,
+      marginBottom: 10,
+    }}
+  >
+    Sponsored Ad
+  </div>
+
   <img
     src={CoreClashLogo}
     alt="Core Clash"
     style={{
-      width: isMobile ? 36 : 44,
+      width: isMobile ? 52 : 64,
       height: "auto",
-      filter: "drop-shadow(0 0 6px #18bb1a)",
-      opacity: 0.9,
+      filter: "drop-shadow(0 0 8px #18bb1a)",
+      opacity: 0.95,
+      marginBottom: 10,
     }}
   />
 
   <div
     style={{
-      fontSize: isMobile ? 14 : 16,
-      fontWeight: 700,
+      fontSize: isMobile ? 16 : 18,
+      fontWeight: 800,
       color: "#fff",
-      letterSpacing: 0.5,
+      letterSpacing: 0.4,
+      marginBottom: 6,
     }}
   >
     Promote Your Project
   </div>
 
-      <div
-        style={{
-          fontSize: isMobile ? 12 : 13,
-          color: "#aaa",
-          marginBottom: 10,
-        }}
-      >
-        Reach Core Clash players
-      </div>
+  <div
+    style={{
+      fontSize: isMobile ? 12 : 13,
+      color: "#aaa",
+      lineHeight: 1.5,
+      maxWidth: 260,
+      marginBottom: 12,
+    }}
+  >
+    Put your brand in front of Core Clash players with a featured sponsor slot.
+  </div>
 
-      <a
-        href="https://t.me/ETN_Villain"
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          display: "inline-block",
-          padding: "6px 14px",
-          borderRadius: 999,
-          background: "rgba(24,187,26,0.12)",
-          border: "1px solid rgba(24,187,26,0.5)",
-          color: "#18bb1a",
-          fontWeight: 700,
-          fontSize: 13,
-          textDecoration: "none",
-          boxShadow: "0 0 8px rgba(24,187,26,0.3)",
-          transition: "all 0.2s ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow =
-            "0 0 14px rgba(24,187,26,0.6)";
-          e.currentTarget.style.background =
-            "rgba(24,187,26,0.2)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow =
-            "0 0 8px rgba(24,187,26,0.3)";
-          e.currentTarget.style.background =
-            "rgba(24,187,26,0.12)";
-        }}
-      >
-        Contact → t.me/ETN_Villain
-      </a>
-    </div>
+  <a
+    href="https://t.me/ETN_Villain"
+    target="_blank"
+    rel="noopener noreferrer"
+    style={{
+      display: "inline-block",
+      padding: "7px 16px",
+      borderRadius: 999,
+      background: "rgba(24,187,26,0.12)",
+      border: "1px solid rgba(24,187,26,0.5)",
+      color: "#18bb1a",
+      fontWeight: 700,
+      fontSize: 13,
+      textDecoration: "none",
+      boxShadow: "0 0 8px rgba(24,187,26,0.25)",
+    }}
+  >
+    Contact → t.me/ETN_Villain
+  </a>
+</div>
   </div>
 );
 
