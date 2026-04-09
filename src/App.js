@@ -2000,20 +2000,38 @@ const AdPlaceholder = () => (
       Sponsored
     </div>
 
-    {/* Content */}
-    <div style={{ textAlign: "center", position: "relative" }}>
-      <div
-        style={{
-          fontSize: isMobile ? 14 : 16,
-          fontWeight: 700,
-          color: "#fff",
-          marginBottom: 6,
-          letterSpacing: 0.5,
-        }}
-      >
-        🚀 Promote Your Project
-      </div>
+{/* Title with Logo */}
+<div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 6,
+  }}
+>
+  <img
+    src={CoreClashLogo}
+    alt="Core Clash"
+    style={{
+      width: isMobile ? 18 : 22,
+      height: "auto",
+      filter: "drop-shadow(0 0 6px #18bb1a)",
+      opacity: 0.9,
+    }}
+  />
 
+  <div
+    style={{
+      fontSize: isMobile ? 14 : 16,
+      fontWeight: 700,
+      color: "#fff",
+      letterSpacing: 0.5,
+    }}
+  >
+    Promote Your Project
+  </div>
+  
       <div
         style={{
           fontSize: isMobile ? 12 : 13,
@@ -3016,7 +3034,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
       Core Clashes
     </h2>
     </div>
-    
+
   <button
     type="button"
     onClick={loadGames}
