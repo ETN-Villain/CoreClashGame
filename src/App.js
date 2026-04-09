@@ -2840,7 +2840,6 @@ onClick={createGame} // <-- THIS IS REQUIRED
   )}
 
   {/* ---------------- GAMES GRID CONTAINER ---------------- */}
-  {(!isMobile || account) && (
     <div style={{ width: "100%", minWidth: 0, marginTop: isMobile ? 0 : 40 }}>
       {/* ---------------- TABS (MOBILE ONLY) ---------------- */}
       {isMobile && (
@@ -3275,7 +3274,6 @@ onClick={createGame} // <-- THIS IS REQUIRED
         </div>
       )}
     </div>
-  )}
 
 <div
   style={{
