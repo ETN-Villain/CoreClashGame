@@ -264,8 +264,8 @@ const connectWallet = useCallback(async (type = "metamask") => {
         metadata: {
           name: "Core Clash",
           description: "A strategic NFT battle game on Electroneum",
-          url: window.location.origin,
-          icons: [`${window.location.origin}/CoreClashLogo.png`],
+          url: "https://coreclash.planetzephyros.xyz",
+          icons: ["https://coreclash.planetzephyros.xyz/CoreClashLogo.png"],
         },
       });
 
@@ -336,12 +336,18 @@ const addr = await signer.getAddress();
 
       /* ---------- 2️⃣ WalletConnect ---------- */
       try {
-        const wc = await EthereumProvider.init({
-          projectId: "146ee334d324044083b6427d4bbf9202",
-          chains: [52014],
-          optionalChains: [52014],
-          rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
-        });
+const wc = await EthereumProvider.init({
+  projectId: "146ee334d324044083b6427d4bbf9202",
+  optionalChains: [52014],
+  rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
+
+  metadata: {
+    name: "Core Clash",
+    description: "NFT battle game on Electroneum",
+    url: "https://coreclash.planetzephyros.xyz",
+    icons: ["https://coreclash.planetzephyros.xyz/CoreClashLogo.png"],
+  },
+});
 
         if ((wc.connected || wc.session) && wc.session?.namespaces?.eip155) {
           try {
