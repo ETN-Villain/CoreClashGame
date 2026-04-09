@@ -256,51 +256,23 @@ const connectWallet = useCallback(async (type = "metamask") => {
 
       const signer = await prov.getSigner();
       addr = await signer.getAddress();
-} else if (type === "walletconnect") {
-  wcProvInstance = await EthereumProvider.init({
-    projectId: "146ee334d324044083b6427d4bbf9202",
-    optionalChains: [52014],
-    rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
-    metadata: {
-      name: "Core Clash",
-      description: "A strategic NFT battle game on Electroneum",
-      url: "https://coreclash.planetzephyros.xyz",
-      icons: ["https://coreclash.planetzephyros.xyz/CoreClashLogo.png"],
-      redirect: {
-        universal: "https://coreclash.planetzephyros.xyz",
-      },
-    },
-  });
+    } else if (type === "walletconnect") {
+      wcProvInstance = await EthereumProvider.init({
+        projectId: "146ee334d324044083b6427d4bbf9202",
+        chains: [52014],
+        optionalChains: [52014],
+        showQrModal: true,
+        rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
+      });
 
-  const isMobileBrowser = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      await wcProvInstance.enable();
 
-  wcProvInstance.on("display_uri", (uri) => {
-    console.log("WalletConnect URI:", uri);
+      prov = new ethers.BrowserProvider(wcProvInstance);
+      await ensureCorrectNetwork(prov, wcProvInstance);
 
-    if (isMobileBrowser) {
-      // MetaMask mobile deep link
-      window.location.href = `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`;
+      const signer = await prov.getSigner();
+      addr = await signer.getAddress();
     }
-  });
-
-  await wcProvInstance.enable();
-
-  prov = new ethers.BrowserProvider(wcProvInstance);
-  await ensureCorrectNetwork(prov, wcProvInstance);
-
-  const signer = await prov.getSigner();
-  addr = await signer.getAddress();
-}
-
-wcProvInstance.on("connect", () => {
-  console.log("WalletConnect session established");
-});
-
-wcProvInstance.on("disconnect", (err) => {
-  console.log("WalletConnect disconnected", err);
-});
-
-    if (!addr) throw new Error("Wallet connection failed");
 
     setProvider(prov);
     setAccount(addr);
@@ -348,20 +320,14 @@ const addr = await signer.getAddress();
 
       /* ---------- 2️⃣ WalletConnect ---------- */
       try {
-const wc = await EthereumProvider.init({
-  projectId: "146ee334d324044083b6427d4bbf9202",
-  optionalChains: [52014],
-  rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
-
-  metadata: {
-    name: "Core Clash",
-    description: "NFT battle game on Electroneum",
-    url: "https://coreclash.planetzephyros.xyz",
-    icons: ["https://coreclash.planetzephyros.xyz/CoreClashLogo.png"],
-  },
-});
-
-        if ((wc.connected || wc.session) && wc.session?.namespaces?.eip155) {
+        const wc = await EthereumProvider.init({
+          projectId: "146ee334d324044083b6427d4bbf9202",
+          chains: [52014],
+          optionalChains: [52014],
+          rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
+        });
+      
+      if ((wc.connected || wc.session) && wc.session?.namespaces?.eip155) {
           try {
             await wc.enable();
           } catch (err) {
