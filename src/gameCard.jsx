@@ -90,25 +90,7 @@ const isAdmin =
   account.toLowerCase() === ADMIN_ADDRESS.toLowerCase();
 
 const canManualSettleUser = isAdmin || isPlayer1 || isPlayer2;
-
-const isTrue = (v) => v === true || v === "true";
-
-const isSettled = isTrue(g.settled);
-const isCancelled = isTrue(g.cancelled);
-
-const hasPlayer2 =
-  !!g.player2 && g.player2 !== ethers.ZeroAddress;
-
-const p1Revealed =
-  !!g.player1Reveal || isTrue(g.backendPlayer1Revealed) || isTrue(g.player1Revealed);
-
-const p2Revealed =
-  !!g.player2Reveal || isTrue(g.backendPlayer2Revealed) || isTrue(g.player2Revealed);
-
-const bothRevealed = p1Revealed && p2Revealed;
-
-const isPreJoinCancelled =
-  isCancelled && !hasPlayer2;
+const bothRevealed = g.player1Revealed && g.player2Revealed;
 
 const backupExists = (() => {
   if (!account || !g?.id) return false;
@@ -119,6 +101,15 @@ const backupExists = (() => {
   const tokenIds = localStorage.getItem(`${prefix}_tokenIds`);
   return !!salt && !!nftContracts && !!tokenIds;
 })();
+
+const isTrue = (v) => v === true || v === "true";
+
+const isSettled = isTrue(g.settled);
+const isCancelled = isTrue(g.cancelled);
+
+const isPreJoinCancelled =
+  isCancelled &&
+  (!g.player2 || g.player2 === ethers.ZeroAddress);
 
 // ---------- Game Status Logic ----------
 function getGameStatus(g) {
@@ -262,8 +253,11 @@ function formatTimeRemaining(ms) {
 }
 
   /* --------- GAME STATES --------- */
+const isPlayer2Empty =
+  g.player2?.toLowerCase() === ethers.ZeroAddress.toLowerCase();
+  
 const canJoin =
-  !hasPlayer2 &&
+  isPlayer2Empty &&
   !isPlayer1 &&
   !isPlayer2 &&
   !isCancelled &&
@@ -273,6 +267,11 @@ const canJoin =
   const canSettle = bothRevealed && !isSettled && !isCancelled;
   const status = getGameStatus(g);
   const BadgeWrapper = status.link ? "a" : "div";
+
+const hasPlayer2 = !!g.player2 && g.player2 !== ethers.ZeroAddress;
+
+const p1Revealed = !!g.player1Reveal || isTrue(g.backendPlayer1Revealed);
+const p2Revealed = !!g.player2Reveal || isTrue(g.backendPlayer2Revealed);
 
 const isMissedRevealSettled =
   isSettled &&
@@ -620,8 +619,8 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
 )}
 
       {/* Hidden Teams */}
-{!isSettled && hasPlayer2 && !bothRevealed && (
-   <div style={{ fontSize: 12, color: "#888", marginTop: 6 }}>🔒 Teams hidden until both players reveal</div>
+      {!isSettled && !bothRevealed && (
+        <div style={{ fontSize: 12, color: "#888", marginTop: 6 }}>🔒 Teams hidden until both players reveal</div>
       )}
 
       {/* Join / Approve */}
@@ -660,12 +659,12 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
 )}
 
 {/* Reveal Upload + Expired Settle */}
-{hasPlayer2 &&
+{g.player2 !== ethers.ZeroAddress &&
   !isSettled &&
   !isCancelled &&
-  ((isPlayer1 && !p1Revealed) ||
-   (isPlayer2 && !p2Revealed)) && (
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+    ((isPlayer1 && !g.player1Revealed) ||
+     (isPlayer2 && !g.player2Revealed)) && (
+    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <button
             onClick={() => document.getElementById(`reveal-file-${g.id}`).click()}
             style={{
