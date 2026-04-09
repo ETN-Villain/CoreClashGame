@@ -252,28 +252,36 @@ const connectWallet = useCallback(async (type = "metamask") => {
       await window.ethereum.request({ method: "eth_requestAccounts" });
 
       prov = new ethers.BrowserProvider(window.ethereum);
-
       await ensureCorrectNetwork(prov, null);
 
       const signer = await prov.getSigner();
       addr = await signer.getAddress();
-
     } else if (type === "walletconnect") {
-      localStorage.removeItem("walletconnect");
-      localStorage.removeItem("WALLETCONNECT_DEEPLINK_CHOICE");
-
       wcProvInstance = await EthereumProvider.init({
         projectId: "146ee334d324044083b6427d4bbf9202",
-        chains: [52014],
         optionalChains: [52014],
-        showQrModal: true,
         rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
+        metadata: {
+          name: "Core Clash",
+          description: "A strategic NFT battle game on Electroneum",
+          url: window.location.origin,
+          icons: [`${window.location.origin}/CoreClashLogo.png`],
+        },
+      });
+
+      wcProvInstance.on("display_uri", (uri) => {
+        console.log("WalletConnect URI:", uri);
+
+        // Optional: custom mobile deep link handling here
+        // Example:
+        // if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        //   window.location.href = `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`;
+        // }
       });
 
       await wcProvInstance.enable();
 
       prov = new ethers.BrowserProvider(wcProvInstance);
-
       await ensureCorrectNetwork(prov, wcProvInstance);
 
       const signer = await prov.getSigner();
@@ -285,7 +293,6 @@ const connectWallet = useCallback(async (type = "metamask") => {
     setProvider(prov);
     setAccount(addr);
     setWcProvider(wcProvInstance);
-
   } catch (err) {
     console.error("Wallet connection failed:", err);
     setWalletError(err.message || "Wallet connection failed");
