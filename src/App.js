@@ -1951,6 +1951,168 @@ const renderWeeklyHistory = () =>
   </div>
 );
 
+/* ----------- Ad Component ----------- */
+const AdPlaceholder = () => (
+  <div
+    style={{
+      position: "relative",
+      width: "100%",
+      padding: "18px 16px",
+      borderRadius: 16,
+      background: "linear-gradient(145deg, #0a0a0a, #141414)",
+      border: "1px solid rgba(24,187,26,0.25)",
+      boxShadow:
+        "0 0 12px rgba(24,187,26,0.12), inset 0 0 20px rgba(0,0,0,0.6)",
+      overflow: "hidden",
+    }}
+  >
+    {/* Glow overlay */}
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        background:
+          "radial-gradient(circle at 50% 0%, rgba(24,187,26,0.15), transparent 60%)",
+        pointerEvents: "none",
+      }}
+    />
+
+    {/* Sponsored tag */}
+    <div
+      style={{
+        position: "absolute",
+        top: 8,
+        right: 10,
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 1.5,
+        textTransform: "uppercase",
+        color: "#18bb1a",
+        opacity: 0.8,
+      }}
+    >
+      Sponsored
+    </div>
+
+    {/* Content */}
+    <div style={{ textAlign: "center", position: "relative" }}>
+      <div
+        style={{
+          fontSize: isMobile ? 14 : 16,
+          fontWeight: 700,
+          color: "#fff",
+          marginBottom: 6,
+          letterSpacing: 0.5,
+        }}
+      >
+        🚀 Promote Your Project
+      </div>
+
+      <div
+        style={{
+          fontSize: isMobile ? 12 : 13,
+          color: "#aaa",
+          marginBottom: 10,
+        }}
+      >
+        Reach Core Clash players
+      </div>
+
+      <a
+        href="https://t.me/ETN_Villain"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: "inline-block",
+          padding: "6px 14px",
+          borderRadius: 999,
+          background: "rgba(24,187,26,0.12)",
+          border: "1px solid rgba(24,187,26,0.5)",
+          color: "#18bb1a",
+          fontWeight: 700,
+          fontSize: 13,
+          textDecoration: "none",
+          boxShadow: "0 0 8px rgba(24,187,26,0.3)",
+          transition: "all 0.2s ease",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow =
+            "0 0 14px rgba(24,187,26,0.6)";
+          e.currentTarget.style.background =
+            "rgba(24,187,26,0.2)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow =
+            "0 0 8px rgba(24,187,26,0.3)";
+          e.currentTarget.style.background =
+            "rgba(24,187,26,0.12)";
+        }}
+      >
+        Contact → t.me/ETN_Villain
+      </a>
+    </div>
+  </div>
+);
+
+const renderGamesWithSingleAd = (games) => {
+  if (!games || games.length === 0) return null;
+
+  const items = [];
+
+  games.forEach((g, index) => {
+    items.push(
+      <div key={`game-${g.id}`} style={{ width: "100%" }}>
+        <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+      </div>
+    );
+
+    // Insert one ad after the 2nd game
+    if (index === 1) {
+      items.push(
+        <div key="single-ad-after-second" style={{ width: "100%" }}>
+          <AdPlaceholder />
+        </div>
+      );
+    }
+  });
+
+  // If fewer than 3 games, place ad at bottom instead
+  if (games.length < 3) {
+    items.push(
+      <div key="single-ad-bottom" style={{ width: "100%" }}>
+        <AdPlaceholder />
+      </div>
+    );
+  }
+
+  return items;
+};
+
+const renderGamesWithRepeatingAds = (games, keyPrefix = "settled") => {
+  if (!games || games.length === 0) return null;
+
+  const items = [];
+
+  games.forEach((g, index) => {
+    items.push(
+      <div key={`${keyPrefix}-game-${g.id}`} style={{ width: "100%" }}>
+        <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
+      </div>
+    );
+
+    // After every 2nd game: 2, 4, 6...
+    if ((index + 1) % 2 === 0 && index !== games.length - 1) {
+      items.push(
+        <div key={`${keyPrefix}-ad-${index}`} style={{ width: "100%" }}>
+          <AdPlaceholder />
+        </div>
+      );
+    }
+  });
+
+  return items;
+};
+
   /* ---------------- MAIN APP ---------------- */
 return (
 <div
@@ -3223,11 +3385,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
           {(!isMobile || activeTab === "open") && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <h3>🟢 Open Clashes ({openGames.length})</h3>
-              {openGames.map((g) => (
-                <div key={g.id} style={{ width: "100%" }}>
-                  <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-                </div>
-              ))}
+            {renderGamesWithSingleAd(openGames)}
             </div>
           )}
 
@@ -3235,11 +3393,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
           {(!isMobile || activeTab === "active") && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <h3>🟡 Active Clashes ({activeGames.length})</h3>
-              {activeGames.map((g) => (
-                <div key={g.id} style={{ width: "100%" }}>
-                  <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-                </div>
-              ))}
+            {renderGamesWithSingleAd(activeGames)}
             </div>
           )}
 
@@ -3317,13 +3471,12 @@ onClick={createGame} // <-- THIS IS REQUIRED
               {showResolved && latestSettled.length > 0 && (
                 <>
                   <h3>🔵 Settled Clashes ({latestSettled.length})</h3>
-                  {[...latestSettled]
-                    .sort((a, b) => Number(b.settledAt) - Number(a.settledAt))
-                    .map((g) => (
-                      <div key={g.id} style={{ width: "100%" }}>
-                        <GameCard g={g} {...gameCardProps} roundResults={g.roundResults || []} />
-                      </div>
-                    ))}
+              {renderGamesWithRepeatingAds(
+                [...latestSettled].sort(
+                  (a, b) => new Date(b.settledAt).getTime() - new Date(a.settledAt).getTime()
+                ),
+                "settled"
+                )}
                 </>
               )}
 
