@@ -102,6 +102,7 @@ const isSettled = isTrue(g.settled);
 const isCancelled = isTrue(g.cancelled);
 
 const hasPlayer2 = !!safePlayer2 && safePlayer2 !== zero;
+const isPlayer2Empty = !hasPlayer2;
 
 const p1Revealed =
   !!g.player1Reveal || isTrue(g.backendPlayer1Revealed) || isTrue(g.player1Revealed);
@@ -273,7 +274,7 @@ const canJoin =
   !isCancelled &&
   !isSettled &&
   !!safeAccount;
-  
+
   const canSettle = bothRevealed && !isSettled && !isCancelled;
   const status = getGameStatus(g);
   const BadgeWrapper = status.link ? "a" : "div";
