@@ -256,37 +256,49 @@ const connectWallet = useCallback(async (type = "metamask") => {
 
       const signer = await prov.getSigner();
       addr = await signer.getAddress();
-    } else if (type === "walletconnect") {
-      wcProvInstance = await EthereumProvider.init({
-        projectId: "146ee334d324044083b6427d4bbf9202",
-        optionalChains: [52014],
-        rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
-        metadata: {
-          name: "Core Clash",
-          description: "A strategic NFT battle game on Electroneum",
-          url: "https://coreclash.planetzephyros.xyz",
-          icons: ["https://coreclash.planetzephyros.xyz/CoreClashLogo.png"],
-        },
-      });
+} else if (type === "walletconnect") {
+  wcProvInstance = await EthereumProvider.init({
+    projectId: "146ee334d324044083b6427d4bbf9202",
+    optionalChains: [52014],
+    rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
+    metadata: {
+      name: "Core Clash",
+      description: "A strategic NFT battle game on Electroneum",
+      url: "https://coreclash.planetzephyros.xyz",
+      icons: ["https://coreclash.planetzephyros.xyz/CoreClashLogo.png"],
+      redirect: {
+        universal: "https://coreclash.planetzephyros.xyz",
+      },
+    },
+  });
 
-      wcProvInstance.on("display_uri", (uri) => {
-        console.log("WalletConnect URI:", uri);
+  const isMobileBrowser = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-        // Optional: custom mobile deep link handling here
-        // Example:
-        // if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        //   window.location.href = `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`;
-        // }
-      });
+  wcProvInstance.on("display_uri", (uri) => {
+    console.log("WalletConnect URI:", uri);
 
-      await wcProvInstance.enable();
-
-      prov = new ethers.BrowserProvider(wcProvInstance);
-      await ensureCorrectNetwork(prov, wcProvInstance);
-
-      const signer = await prov.getSigner();
-      addr = await signer.getAddress();
+    if (isMobileBrowser) {
+      // MetaMask mobile deep link
+      window.location.href = `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`;
     }
+  });
+
+  await wcProvInstance.enable();
+
+  prov = new ethers.BrowserProvider(wcProvInstance);
+  await ensureCorrectNetwork(prov, wcProvInstance);
+
+  const signer = await prov.getSigner();
+  addr = await signer.getAddress();
+}
+
+wcProvInstance.on("connect", () => {
+  console.log("WalletConnect session established");
+});
+
+wcProvInstance.on("disconnect", (err) => {
+  console.log("WalletConnect disconnected", err);
+});
 
     if (!addr) throw new Error("Wallet connection failed");
 
