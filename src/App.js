@@ -67,6 +67,21 @@ const [account, setAccount] = useState(null);
 const [walletError, setWalletError] = useState(null);
 const [wcProvider, setWcProvider] = useState(null);
 
+const syncWalletState = useCallback(async (providerLike, wcInstance = null) => {
+  try {
+    const prov = new ethers.BrowserProvider(providerLike);
+    const signer = await prov.getSigner();
+    const addr = await signer.getAddress();
+
+    setProvider(prov);
+    setAccount(addr);
+    setWcProvider(wcInstance);
+    setWalletError(null);
+  } catch (err) {
+    console.warn("syncWalletState failed:", err);
+  }
+}, []);
+
 /* ---------------- DEFAULT PROVIDER ---------------- */
 useEffect(() => {
   if (!provider) {
@@ -265,6 +280,27 @@ const connectWallet = useCallback(async (type = "metamask") => {
         rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
       });
 
+      wcProvInstance.on("connect", async () => {
+        console.log("WalletConnect connected");
+        await syncWalletState(wcProvInstance, wcProvInstance);
+      });
+
+      wcProvInstance.on("accountsChanged", async (accounts) => {
+        console.log("WalletConnect accountsChanged:", accounts);
+        if (accounts?.length > 0) {
+          setAccount(accounts[0]);
+          setProvider(new ethers.BrowserProvider(wcProvInstance));
+          setWcProvider(wcProvInstance);
+          setWalletError(null);
+        }
+      });
+
+      wcProvInstance.on("disconnect", (err) => {
+        console.log("WalletConnect disconnected:", err);
+        setAccount(null);
+        setWcProvider(null);
+      });
+
       await wcProvInstance.enable();
 
       prov = new ethers.BrowserProvider(wcProvInstance);
@@ -281,7 +317,7 @@ const connectWallet = useCallback(async (type = "metamask") => {
     console.error("Wallet connection failed:", err);
     setWalletError(err.message || "Wallet connection failed");
   }
-}, [ensureCorrectNetwork]);
+}, [ensureCorrectNetwork, syncWalletState]);
 
 /* ---------------- RESTORE WALLET (FIXED) ---------------- */
 useEffect(() => {
@@ -320,13 +356,14 @@ const addr = await signer.getAddress();
 
       /* ---------- 2️⃣ WalletConnect ---------- */
       try {
-        const wc = await EthereumProvider.init({
-          projectId: "146ee334d324044083b6427d4bbf9202",
-          chains: [52014],
-          optionalChains: [52014],
-          rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
-        });
-      
+const wc = await EthereumProvider.init({
+  projectId: "146ee334d324044083b6427d4bbf9202",
+  chains: [52014],
+  optionalChains: [52014],
+  showQrModal: true,
+  rpcMap: { 52014: "https://rpc.ankr.com/electroneum" },
+});
+
       if ((wc.connected || wc.session) && wc.session?.namespaces?.eip155) {
           try {
             await wc.enable();
@@ -374,6 +411,57 @@ const addr = await signer.getAddress();
 
   return () => { isMounted = false; };
 }, []);
+
+useEffect(() => {
+  const handleReturnToApp = async () => {
+    try {
+      if (document.visibilityState === "hidden") return;
+
+      // Try injected MetaMask first
+      if (window.ethereum) {
+        try {
+          const injectedProv = new ethers.BrowserProvider(window.ethereum);
+          const accounts = await injectedProv.send("eth_accounts", []);
+
+          if (accounts.length > 0) {
+            setProvider(injectedProv);
+            setAccount(accounts[0]);
+            setWalletError(null);
+            return;
+          }
+        } catch (err) {
+          console.warn("Injected return sync failed:", err);
+        }
+      }
+
+      // Then try WalletConnect session
+      if (wcProvider) {
+        try {
+          const prov = new ethers.BrowserProvider(wcProvider);
+          const signer = await prov.getSigner();
+          const addr = await signer.getAddress();
+
+          setProvider(prov);
+          setAccount(addr);
+          setWcProvider(wcProvider);
+          setWalletError(null);
+        } catch (err) {
+          console.warn("WalletConnect return sync failed:", err);
+        }
+      }
+    } catch (err) {
+      console.warn("Return-to-app sync failed:", err);
+    }
+  };
+
+  window.addEventListener("focus", handleReturnToApp);
+  document.addEventListener("visibilitychange", handleReturnToApp);
+
+  return () => {
+    window.removeEventListener("focus", handleReturnToApp);
+    document.removeEventListener("visibilitychange", handleReturnToApp);
+  };
+}, [wcProvider]);
 
 /* ---------------- OWNED NFT FETCH ---------------- */
 useEffect(() => {
