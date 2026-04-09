@@ -81,18 +81,13 @@ export default function GameCard({
   roundResults = [],
   downloadRevealBackup,
 }) {
-const safeAccount = account?.toLowerCase() || null;
-const safePlayer1 = g.player1?.toLowerCase() || null;
-const safePlayer2 = g.player2?.toLowerCase() || null;
-const zero = ethers.ZeroAddress.toLowerCase();
-
-const isPlayer1 = !!safeAccount && safePlayer1 === safeAccount;
-const isPlayer2 = !!safeAccount && safePlayer2 === safeAccount;
+  const isPlayer1 = g.player1?.toLowerCase() === account?.toLowerCase();
+  const isPlayer2 = g.player2?.toLowerCase() === account?.toLowerCase();
 
 const isAdmin =
-  !!safeAccount &&
-  !!ADMIN_ADDRESS &&
-  safeAccount === ADMIN_ADDRESS.toLowerCase();
+  account &&
+  ADMIN_ADDRESS &&
+  account.toLowerCase() === ADMIN_ADDRESS.toLowerCase();
 
 const canManualSettleUser = isAdmin || isPlayer1 || isPlayer2;
 
@@ -101,8 +96,8 @@ const isTrue = (v) => v === true || v === "true";
 const isSettled = isTrue(g.settled);
 const isCancelled = isTrue(g.cancelled);
 
-const hasPlayer2 = !!safePlayer2 && safePlayer2 !== zero;
-const isPlayer2Empty = !hasPlayer2;
+const hasPlayer2 =
+  !!g.player2 && g.player2 !== ethers.ZeroAddress;
 
 const p1Revealed =
   !!g.player1Reveal || isTrue(g.backendPlayer1Revealed) || isTrue(g.player1Revealed);
@@ -268,12 +263,12 @@ function formatTimeRemaining(ms) {
 
   /* --------- GAME STATES --------- */
 const canJoin =
-  isPlayer2Empty &&
+  !hasPlayer2 &&
   !isPlayer1 &&
   !isPlayer2 &&
   !isCancelled &&
   !isSettled &&
-  !!safeAccount;
+  !!account;
 
   const canSettle = bothRevealed && !isSettled && !isCancelled;
   const status = getGameStatus(g);
