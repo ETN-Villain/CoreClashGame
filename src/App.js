@@ -2007,6 +2007,7 @@ const AdPlaceholder = () => (
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+    margintop: 6,
     marginBottom: 6,
   }}
 >
