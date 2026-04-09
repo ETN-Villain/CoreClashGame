@@ -2014,7 +2014,7 @@ const AdPlaceholder = () => (
     src={CoreClashLogo}
     alt="Core Clash"
     style={{
-      width: isMobile ? 18 : 22,
+      width: isMobile ? 36 : 44,
       height: "auto",
       filter: "drop-shadow(0 0 6px #18bb1a)",
       opacity: 0.9,
@@ -2031,7 +2031,7 @@ const AdPlaceholder = () => (
   >
     Promote Your Project
   </div>
-  
+
       <div
         style={{
           fontSize: isMobile ? 12 : 13,
@@ -3008,6 +3008,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
       alignItems: "center",
       justifyContent: isMobile ? "center" : "flex-start",
       gap: 12,
+      marginBottom: 8,
     }}
   >
     <img
