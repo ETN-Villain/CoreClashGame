@@ -116,13 +116,18 @@ const isPreJoinCancelled =
   isCancelled && !hasPlayer2;
 
 const backupExists = (() => {
-  if (!account || !g?.id) return false;
+  try {
+    if (!account || !g?.id) return false;
 
-  const prefix = `${account.toLowerCase()}_${g.id}`;
-  const salt = localStorage.getItem(`${prefix}_salt`);
-  const nftContracts = localStorage.getItem(`${prefix}_nftContracts`);
-  const tokenIds = localStorage.getItem(`${prefix}_tokenIds`);
-  return !!salt && !!nftContracts && !!tokenIds;
+    const prefix = `${account.toLowerCase()}_${g.id}`;
+    const salt = localStorage.getItem(`${prefix}_salt`);
+    const nftContracts = localStorage.getItem(`${prefix}_nftContracts`);
+    const tokenIds = localStorage.getItem(`${prefix}_tokenIds`);
+    return !!salt && !!nftContracts && !!tokenIds;
+  } catch (err) {
+    console.warn("backupExists localStorage check failed:", err);
+    return false;
+  }
 })();
 
 // ---------- Game Status Logic ----------
@@ -333,23 +338,20 @@ const playerWinningsWei = tie
 const playerWinnings = ethers.formatUnits(playerWinningsWei, 18);
 
 /* ---------------- Reveal File Re-download Handler ---------------- */
-const getRevealBackup = (account, gameId) => {
-  if (!account || !gameId) return null;
+const getRevealBackup = (() => {
+  try {
+    if (!account || !g?.id) return false;
 
-  const prefix = `${account.toLowerCase()}_${gameId}`;
-
-  const salt = localStorage.getItem(`${prefix}_salt`);
-  const nftContracts = localStorage.getItem(`${prefix}_nftContracts`);
-  const tokenIds = localStorage.getItem(`${prefix}_tokenIds`);
-
-  if (!salt || !nftContracts || !tokenIds) return null;
-
-  return {
-    salt,
-    nftContracts: JSON.parse(nftContracts),
-    tokenIds: JSON.parse(tokenIds),
-  };
-};
+    const prefix = `${account.toLowerCase()}_${g.id}`;
+    const salt = localStorage.getItem(`${prefix}_salt`);
+    const nftContracts = localStorage.getItem(`${prefix}_nftContracts`);
+    const tokenIds = localStorage.getItem(`${prefix}_tokenIds`);
+    return !!salt && !!nftContracts && !!tokenIds;
+  } catch (err) {
+    console.warn("getRevealBackup localStorage check failed:", err);
+    return false;
+  }
+})();
 
 const canDownloadRevealBackup = (game, account) => {
   if (!game || !account) return false;
