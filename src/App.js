@@ -2055,7 +2055,14 @@ const AdPlaceholder = () => (
 );
 
 const renderGamesWithSingleAd = (games) => {
-  if (!games || games.length === 0) return null;
+  // 🔥 If no games → show ad only
+  if (!games || games.length === 0) {
+    return (
+      <div style={{ width: "100%" }}>
+        <AdPlaceholder />
+      </div>
+    );
+  }
 
   const items = [];
 
@@ -2066,7 +2073,7 @@ const renderGamesWithSingleAd = (games) => {
       </div>
     );
 
-    // Insert one ad after the 2nd game
+    // Insert ad after 2nd game
     if (index === 1) {
       items.push(
         <div key="single-ad-after-second" style={{ width: "100%" }}>
@@ -2076,7 +2083,7 @@ const renderGamesWithSingleAd = (games) => {
     }
   });
 
-  // If fewer than 3 games, place ad at bottom instead
+  // If fewer than 3 games → add ad at bottom
   if (games.length < 3) {
     items.push(
       <div key="single-ad-bottom" style={{ width: "100%" }}>
