@@ -511,6 +511,9 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
   );
 };
 
+const showTeamsSection =
+  bothRevealed || isMissedRevealSettled;
+
   /* ---------------- Render JSX ---------------- */
   return (
     <div
@@ -735,7 +738,7 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
 )}
 
   {/* Teams + Round Results */}
-      {bothRevealed && (
+      {showTeamsSection && (
         <div style={{ marginTop: 16 }}>
           {/* Player 1 Team */}
           <div style={{ marginBottom: 24 }}>
