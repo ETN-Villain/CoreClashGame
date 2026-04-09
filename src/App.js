@@ -2984,20 +2984,39 @@ onClick={createGame} // <-- THIS IS REQUIRED
   </div>
 
 <div style={{ marginTop: 40, marginBottom: 10 }}>
-  <h2
+  <div
     style={{
-      fontWeight: "bold",
-      fontSize: isMobile ? 30 : 36,
-      letterSpacing: 2,
-      textTransform: "uppercase",
-      color: "#18bb1a",
-      marginBottom: 6,
-      animation: "coreNeonFlicker 2.2s infinite",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: isMobile ? "center" : "flex-start",
+      gap: 12,
     }}
   >
-    Core Clashes
-  </h2>
+    <img
+      src={CoreClashLogo}
+      alt="Core Clash"
+      style={{
+        width: isMobile ? 36 : 44,
+        height: "auto",
+        filter: "drop-shadow(0 0 6px #18bb1a)",
+      }}
+    />
 
+    <h2
+      style={{
+        fontWeight: "bold",
+        fontSize: isMobile ? 30 : 36,
+        letterSpacing: 2,
+        textTransform: "uppercase",
+        color: "#18bb1a",
+        margin: 0,
+        animation: "coreNeonFlicker 2.2s infinite",
+      }}
+    >
+      Core Clashes
+    </h2>
+    </div>
+    
   <button
     type="button"
     onClick={loadGames}
