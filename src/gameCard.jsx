@@ -737,57 +737,149 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
   </div>
 )}
 
-  {/* Teams + Round Results */}
-      {showTeamsSection && (
-        <div style={{ marginTop: 16 }}>
-          {/* Player 1 Team */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontWeight: "bold", color: "#ff5555", marginBottom: 8, textAlign: "left" }}>🟥 Player 1 Team: {g.player1 ? `0x...${g.player1.slice(-5)}` : "—"}</div>
-      <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {displayStake !== null ? (() => {const n = Number(displayStake); return Number.isInteger(n) ? n : n.toFixed(2);})() : "Loading..."} $CORE </div>
-<div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
-  {renderTokenImages(g.player1Reveal, winnerIsPlayer1)}
-</div>
-          </div>
+{/* Teams + Round Results */}
+{showTeamsSection && (
+  <div style={{ marginTop: 16 }}>
+    {/* Player 1 Team */}
+    <div style={{ marginBottom: 24 }}>
+      <div
+        style={{
+          fontWeight: "bold",
+          color: "#ff5555",
+          marginBottom: 8,
+          textAlign: "left",
+        }}
+      >
+        🟥 Player 1 Team: {g.player1 ? `0x...${g.player1.slice(-5)}` : "—"}
+      </div>
 
-          {/* Round Results */}
-          {isSettled && g.winner && (
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontWeight: "bold", marginBottom: 8, fontSize: 20, color: "#aaa", textAlign: "center" }}>📊 Round Results</div>
-              <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
-                {g.roundResults.map((r) => (
-                  <div
-                    key={r.round}
-                    style={{
-                      padding: "4px 4px",
-                      borderRadius: 20,
-                      backgroundColor: r.winner === "player1" ? "#ff5555" : "#4da3ff",
-                      color: "#fff",
-                      fontWeight: "bold",
-                      fontSize: 16,
-                      minWidth: 70,
-                      textAlign: "center",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
-                    }}
-                  >
-                    R{r.round}: {r.winner === "player1" ? "P1" : "P2"}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Player 2 Team */}
-          <div>
-            <div style={{ fontWeight: "bold", color: "#4da3ff", marginBottom: 8, textAlign: "left" }}>🟦 Player 2 Team: {g.player2 ? `0x...${g.player2.slice(-5)}` : "—"}</div>
       <div style={{ fontSize: 14, marginTop: 2 }}>
-        Stake: {displayStake !== null ? (() => {const n = Number(displayStake); return Number.isInteger(n) ? n : n.toFixed(2);})() : "Loading..."} $CORE </div>
-<div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
-  {renderTokenImages(g.player2Reveal, winnerIsPlayer2)}
-</div>
-          </div>
+        Stake:{" "}
+        {displayStake !== null
+          ? (() => {
+              const n = Number(displayStake);
+              return Number.isInteger(n) ? n : n.toFixed(2);
+            })()
+          : "Loading..."}{" "}
+        $CORE
+      </div>
+
+      {p1Revealed ? (
+        <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
+          {renderTokenImages(g.player1Reveal, winnerIsPlayer1)}
+        </div>
+      ) : (
+        <div
+          style={{
+            marginTop: 10,
+            padding: 12,
+            borderRadius: 10,
+            border: "1px solid #ff5555",
+            background: "rgba(255, 85, 85, 0.12)",
+            color: "#ff7777",
+            textAlign: "center",
+            fontWeight: "bold",
+          }}
+        >
+          Player 1 missed reveal
         </div>
       )}
+    </div>
+
+    {/* Round Results */}
+    {bothRevealed && isSettled && g.roundResults && g.roundResults.length > 0 && (
+      <div style={{ marginBottom: 24 }}>
+        <div
+          style={{
+            fontWeight: "bold",
+            marginBottom: 8,
+            fontSize: 20,
+            color: "#aaa",
+            textAlign: "center",
+          }}
+        >
+          📊 Round Results
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
+          {g.roundResults.map((r) => (
+            <div
+              key={r.round}
+              style={{
+                padding: "4px 4px",
+                borderRadius: 20,
+                backgroundColor:
+                  r.winner === "player1"
+                    ? "#ff5555"
+                    : r.winner === "player2"
+                    ? "#4da3ff"
+                    : "#777",
+                color: "#fff",
+                fontWeight: "bold",
+                fontSize: 16,
+                minWidth: 70,
+                textAlign: "center",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+              }}
+            >
+              R{r.round}:{" "}
+              {r.winner === "player1"
+                ? "P1"
+                : r.winner === "player2"
+                ? "P2"
+                : "TIE"}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* Player 2 Team */}
+    <div>
+      <div
+        style={{
+          fontWeight: "bold",
+          color: "#4da3ff",
+          marginBottom: 8,
+          textAlign: "left",
+        }}
+      >
+        🟦 Player 2 Team: {g.player2 ? `0x...${g.player2.slice(-5)}` : "—"}
+      </div>
+
+      <div style={{ fontSize: 14, marginTop: 2 }}>
+        Stake:{" "}
+        {displayStake !== null
+          ? (() => {
+              const n = Number(displayStake);
+              return Number.isInteger(n) ? n : n.toFixed(2);
+            })()
+          : "Loading..."}{" "}
+        $CORE
+      </div>
+
+      {p2Revealed ? (
+        <div style={{ display: "flex", justifyContent: "center", gap: 16 }}>
+          {renderTokenImages(g.player2Reveal, winnerIsPlayer2)}
+        </div>
+      ) : (
+        <div
+          style={{
+            marginTop: 10,
+            padding: 12,
+            borderRadius: 10,
+            border: "1px solid #4da3ff",
+            background: "rgba(77, 163, 255, 0.12)",
+            color: "#7db8ff",
+            textAlign: "center",
+            fontWeight: "bold",
+          }}
+        >
+          Player 2 missed reveal
+        </div>
+      )}
+    </div>
+  </div>
+)}
 <div
   style={{
     marginTop: 12,
