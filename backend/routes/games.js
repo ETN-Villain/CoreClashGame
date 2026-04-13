@@ -22,6 +22,7 @@ import VQLE_ABI from "../../src/abis/VQLEABI.json" with { type: "json" };
 import SCIONS_ABI from "../../src/abis/SCIONSABI.json" with { type: "json" };
 import { readBurnTotal } from "../store/burnStore.js";
 import { rebuildWeeklyLeaderboardForDate } from "../utils/weeklyLeaderboard.js";
+import { awardXp, XP_REWARDS } from "../utils/playerXp.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -107,6 +108,7 @@ router.post("/", async (req, res) => {
 
   const player1Lc = creator.toLowerCase();
   let createdGamesSnapshot = null;
+  let gameCreated = false;
 
   try {
     await withLock(async () => {
@@ -133,11 +135,26 @@ router.post("/", async (req, res) => {
 
       writeGames(games);
       createdGamesSnapshot = games;
+      gameCreated = true;
 
       console.log("✅ Game created:", gameId);
     });
 
     if (res.headersSent) return;
+
+    if (gameCreated) {
+      try {
+        const updatedPlayer = awardXp(player1Lc, XP_REWARDS.CREATE_GAME);
+        console.log(
+          `XP awarded: CREATE_GAME +${XP_REWARDS.CREATE_GAME} → ${player1Lc}, total XP: ${updatedPlayer.xp}`
+        );
+      } catch (xpErr) {
+        console.error(
+          `Failed to award CREATE_GAME XP for ${player1Lc}:`,
+          xpErr.message || xpErr
+        );
+      }
+    }
 
     broadcast("GameCreated", createdGamesSnapshot);
 
@@ -203,6 +220,7 @@ router.post("/:id/join", async (req, res) => {
 
   const player2Lc = player2.toLowerCase();
   let gamesSnapshot = null;
+  let gameJoined = false;
 
   if (player2Lc === ethers.ZeroAddress.toLowerCase()) {
     return res.status(400).json({ error: "Zero address not allowed" });
@@ -233,11 +251,26 @@ router.post("/:id/join", async (req, res) => {
 
       writeGames(games);
       gamesSnapshot = games;
+      gameJoined = true;
 
       console.log("✅ Game joined:", gameId);
     });
 
     if (res.headersSent) return;
+
+    if (gameJoined) {
+      try {
+        const updatedPlayer = awardXp(player2Lc, XP_REWARDS.JOIN_GAME);
+        console.log(
+          `XP awarded: JOIN_GAME +${XP_REWARDS.JOIN_GAME} → ${player2Lc}, total XP: ${updatedPlayer.xp}`
+        );
+      } catch (xpErr) {
+        console.error(
+          `Failed to award JOIN_GAME XP for ${player2Lc}:`,
+          xpErr.message || xpErr
+        );
+      }
+    }
 
     broadcast("GameJoined", gamesSnapshot);
 
@@ -355,6 +388,7 @@ router.post("/:id/reveal", authWallet, async (req, res) => {
     let gamesSnapshot = null;
     let savedReveal = null;
     let bothRevealed = false;
+    let revealSavedNow = false;
 
     // ---- Save reveal data under lock ----
     await withLock(async () => {
@@ -395,9 +429,24 @@ router.post("/:id/reveal", authWallet, async (req, res) => {
       gamesSnapshot = games;
       savedReveal = game[`${freshSlot}Reveal`];
       bothRevealed = !!(game.player1Reveal && game.player2Reveal);
+      revealSavedNow = true;
     });
 
     if (res.headersSent) return;
+
+    if (revealSavedNow) {
+      try {
+        const updatedPlayer = awardXp(walletLc, XP_REWARDS.REVEAL);
+        console.log(
+          `XP awarded: REVEAL +${XP_REWARDS.REVEAL} → ${walletLc}, total XP: ${updatedPlayer.xp}`
+        );
+      } catch (xpErr) {
+        console.error(
+          `Failed to award REVEAL XP for ${walletLc}:`,
+          xpErr.message || xpErr
+        );
+      }
+    }
 
     broadcast("GameRevealed", gamesSnapshot);
 
@@ -759,12 +808,20 @@ router.post("/:id/post-winner", async (req, res) => {
 router.post("/:id/settle-game", async (req, res) => {
   try {
     const gameId = Number(req.params.id);
+    const { settledBy } = req.body;
 
     if (!Number.isInteger(gameId)) {
       return res.status(400).json({ error: "Invalid game ID" });
     }
 
+    if (!settledBy || typeof settledBy !== "string") {
+      return res.status(400).json({ error: "settledBy wallet required" });
+    }
+
+    const settledByLc = settledBy.toLowerCase();
+
     let gameSnapshot = null;
+    let newlySettled = false;
 
     // First lock: validate and take a fresh snapshot
     await withLock(async () => {
@@ -778,6 +835,14 @@ router.post("/:id/settle-game", async (req, res) => {
 
       if (!game.player1Reveal || !game.player2Reveal) {
         res.status(400).json({ error: "Both players must reveal before settling" });
+        return;
+      }
+
+      const p1 = game.player1?.toLowerCase();
+      const p2 = game.player2?.toLowerCase();
+
+      if (settledByLc !== p1 && settledByLc !== p2) {
+        res.status(403).json({ error: "Only a game participant can receive settle XP" });
         return;
       }
 
@@ -900,35 +965,50 @@ router.post("/:id/settle-game", async (req, res) => {
     const txSettle = await adminContract.settleGame(gameId);
     await txSettle.wait(1);
 
-let finalSettledAt = null;
+    let finalSettledAt = null;
 
     // Persist settled state
-await withLock(async () => {
-  const games = readGames();
-  const game = games.find((g) => g.id === gameId);
+    await withLock(async () => {
+      const games = readGames();
+      const game = games.find((g) => g.id === gameId);
 
-  if (!game) {
-    res.status(404).json({ error: "Game not found after settle tx confirmation" });
-    return;
-  }
+      if (!game) {
+        res.status(404).json({ error: "Game not found after settle tx confirmation" });
+        return;
+      }
 
-  if (!game.settled) {
-    finalSettledAt = new Date().toISOString();
-    game.settled = true;
-    game.settleTxHash = txSettle.hash;
-    game.settledAt = finalSettledAt;
-    game.settlementState = "settled";
-    writeGames(games);
-  } else {
-    finalSettledAt = game.settledAt || new Date().toISOString();
-  }
-});
+      if (!game.settled) {
+        finalSettledAt = new Date().toISOString();
+        game.settled = true;
+        game.settleTxHash = txSettle.hash;
+        game.settledAt = finalSettledAt;
+        game.settlementState = "settled";
+        writeGames(games);
+        newlySettled = true;
+      } else {
+        finalSettledAt = game.settledAt || new Date().toISOString();
+      }
+    });
 
-if (res.headersSent) return;
+    if (res.headersSent) return;
 
-await rebuildWeeklyLeaderboardForDate(finalSettledAt);
+    if (newlySettled) {
+      try {
+        const updatedPlayer = awardXp(settledByLc, XP_REWARDS.SETTLE);
+        console.log(
+          `XP awarded: SETTLE +${XP_REWARDS.SETTLE} → ${settledByLc}, total XP: ${updatedPlayer.xp}`
+        );
+      } catch (xpErr) {
+        console.error(
+          `Failed to award SETTLE XP for ${settledByLc}:`,
+          xpErr.message || xpErr
+        );
+      }
+    }
 
-return res.json({ success: true, gameId, txHash: txSettle.hash });
+    await rebuildWeeklyLeaderboardForDate(finalSettledAt);
+
+    return res.json({ success: true, gameId, txHash: txSettle.hash });
   } catch (err) {
     console.error("manual settle-game error:", err);
     return res.status(500).json({ error: err.message || "Failed to settle game" });

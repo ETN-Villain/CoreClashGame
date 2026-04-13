@@ -23,6 +23,8 @@ import { backfillWeeklyLeaderboardsFromGames } from "./store/weeklyLeaderboardSt
 import { reconcileActiveGamesScheduled } from "./reconcile.js";
 import "./eventListener.js";
 
+import xpRouter from "./routes/xp.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -318,3 +320,6 @@ setTimeout(() => {
     console.error("[SERVER] Startup backfill failed", err);
   }
 })();
+
+// ---------------- XP ROUTES ----------------
+app.use("/xp", xpRouter);
