@@ -36,6 +36,8 @@ import {
 } from "./appMedia/media.js";
 
 import GameCard from "./gameCard.jsx";
+import EcosystemBlock from "./ecosystemBlock.jsx";
+import WalletXpPanel from "./walletXpPanel.jsx";
 
 import "./App.css";
 
@@ -135,6 +137,29 @@ useEffect(() => {
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState(5);
   const [progress, setProgress] = useState(0);
+
+  /* ---------------- Ecosystem State ---------------- */
+  const handleEcosystemClick = async (linkKey, url) => {
+  try {
+    if (account) {
+      await fetch("/xp/ecosystem-click", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ linkKey }),
+      });
+    }
+  } catch (err) {
+    console.warn("Ecosystem XP tracking failed:", err);
+  }
+
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
+const [xpProfile, setXpProfile] = useState(null);
+const [xpLoading, setXpLoading] = useState(false);
   
   /* ---------------- HANDLE GAMECREATED EVENT ---------------- */
   const [showDeviceWarning, setShowDeviceWarning] = useState(false);
@@ -319,6 +344,46 @@ const connectWallet = useCallback(async (type = "metamask") => {
   }
 }, [ensureCorrectNetwork, syncWalletState]);
 
+/// ---------------- XP PROFILE ----------------
+const loadXpProfile = useCallback(async () => {
+  if (!account) {
+    setXpProfile(null);
+    return;
+  }
+
+  try {
+    setXpLoading(true);
+
+    const res = await fetch(`${BACKEND_URL}/xp/me`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to load XP");
+    }
+
+    setXpProfile(data);
+  } catch (err) {
+    console.warn("Failed to load XP profile:", err);
+    setXpProfile(null);
+  } finally {
+    setXpLoading(false);
+  }
+}, [account]);
+
+useEffect(() => {
+  if (!account) {
+    setXpProfile(null);
+    return;
+  }
+
+  loadXpProfile();
+}, [account, loadXpProfile]);
+
 /* ---------------- RESTORE WALLET (FIXED) ---------------- */
 useEffect(() => {
   let isMounted = true;
@@ -434,6 +499,8 @@ useEffect(() => {
         }
       }
 
+      await loadXpProfile();
+
       // Then try WalletConnect session
       if (wcProvider) {
         try {
@@ -461,7 +528,7 @@ useEffect(() => {
     window.removeEventListener("focus", handleReturnToApp);
     document.removeEventListener("visibilitychange", handleReturnToApp);
   };
-}, [wcProvider]);
+}, [wcProvider, loadXpProfile]);
 
 /* ---------------- OWNED NFT FETCH ---------------- */
 useEffect(() => {
@@ -848,6 +915,7 @@ await fetch(`${BACKEND_URL}/games`, {
 
     alert(`Game #${gameId} created successfully!\nReveal file downloaded.`);
     await loadGames();
+    await loadXpProfile();
   } catch (err) {
     console.error("Create game failed:", err);
     alert(err.reason || err.message || "Create game failed");
@@ -863,6 +931,7 @@ await fetch(`${BACKEND_URL}/games`, {
   downloadRevealBackup,
   ensureCorrectNetwork,
   provider,
+  loadXpProfile,
 ]);
 
 /* ---------------- JOIN GAME ---------------- */
@@ -980,6 +1049,7 @@ await autoRevealIfPossible({
     alert(`Joined game #${numericGameId} successfully!`);
 
     await loadGames();
+    await loadXpProfile();
     setPendingAutoRevealGameId(numericGameId);
 
   } catch (err) {
@@ -1099,11 +1169,12 @@ console.log("Auto-reveal completed", g.id, revealJson);
 
       await triggerBackendComputeIfNeeded(g.id);
       await loadGames();
+      await loadXpProfile();
     } catch (err) {
       console.error("Auto-reveal failed:", err);
     }
   },
-  [wcProvider, account, provider, loadGames, triggerBackendComputeIfNeeded, ensureCorrectNetwork]
+  [wcProvider, account, provider, loadGames, triggerBackendComputeIfNeeded, ensureCorrectNetwork, loadXpProfile ]
 );
 
 /* ---------------- REVEAL FILE UPLOAD ---------------- */
@@ -1179,6 +1250,7 @@ const handleRevealFile = useCallback(async (e) => {
     // 3️⃣ Trigger compute and reload UI
     await triggerBackendComputeIfNeeded(gameId);
     await loadGames();
+    await loadXpProfile();
 
     alert("Reveal successful!");
 
@@ -1186,7 +1258,7 @@ const handleRevealFile = useCallback(async (e) => {
     console.error("Reveal failed:", err);
     alert(`Reveal failed: ${err.message}`);
   }
-}, [account, provider, wcProvider, loadGames, ensureCorrectNetwork, triggerBackendComputeIfNeeded]);
+}, [account, provider, wcProvider, loadGames, ensureCorrectNetwork, triggerBackendComputeIfNeeded, loadXpProfile]);
 
 /* ------ MANUAL SETTLE GAME -------- */
 const manualSettleGame = useCallback(
@@ -1231,22 +1303,23 @@ const manualSettleGame = useCallback(
 
       console.log("Winner posted:", postWinnerRes);
 
-      // Step 3: Settle game on-chain only if not already settled
-      const settleRes = await fetch(`${BACKEND_URL}/games/${gameId}/settle-game`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }).then(r => r.json());
+// Step 3: Settle game on-chain only if not already settled
+const settleRes = await fetch(`${BACKEND_URL}/games/${gameId}/settle-game`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ settledBy: account }),
+}).then(r => r.json());
 
-      if (!settleRes.success) {
-        if (settleRes.alreadySettled) {
-          console.log(`Game ${gameId} already settled on-chain`);
-        } else {
-          alert(`Failed to settle game: ${settleRes.error || "Unknown error"}`);
-          return;
-        }
-      } else {
-        console.log(`Game ${gameId} settled successfully:`, settleRes.txHash);
-      }
+if (!settleRes.success) {
+  if (settleRes.alreadySettled) {
+    console.log(`Game ${gameId} already settled on-chain`);
+  } else {
+    alert(`Failed to settle game: ${settleRes.error || "Unknown error"}`);
+    return;
+  }
+} else {
+  console.log(`Game ${gameId} settled successfully:`, settleRes.txHash);
+}
 
       if (!postWinnerRes.txHash) {
         throw new Error(
@@ -1256,14 +1329,45 @@ const manualSettleGame = useCallback(
 
       // Refresh local state
       await loadGames();
+      await loadXpProfile();
 
     } catch (err) {
       console.error("Manual settle failed:", err);
       alert(err.message || "Manual settle failed");
     }
   },
-  [provider, wcProvider, account, loadGames, ensureCorrectNetwork]
+  [provider, wcProvider, account, loadGames, ensureCorrectNetwork, loadXpProfile]
 );
+
+/// ---------------- XP LEVELS & PROGRESS CALCULATION ----------------
+const XP_LEVELS = [
+  { level: 1, minXp: 0 },
+  { level: 2, minXp: 200 },
+  { level: 3, minXp: 500 },
+  { level: 4, minXp: 1000 },
+  { level: 5, minXp: 1750 },
+  { level: 6, minXp: 2750 },
+  { level: 7, minXp: 4250 },
+  { level: 8, minXp: 6000 },
+  { level: 9, minXp: 8000 },
+  { level: 10, minXp: 12000 },
+];
+
+/// ------------- Calculate XP progress within current level (0-100%) -------------
+const getLevelProgress = (xp, level) => {
+  const currentIndex = XP_LEVELS.findIndex((l) => l.level === level);
+  if (currentIndex === -1) return 0;
+
+  const currentMin = XP_LEVELS[currentIndex].minXp;
+  const nextMin = XP_LEVELS[currentIndex + 1]?.minXp;
+
+  if (!nextMin) return 100;
+
+  const span = nextMin - currentMin;
+  const progress = ((xp - currentMin) / span) * 100;
+
+  return Math.max(0, Math.min(100, progress));
+};
 
 /// ---------------- MODAL STYLES ----------------
 const modalOverlayStyle = {
@@ -1983,22 +2087,22 @@ const AdPlaceholder = () => (
       }}
     />
 
-    {/* Sponsored tag */}
-    <div
-      style={{
-        position: "absolute",
-        top: 8,
-        right: 10,
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: 1.5,
-        textTransform: "uppercase",
-        color: "#18bb1a",
-        opacity: 0.8,
-      }}
-    >
-      Sponsored
-    </div>
+{/* Sponsored tag */}
+<div
+  style={{
+    position: "absolute",
+    top: 8,
+    right: 10,
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+    color: "#18bb1a",
+    opacity: 0.8,
+  }}
+>
+  Sponsored
+</div>
 
 {/* Ad Header */}
 <div
@@ -2062,10 +2166,13 @@ const AdPlaceholder = () => (
     Put your brand in front of Core Clash players with a featured sponsor slot.
   </div>
 
-  <a
-    href="https://t.me/ETN_Villain"
-    target="_blank"
-    rel="noopener noreferrer"
+  <div
+    onClick={() =>
+      handleEcosystemClick(
+        "sponsoredad1",
+        "https://t.me/ETN_Villain"
+      )
+    }
     style={{
       display: "inline-block",
       padding: "7px 16px",
@@ -2077,10 +2184,11 @@ const AdPlaceholder = () => (
       fontSize: 13,
       textDecoration: "none",
       boxShadow: "0 0 8px rgba(24,187,26,0.25)",
+      cursor: "pointer",
     }}
   >
     Contact → t.me/ETN_Villain
-  </a>
+  </div>
 </div>
   </div>
 );
@@ -2265,296 +2373,78 @@ return (
     </>
   ) : (
     // Wallet connected view
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          background: "#0f0f0f",
-          padding: "6px 12px",
-          borderRadius: 12,
-          border: "1px solid #333",
-          boxShadow: "0 0 8px rgba(0,0,0,0.4)",
-        }}
-      >
-        <span
-          style={{
-            fontSize: isMobile ? 12 : 14,
-            fontWeight: 600,
-            color: "#fff",
-            letterSpacing: 0.3,
-          }}
-        >
-          {account?.slice(0, 6)}...{account?.slice(-4)}
-        </span>
-
-        <div style={{ width: 1, height: 16, background: "#333" }} />
-
-        <button
-          onClick={disconnectWallet}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "#ff6b6b",
-            fontWeight: 600,
-            fontSize: isMobile ? 11 : 13,
-            cursor: "pointer",
-            padding: "2px 6px",
-            transition: "all 0.2s ease",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#ff3b3b")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#ff6b6b")}
-        >
-          Disconnect
-        </button>
-      </div>
-    </div>
-  )}
-</div>
-</div>
-
-{/* ---------------- ECOSYSTEM BLOCK ---------------- */}
 <div
   style={{
-    marginTop: 16,
-    width: "100%",
-    display: "grid",
-    gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1.4fr 1.4fr 1.4fr 1fr",
-    gap: 14,
-    alignItems: "center",
-    justifyItems: "center",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: isMobile ? "stretch" : "flex-end",
+    gap: 10,
   }}
 >
-  {/* Buy CORE */}
-  <a
-    href="https://app.electroswap.io/explore/tokens/electroneum/0x309b916b3a90cb3e071697ea9680e9217a30066f?inputCurrency=ETN"
-    target="_blank"
-    rel="noopener noreferrer"
-    style={{ textDecoration: "none", width: "100%", maxWidth: 140 }}
-  >
-    <div
-      style={{
-        background: "#0f0f0f",
-        border: "1px solid #333",
-        borderRadius: 12,
-        padding: "10px 12px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
-        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
-        transition: "all 0.2s ease",
-      }}
-    >
-      <img
-        src={ElectroSwap}
-        alt="Buy CORE"
-        style={{ width: 34, height: 34, borderRadius: 6 }}
-      />
-      <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 600, color: "#fff" }}>
-        Buy CORE
-      </span>
-    </div>
-  </a>
-
-  {/* Planet ETN */}
-  <a
-    href="https://planetetn.org/zephyros"
-    target="_blank"
-    rel="noopener noreferrer"
-    style={{ textDecoration: "none", width: "100%", maxWidth: 140 }}
-  >
-    <div
-      style={{
-        background: "#0f0f0f",
-        border: "1px solid #333",
-        borderRadius: 12,
-        padding: "10px 12px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
-        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
-        transition: "all 0.2s ease",
-      }}
-    >
-      <video
-        src={PlanetZephyrosAE}
-        autoPlay
-        loop
-        muted
-        playsInline
-        style={{ width: 38, height: 38, borderRadius: 6, objectFit: "cover" }}
-      />
-      <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 600, color: "#fff" }}>
-        Planet ETN
-      </span>
-    </div>
-  </a>
-
-  {/* Verdant Kin Banner */}
-  <a
-    href="https://app.electroswap.io/nfts/collection/0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4"
-    target="_blank"
-    rel="noopener noreferrer"
+  <div
     style={{
-      textDecoration: "none",
-      width: "100%",
-      maxWidth: isMobile ? "100%" : 280,
-      gridColumn: isMobile ? "1 / span 2" : undefined,
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      background: "#0f0f0f",
+      padding: "6px 12px",
+      borderRadius: 12,
+      border: "1px solid #333",
+      boxShadow: "0 0 8px rgba(0,0,0,0.4)",
     }}
   >
-    <div
+    <span
       style={{
-        background: "#0f0f0f",
-        border: "1px solid #333",
-        borderRadius: 12,
-        width: "100%",
-        height: 60,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
-        transition: "all 0.2s ease",
+        fontSize: isMobile ? 12 : 14,
+        fontWeight: 600,
+        color: "#fff",
+        letterSpacing: 0.3,
       }}
     >
-      <img
-        src={VerdantKinBanner}
-        alt="Verdant Kin"
-        style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 8 }}
-      />
-    </div>
-  </a>
+      {account?.slice(0, 6)}...{account?.slice(-4)}
+    </span>
 
-  {/* Verdant Queen Banner */}
-  <a
-    href="https://panth.art/collections/0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0"
-    target="_blank"
-    rel="noopener noreferrer"
-    style={{
-      textDecoration: "none",
-      width: "100%",
-      maxWidth: isMobile ? "100%" : 280,
-      gridColumn: isMobile ? "1 / span 2" : undefined,
-    }}
-  >
-    <div
-      style={{
-        background: "#0f0f0f",
-        border: "1px solid #333",
-        borderRadius: 12,
-        width: "100%",
-        height: 60,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
-        transition: "all 0.2s ease",
-      }}
-    >
-      <img
-        src={VerdantQueenBanner}
-        alt="Verdant Queen"
-        style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 8 }}
-      />
-    </div>
-  </a>
+    <div style={{ width: 1, height: 16, background: "#333" }} />
 
-  {/* Aether Scions Banner */}
-  <a
-    href="https://app.electroswap.io/nfts/collection/0xAc620b1A3dE23F4EB0A69663613baBf73F6C535D"
-    target="_blank"
-    rel="noopener noreferrer"
-    style={{
-      textDecoration: "none",
-      width: "100%",
-      maxWidth: isMobile ? "100%" : 280,
-      gridColumn: isMobile ? "1 / span 2" : undefined,
-    }}
-  >
-    <div
+    <button
+      onClick={disconnectWallet}
       style={{
-        background: "#0f0f0f",
-        border: "1px solid #333",
-        borderRadius: 12,
-        width: "100%",
-        height: 60,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: "0 0 8px rgba(0,0,0,0.5)",
+        background: "transparent",
+        border: "none",
+        color: "#ff6b6b",
+        fontWeight: 600,
+        fontSize: isMobile ? 11 : 13,
+        cursor: "pointer",
+        padding: "2px 6px",
         transition: "all 0.2s ease",
       }}
+      onMouseEnter={(e) => (e.currentTarget.style.color = "#ff3b3b")}
+      onMouseLeave={(e) => (e.currentTarget.style.color = "#ff6b6b")}
     >
-      <img
-        src={AetherScionsBanner}
-        alt="Aether Scions"
-        style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 8 }}
-      />
-    </div>
-  </a>
+      Disconnect
+    </button>
+  </div>
+
+<WalletXpPanel
+  xpProfile={xpProfile}
+  xpLoading={xpLoading}
+  isMobile={isMobile}
+/>
+</div>
+)}
+</div>
 </div>
 
-{/* ---------------- TOTAL CORE BURNED ---------------- */}
-<div
-style={{
-  marginTop: 20,
-  width: isMobile ? "100%" : undefined,
-  padding: "16px 12px",
-  background: "#111",
-  borderRadius: 12,
-  border: "1px solid #333",
-  textAlign: "center",
-  boxShadow: "0 0 12px rgba(24,187,26,0.15)",
-  boxSizing: "border-box", // ✅ THIS FIXES IT PROPERLY
-  marginBottom: 12,
-}}
->
-  {/* Label */}
-  <div
-    style={{
-      fontSize: isMobile ? 12 : 14,
-      opacity: 0.75,
-      marginBottom: 6,
-      letterSpacing: 1,
-      textTransform: "uppercase",
-      color: "#ccc",
-    }}
-  >
-    Total Core Burned from Core Clash
-  </div>
-
-  {/* Main Number */}
-  <div
-    style={{
-      fontSize: isMobile ? 28 : 36,
-      fontWeight: 700,
-      color: "#ff9a3c",
-      textShadow: "0 0 6px #ff6b00, 0 0 12px #ff6b00",
-      marginBottom: 4,
-    }}
-  >
-    🔥 {totalGameBurned.toFixed(2)} CORE 🔥
-  </div>
-
-  {/* Percentage */}
-  <div
-    style={{
-      fontSize: isMobile ? 12 : 14,
-      opacity: 0.7,
-      color: "#aaa",
-      letterSpacing: 0.5,
-    }}
-  >
-    {burnPercent.toFixed(4)}% of total supply
-  </div>
+<div style={{ marginBottom: 12 }}>
+  <EcosystemBlock
+    isMobile={isMobile}
+    handleEcosystemClick={handleEcosystemClick}
+    ElectroSwap={ElectroSwap}
+    PlanetZephyrosAE={PlanetZephyrosAE}
+    VerdantKinBanner={VerdantKinBanner}
+    VerdantQueenBanner={VerdantQueenBanner}
+    AetherScionsBanner={AetherScionsBanner}
+  />
 </div>
 
 {/* ---------------- CREATE GAME SECTION ---------------- */}

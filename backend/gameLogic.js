@@ -4,6 +4,7 @@ import { METADATA_JSON_DIR } from "./paths.js";
 import fs from "fs";
 import path from "path";
 import tokenMapping from "../src/mapping.json" with { type: "json" };
+import { readPlayerXp } from "./utils/playerXp.js";
 
 // Helper to map tokenId → tokenURI from mapping.json
 function tokenIdToTokenURI(collection, tokenId) {
@@ -87,6 +88,45 @@ function applyAttackBoost(traitsArr, boostPercent = 10) {
   });
 }
 
+//// XP / LEVELING SYSTEM
+function getPlayerXpBonuses(wallet) {
+  if (!wallet) {
+    return { attack: 0, defense: 0, vitality: 0, agility: 0 };
+  }
+
+  try {
+    const allXp = readPlayerXp();
+    const walletLc = String(wallet).toLowerCase();
+
+    return (
+      allXp[walletLc]?.statsBonus || {
+        attack: 0,
+        defense: 0,
+        vitality: 0,
+        agility: 0,
+      }
+    );
+  } catch (err) {
+    console.error(`Failed to read XP bonuses for ${wallet}:`, err.message);
+    return { attack: 0, defense: 0, vitality: 0, agility: 0 };
+  }
+}
+
+function applyXpBoostToTraits(traitsArr, bonuses) {
+  return traitsArr.map((traits) => {
+    const boosted = [...traits];
+
+    // traits = [attack, defense, vitality, agility, core]
+    boosted[0] += bonuses.attack || 0;
+    boosted[1] += bonuses.defense || 0;
+    boosted[2] += bonuses.vitality || 0;
+    boosted[3] += bonuses.agility || 0;
+
+    return boosted;
+  });
+}
+
+/// ----------- fetch NFT metadata with local JSON files (no external calls) -----------
 export const fetchNFT = async (collection, tokenId) => {
   try {
     const collectionMap = tokenMapping[collection];
@@ -226,6 +266,9 @@ export async function resolveGame(game) {
     backgrounds: p2Backgrounds = [],
   } = game.player2Reveal;
 
+  const p1XpBonuses = getPlayerXpBonuses(game.player1);
+  const p2XpBonuses = getPlayerXpBonuses(game.player2);
+
   // ---- Hard guard: reveal structure ----
   if (
     !Array.isArray(p1TokenIds) ||
@@ -324,22 +367,22 @@ export async function resolveGame(game) {
   const p1FactionBonus = getTeamFactionBonus(p1Contracts);
   const p2FactionBonus = getTeamFactionBonus(p2Contracts);
 
-  let finalTraits1 = traits1;
-  let finalTraits2 = traits2;
+let finalTraits1 = applyXpBoostToTraits(traits1, p1XpBonuses);
+let finalTraits2 = applyXpBoostToTraits(traits2, p2XpBonuses);
 
-  if (p1FactionBonus) {
-    console.log(
-      `P1 faction bonus applied: ${p1FactionBonus} (+10% attack, rounded up)`
-    );
-    finalTraits1 = applyAttackBoost(traits1, 10);
-  }
+if (p1FactionBonus) {
+  console.log(
+    `P1 faction bonus applied: ${p1FactionBonus} (+10% attack, rounded up)`
+  );
+  finalTraits1 = applyAttackBoost(finalTraits1, 10);
+}
 
-  if (p2FactionBonus) {
-    console.log(
-      `P2 faction bonus applied: ${p2FactionBonus} (+10% attack, rounded up)`
-    );
-    finalTraits2 = applyAttackBoost(traits2, 10);
-  }
+if (p2FactionBonus) {
+  console.log(
+    `P2 faction bonus applied: ${p2FactionBonus} (+10% attack, rounded up)`
+  );
+  finalTraits2 = applyAttackBoost(finalTraits2, 10);
+}
 
   // ---- Compute winner ----
   const { winner, roundResults } = computeWinner(finalTraits1, finalTraits2);
@@ -362,6 +405,8 @@ export async function resolveGame(game) {
   game.player2FactionBonus = p2FactionBonus;
   game.player1Traits = finalTraits1;
   game.player2Traits = finalTraits2;
+  game.player1XpBonuses = p1XpBonuses;
+  game.player2XpBonuses = p2XpBonuses;
 
   console.log("Game resolved:", {
     gameId: game.id,
