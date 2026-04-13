@@ -902,7 +902,7 @@ downloadRevealBackup({
 });
 
 // 7️⃣ Save to backend
-await fetch(`${BACKEND_URL}/games`, {
+const backendRes = await fetch(`${BACKEND_URL}/games`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -913,9 +913,16 @@ await fetch(`${BACKEND_URL}/games`, {
   }),
 });
 
-    alert(`Game #${gameId} created successfully!\nReveal file downloaded.`);
-    await loadGames();
-    await loadXpProfile();
+const backendData = await backendRes.json();
+
+if (!backendRes.ok || !backendData.success) {
+  console.error("Backend game save failed:", backendData);
+  throw new Error(backendData.error || "Failed to save game to backend");
+}
+
+alert(`Game #${gameId} created successfully!\nReveal file downloaded.`);
+await loadGames();
+await loadXpProfile();
   } catch (err) {
     console.error("Create game failed:", err);
     alert(err.reason || err.message || "Create game failed");
@@ -1025,12 +1032,16 @@ const gameOnChain = await contractRead.games(numericGameId);
 const joinRes = await fetch(`${BACKEND_URL}/games/${numericGameId}/join`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ player2: gameOnChain.player2, player2JoinedAt: new Date().toISOString() }),
+  body: JSON.stringify({
+    player2: gameOnChain.player2,
+    player2JoinedAt: new Date().toISOString(),
+  }),
 });
 
-if (!joinRes.ok) {
-  const errText = await joinRes.text();
-  throw new Error(`Backend join failed: ${errText}`);
+const joinData = await joinRes.json();
+
+if (!joinRes.ok || !joinData.success) {
+  throw new Error(joinData.error || "Backend join failed");
 }
 
 // Re-fetch fresh backend game state after join is persisted
