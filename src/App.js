@@ -138,22 +138,31 @@ useEffect(() => {
   const [countdown, setCountdown] = useState(5);
   const [progress, setProgress] = useState(0);
 
-  /* ---------------- Ecosystem State ---------------- */
-  const handleEcosystemClick = async (linkKey, url) => {
+/* ---------------- Ecosystem State ---------------- */
+const handleEcosystemClick = async (linkKey, url) => {
   try {
     if (account) {
-await fetch(`${BACKEND_URL}/xp/ecosystem-click`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "x-wallet": account.toLowerCase(),
-  },
-  credentials: "include",
-  body: JSON.stringify({ linkKey }),
-});
+      const res = await fetch(`${BACKEND_URL}/xp/ecosystem-click`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-wallet": account.toLowerCase(),
+        },
+        credentials: "include",
+        body: JSON.stringify({ linkKey }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      console.log("Ecosystem click response:", linkKey, res.status, data);
+
+      if (!res.ok) {
+        throw new Error(data.error || `Failed to track ${linkKey}`);
+      }
+
+      await loadXpProfile();
     }
   } catch (err) {
-    console.warn("Ecosystem XP tracking failed:", err);
+    console.warn(`Ecosystem XP tracking failed for ${linkKey}:`, err);
   }
 
   window.open(url, "_blank", "noopener,noreferrer");
