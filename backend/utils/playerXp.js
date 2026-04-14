@@ -15,7 +15,8 @@ export const XP_REWARDS = {
 };
 
 export const XP_LEVELS = [
-  { level: 1, minXp: 0, bonuses: { attack: 2, defense: 0, vitality: 0, agility: 0 } },
+  { level: 0, minXp: 0, bonuses: { attack: 0, defense: 0, vitality: 0, agility: 0 } },
+  { level: 1, minXp: 50, bonuses: { attack: 2, defense: 0, vitality: 0, agility: 0 } },
   { level: 2, minXp: 200, bonuses: { attack: 2, defense: 4, vitality: 0, agility: 0 } },
   { level: 3, minXp: 500, bonuses: { attack: 2, defense: 4, vitality: 5, agility: 0 } },
   { level: 4, minXp: 1000, bonuses: { attack: 2, defense: 4, vitality: 5, agility: 5 } },

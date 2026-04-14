@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 
 const XP_LEVELS = [
-  { level: 1, minXp: 0 },
+  { level: 0, minXp: 0 },
+  { level: 1, minXp: 50 },
   { level: 2, minXp: 200 },
   { level: 3, minXp: 500 },
   { level: 4, minXp: 1000 },
