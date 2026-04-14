@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 
-const XP_FILE = path.resolve("backend/data/playerXp.json");
-const XP_ACTIONS_FILE = path.resolve("backend/data/xpActions.json");
+const DATA_DIR = "/backend/data";
+const XP_FILE = path.join(DATA_DIR, "playerXp.json");
+const XP_ACTIONS_FILE = path.join(DATA_DIR, "xpActions.json");
 
 export const XP_REWARDS = {
   LOGIN: 5,
@@ -26,28 +27,50 @@ export const XP_LEVELS = [
   { level: 10, minXp: 12000, bonuses: { attack: 17, defense: 19, vitality: 10, agility: 15 } },
 ];
 
-function ensureFile(filePath) {
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify({}, null, 2));
+function ensureDir(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
   }
 }
 
+function ensureFile(filePath) {
+  ensureDir(path.dirname(filePath));
+
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify({}, null, 2), "utf8");
+    return;
+  }
+
+  const raw = fs.readFileSync(filePath, "utf8").trim();
+  if (!raw) {
+    fs.writeFileSync(filePath, JSON.stringify({}, null, 2), "utf8");
+  }
+}
+
+function readJsonFile(filePath) {
+  ensureFile(filePath);
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+function writeJsonFile(filePath, data) {
+  ensureFile(filePath);
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+}
+
 export function readPlayerXp() {
-  ensureFile(XP_FILE);
-  return JSON.parse(fs.readFileSync(XP_FILE, "utf8"));
+  return readJsonFile(XP_FILE);
 }
 
 export function writePlayerXp(data) {
-  fs.writeFileSync(XP_FILE, JSON.stringify(data, null, 2));
+  writeJsonFile(XP_FILE, data);
 }
 
 export function readXpActions() {
-  ensureFile(XP_ACTIONS_FILE);
-  return JSON.parse(fs.readFileSync(XP_ACTIONS_FILE, "utf8"));
+  return readJsonFile(XP_ACTIONS_FILE);
 }
 
 export function writeXpActions(data) {
-  fs.writeFileSync(XP_ACTIONS_FILE, JSON.stringify(data, null, 2));
+  writeJsonFile(XP_ACTIONS_FILE, data);
 }
 
 export function getLevelData(xp = 0) {
@@ -159,3 +182,7 @@ export function awardEcosystemClickXp(wallet, linkKey) {
   const player = awardXp(walletLc, XP_REWARDS.ECOSYSTEM_CLICK);
   return { awarded: true, amount: XP_REWARDS.ECOSYSTEM_CLICK, player };
 }
+
+console.log("[XP] DATA_DIR:", DATA_DIR);
+console.log("[XP] XP_FILE:", XP_FILE);
+console.log("[XP] XP_ACTIONS_FILE:", XP_ACTIONS_FILE);
