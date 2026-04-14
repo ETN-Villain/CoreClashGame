@@ -35,6 +35,8 @@ export default function WalletXpPanel({
   isMobile,
 }) {
   const [showXpHelp, setShowXpHelp] = useState(false);
+  const [showPerks, setShowPerks] = useState(false);
+
 if (xpLoading) {
     return (
       <div
@@ -305,26 +307,52 @@ if (xpLoading) {
           paddingTop: 12,
         }}
       >
-        <div
-          style={{
-            fontSize: 11,
-            color: "#888",
-            textTransform: "uppercase",
-            letterSpacing: 1.2,
-            marginBottom: 10,
-          }}
-        >
-          Unlocked Perks
-        </div>
+<div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: showPerks ? 10 : 0,
+  }}
+>
+  <div
+    style={{
+      fontSize: 11,
+      color: "#888",
+      textTransform: "uppercase",
+      letterSpacing: 1.2,
+    }}
+  >
+    Unlocked Perks
+  </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 8,
-          }}
-        >
-          {[
+  <button
+    onClick={() => setShowPerks((prev) => !prev)}
+    style={{
+      background: "#151515",
+      border: "1px solid #2f2f2f",
+      borderRadius: 8,
+      color: "#18bb1a",
+      fontSize: 12,
+      fontWeight: 700,
+      padding: "4px 8px",
+      cursor: "pointer",
+      minWidth: 32,
+    }}
+  >
+    {showPerks ? "−" : "+"}
+  </button>
+</div>
+
+{showPerks && (
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 8,
+    }}
+  >
+         {[
             ["Attack", xpProfile.statsBonus?.attack || 0],
             ["Defense", xpProfile.statsBonus?.defense || 0],
             ["Vitality", xpProfile.statsBonus?.vitality || 0],
@@ -365,6 +393,7 @@ if (xpLoading) {
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );
