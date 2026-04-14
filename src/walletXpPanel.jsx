@@ -218,7 +218,7 @@ if (xpLoading) {
           ["Create game", "25 XP"],
           ["Join game", "15 XP"],
           ["Reveal", "25 XP"],
-          ["Settle game", "50 XP"],
+          ["Settle game", "30 XP"],
         ].map(([label, value]) => (
 <div
   key={label}

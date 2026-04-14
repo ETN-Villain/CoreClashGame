@@ -11,7 +11,7 @@ export const XP_REWARDS = {
   CREATE_GAME: 25,
   JOIN_GAME: 15,
   REVEAL: 25,
-  SETTLE: 50,
+  SETTLE: 30,
 };
 
 export const XP_LEVELS = [
