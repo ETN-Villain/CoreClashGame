@@ -35,6 +35,10 @@ const weeklyFilePath = fs.existsSync("/backend/data")
   ? "/backend/data/weeklyLeaderboards.json"
   : path.join(__dirname, "store", "weeklyLeaderboards.json");
 
+if (!process.env.BACKEND_PRIVATE_KEY) {
+  throw new Error("Missing BACKEND_PRIVATE_KEY environment variable");
+}
+
 // ---------------- MIDDLEWARE ----------------
 app.use(cors({
   origin: [
