@@ -5,6 +5,8 @@ import {
   awardDailyLoginXp,
   awardEcosystemClickXp,
   XP_LEVELS,
+  readPlayerXp,
+  readXpActions,
 } from "../utils/playerXp.js";
 
 const router = express.Router();
@@ -100,6 +102,21 @@ router.post("/ecosystem-click", authWallet, (req, res) => {
   } catch (err) {
     console.error("POST /xp/ecosystem-click error:", err);
     return res.status(500).json({ error: err.message || "Failed to process ecosystem XP" });
+  }
+});
+
+/* ---------------- DEBUG ALL XP DATA ---------------- */
+router.get("/debug/all", (req, res) => {
+  try {
+    return res.json({
+      playerXp: readPlayerXp(),
+      xpActions: readXpActions(),
+    });
+  } catch (err) {
+    console.error("GET /xp/debug/all error:", err);
+    return res.status(500).json({
+      error: err.message || "Failed to load XP debug data",
+    });
   }
 });
 
