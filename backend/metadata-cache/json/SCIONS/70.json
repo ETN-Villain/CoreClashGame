@@ -1,0 +1,44 @@
+{
+  "name": "Velkora",
+  "description": "Velkora floats above the battlefield surrounded by a cloud of glowing violet spores. These spores infect enemy armor, slowly weakening them while empowering Erevos allies.",
+  "collection": "Aether Scions",
+  "image": "ipfs://bafybeiht2v57fjm5isyhufqtgp4pfe5qwqdsgukw7l3fxebtamvughsjom/70.png",
+  "fee_recipient": "0x5Cb2fdB1e57beDB7Bbd57aa2109CDC5535a4b423",
+  "seller_fee_basis_points": 1000,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Silver"
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Attack",
+      "value": 68
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Defense",
+      "value": 34
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Vitality",
+      "value": 38
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "Agility",
+      "value": 56
+    },
+    {
+      "display_type": "number",
+      "max_value": 100,
+      "trait_type": "CORE",
+      "value": 92
+    }
+  ]
+}
