@@ -35,6 +35,7 @@ const VQLE_MAX_SUPPLY = 30;
 const SCIONS_MAX_SUPPLY = 198;
 const VKIN_ABI = ["function tokenURI(uint256 tokenId) view returns (string)"];
 const SCIONS_ABI = ["function tokenURI(uint256 tokenId) view returns (string)"];
+
 /* ---------------- Helpers ---------------- */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -59,7 +60,7 @@ async function fetchWithRetries(
         const res = await axios.get(url, { responseType, timeout: 30_000 });
         return res.data;
       } catch (err) {
-        if (err.code === "ENOTFOUND") break; // move to next gateway
+        if (err.code === "ENOTFOUND") break;
         console.warn(
           `Attempt ${attempt}/${retriesPerGateway} failed for ${url}: ${err.message}`
         );
@@ -81,7 +82,7 @@ async function generateVKIN(rows, provider) {
 
   for (let tokenId = 1; tokenId <= VKIN_MAX_SUPPLY; tokenId++) {
     let jsonFile = null;
-    let imageFile = `${tokenId}.png`; // fallback – prevents undefined
+    let imageFile = `${tokenId}.png`;
 
     try {
       const tokenURI = await contract.tokenURI(tokenId);
@@ -105,7 +106,6 @@ async function generateVKIN(rows, provider) {
         console.log(`💾 Saved VKIN JSON ${jsonFile}`);
       }
 
-      // Download image & use real filename
       if (metadata.image?.startsWith("ipfs://")) {
         const downloadedImageFile = path.basename(metadata.image);
         const imagePath = path.join(VKIN_IMAGE_DIR, downloadedImageFile);
@@ -118,15 +118,13 @@ async function generateVKIN(rows, provider) {
           }
         }
 
-        imageFile = downloadedImageFile; // ← use the real name
+        imageFile = downloadedImageFile;
       }
 
-      // Only push if we have at least jsonFile
       if (jsonFile) {
         rows.push(`VKIN,${tokenId},${jsonFile},${imageFile}`);
         console.log(`Added VKIN ${tokenId} → ${jsonFile} / ${imageFile}`);
       }
-
     } catch (err) {
       console.warn(`⚠️ VKIN tokenId ${tokenId} skipped: ${err.message}`);
     }
@@ -159,9 +157,8 @@ async function generateVQLE(rows) {
       console.log(`💾 Saved VQLE JSON ${jsonFile}`);
     }
 
-    let imageFile = `${tokenId}.png`; // fallback
+    let imageFile = `${tokenId}.png`;
 
-    // Use the actual downloaded image filename
     if (metadata.image?.startsWith("ipfs://")) {
       const downloadedImageFile = path.basename(metadata.image);
       const imagePath = path.join(VQLE_IMAGE_DIR, downloadedImageFile);
@@ -174,13 +171,10 @@ async function generateVQLE(rows) {
         }
       }
 
-      // Use the real basename (this is the key change)
       imageFile = downloadedImageFile;
     }
 
-    // Save the real image filename in mapping.csv
     rows.push(`VQLE,${tokenId},${jsonFile},${imageFile}`);
-
     await sleep(100);
   }
 }
@@ -194,7 +188,7 @@ async function generateSCIONS(rows, provider) {
 
   for (let tokenId = 1; tokenId <= SCIONS_MAX_SUPPLY; tokenId++) {
     let jsonFile = null;
-    let imageFile = `${tokenId}.png`; // fallback – prevents undefined
+    let imageFile = `${tokenId}.png`;
 
     try {
       const tokenURI = await contract.tokenURI(tokenId);
@@ -218,7 +212,6 @@ async function generateSCIONS(rows, provider) {
         console.log(`💾 Saved SCIONS JSON ${jsonFile}`);
       }
 
-      // Download image & use real filename
       if (metadata.image?.startsWith("ipfs://")) {
         const downloadedImageFile = path.basename(metadata.image);
         const imagePath = path.join(SCIONS_IMAGE_DIR, downloadedImageFile);
@@ -231,15 +224,13 @@ async function generateSCIONS(rows, provider) {
           }
         }
 
-        imageFile = downloadedImageFile; // ← use the real name
+        imageFile = downloadedImageFile;
       }
 
-      // Only push if we have at least jsonFile
       if (jsonFile) {
         rows.push(`SCIONS,${tokenId},${jsonFile},${imageFile}`);
         console.log(`Added SCIONS ${tokenId} → ${jsonFile} / ${imageFile}`);
       }
-
     } catch (err) {
       console.warn(`⚠️ SCIONS tokenId ${tokenId} skipped: ${err.message}`);
     }
@@ -249,19 +240,29 @@ async function generateSCIONS(rows, provider) {
 }
 
 /* ---------------- Main ---------------- */
-export async function generateMapping() {
+export async function generateMapping(mode = "ALL") {
   const rows = ["collection,token_id,token_uri,image_file"];
   const provider = new ethers.JsonRpcProvider(RPC_URL);
+  const selected = String(mode).toUpperCase();
 
-  await generateVKIN(rows, provider);
-  await generateSCIONS(rows, provider);
-  await generateVQLE(rows);
+  if (selected === "VKIN" || selected === "ALL") {
+    await generateVKIN(rows, provider);
+  }
+
+  if (selected === "SCIONS" || selected === "ALL") {
+    await generateSCIONS(rows, provider);
+  }
+
+  if (selected === "VQLE" || selected === "ALL") {
+    await generateVQLE(rows);
+  }
 
   fs.writeFileSync(MAPPING_FILE, rows.join("\n"));
-  console.log("✅ mapping.csv + metadata + images complete");
+  console.log(`✅ mapping.csv complete for mode=${selected}`);
 }
 
 /* ---------------- CLI ---------------- */
 if (process.argv[1].endsWith("generateMapping.js")) {
-  generateMapping().catch(console.error);
+  const mode = process.env.MAPPING_MODE || process.argv[2] || "ALL";
+  generateMapping(mode).catch(console.error);
 }
