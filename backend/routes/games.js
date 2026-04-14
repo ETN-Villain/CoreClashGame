@@ -149,7 +149,7 @@ router.post("/", async (req, res) => {
 
     if (gameCreated) {
       try {
-        const updatedPlayer = awardXp(player1Lc, XP_REWARDS.CREATE_GAME);
+        const updatedPlayer = await awardXp(player1Lc, XP_REWARDS.CREATE_GAME);
         console.log(
           `XP awarded: CREATE_GAME +${XP_REWARDS.CREATE_GAME} → ${player1Lc}, total XP: ${updatedPlayer.xp}`
         );
@@ -265,7 +265,7 @@ router.post("/:id/join", async (req, res) => {
 
     if (gameJoined) {
       try {
-        const updatedPlayer = awardXp(player2Lc, XP_REWARDS.JOIN_GAME);
+        const updatedPlayer = await awardXp(player2Lc, XP_REWARDS.JOIN_GAME);
         console.log(
           `XP awarded: JOIN_GAME +${XP_REWARDS.JOIN_GAME} → ${player2Lc}, total XP: ${updatedPlayer.xp}`
         );
@@ -441,7 +441,7 @@ router.post("/:id/reveal", authWallet, async (req, res) => {
 
     if (revealSavedNow) {
       try {
-        const updatedPlayer = awardXp(walletLc, XP_REWARDS.REVEAL);
+        const updatedPlayer = await awardXp(walletLc, XP_REWARDS.REVEAL);
         console.log(
           `XP awarded: REVEAL +${XP_REWARDS.REVEAL} → ${walletLc}, total XP: ${updatedPlayer.xp}`
         );
@@ -999,7 +999,7 @@ router.post("/:id/settle-game", async (req, res) => {
 
     if (newlySettled) {
       try {
-        const updatedPlayer = awardXp(settledByLc, XP_REWARDS.SETTLE);
+        const updatedPlayer = await awardXp(settledByLc, XP_REWARDS.SETTLE);
         console.log(
           `XP awarded: SETTLE +${XP_REWARDS.SETTLE} → ${settledByLc}, total XP: ${updatedPlayer.xp}`
         );

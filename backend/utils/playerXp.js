@@ -1,9 +1,18 @@
 import fs from "fs";
 import path from "path";
+import { ethers } from "ethers";
+import { RPC_URL, BACKEND_PRIVATE_KEY, CORE_TOKEN_ADDRESS } from "../config.js";
 
 const DATA_DIR = "/backend/data";
 const XP_FILE = path.join(DATA_DIR, "playerXp.json");
 const XP_ACTIONS_FILE = path.join(DATA_DIR, "xpActions.json");
+
+const CORE_REWARD_LEVELS = [1, 2, 3, 4, 5];
+const CORE_REWARD_AMOUNT = "10";
+
+const ERC20ABI = [
+  "function transfer(address to, uint256 amount) returns (bool)",
+];
 
 export const XP_REWARDS = {
   LOGIN: 5,
@@ -28,7 +37,39 @@ export const XP_LEVELS = [
   { level: 10, minXp: 25600, bonuses: { attack: 17, defense: 19, vitality: 10, agility: 15 } },
 ];
 
-export function adjustXp(wallet, amount) {
+///* ---------------- Core Token Reward Logic ---------------- */
+function getRewardableLevelsCrossed(oldLevel, newLevel, rewardedLevels = []) {
+  const alreadyRewarded = new Set(rewardedLevels);
+  const crossed = [];
+
+  for (let lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
+    if (CORE_REWARD_LEVELS.includes(lvl) && !alreadyRewarded.has(lvl)) {
+      crossed.push(lvl);
+    }
+  }
+
+  return crossed;
+}
+
+async function sendCoreReward(toWallet, level) {
+  const provider = new ethers.JsonRpcProvider(RPC_URL);
+  const adminWallet = new ethers.Wallet(BACKEND_PRIVATE_KEY, provider);
+  const coreToken = new ethers.Contract(CORE_TOKEN_ADDRESS, ERC20_REWARD_ABI, adminWallet);
+
+  const amountWei = ethers.parseUnits(CORE_REWARD_AMOUNT, 18);
+
+  const tx = await coreToken.transfer(toWallet, amountWei);
+  await tx.wait(1);
+
+  return {
+    level,
+    amount: CORE_REWARD_AMOUNT,
+    txHash: tx.hash,
+  };
+}
+
+///* ---------------- XP & Leveling Logic ---------------- */
+export async function adjustXp(wallet, amount) {
   const walletLc = String(wallet).toLowerCase();
   const all = readPlayerXp();
 
@@ -43,19 +84,56 @@ export function adjustXp(wallet, amount) {
     };
   }
 
+  const oldLevel = all[walletLc].level || 0;
+  const rewardedLevels = Array.isArray(all[walletLc].rewardedLevels)
+    ? all[walletLc].rewardedLevels
+    : [];
+
   all[walletLc].xp = Math.max(0, all[walletLc].xp + amount);
 
   const levelData = getLevelData(all[walletLc].xp);
-  all[walletLc].level = levelData.level;
+  const newLevel = levelData.level;
+
+  all[walletLc].level = newLevel;
   all[walletLc].statsBonus = levelData.bonuses;
+  all[walletLc].rewardedLevels = rewardedLevels;
   all[walletLc].updatedAt = new Date().toISOString();
 
   writePlayerXp(all);
 
-  return all[walletLc];
+  const crossedRewardLevels = getRewardableLevelsCrossed(
+    oldLevel,
+    newLevel,
+    rewardedLevels
+  );
+
+  for (const lvl of crossedRewardLevels) {
+    try {
+      const reward = await sendCoreReward(walletLc, lvl);
+      rewardResults.push(reward);
+
+      all[walletLc].rewardedLevels.push(lvl);
+      all[walletLc].updatedAt = new Date().toISOString();
+      writePlayerXp(all);
+
+      console.log(
+        `CORE reward sent: level ${lvl}, wallet ${walletLc}, tx ${reward.txHash}`
+      );
+    } catch (err) {
+      console.error(
+        `Failed to send CORE reward for wallet ${walletLc} at level ${lvl}:`,
+        err.message || err
+      );
+    }
+  }
+
+  return {
+    ...all[walletLc],
+    rewardResults,
+  };
 }
 
-export function awardXp(wallet, amount) {
+export async function awardXp(wallet, amount) {
   return adjustXp(wallet, Math.abs(amount));
 }
 
@@ -127,6 +205,7 @@ export function ensurePlayer(wallet) {
       xp: 0,
       level: levelData.level,
       statsBonus: levelData.bonuses,
+      rewardedLevels: [],
       updatedAt: new Date().toISOString(),
     };
     writePlayerXp(all);
@@ -135,11 +214,8 @@ export function ensurePlayer(wallet) {
   return all[walletLc];
 }
 
-export function getTodayDateString() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-export function awardDailyLoginXp(wallet) {
+///* ---------------- Daily Login XP ---------------- */
+export async function awardDailyLoginXp(wallet) {
   const walletLc = String(wallet).toLowerCase();
   const actions = readXpActions();
   const today = getTodayDateString();
@@ -158,11 +234,12 @@ export function awardDailyLoginXp(wallet) {
   actions[walletLc].dailyLogin = { lastClaimedDate: today };
   writeXpActions(actions);
 
-  const player = awardXp(walletLc, XP_REWARDS.LOGIN);
+  const player = await awardXp(walletLc, XP_REWARDS.LOGIN);
   return { awarded: true, amount: XP_REWARDS.LOGIN, player };
 }
 
-export function awardEcosystemClickXp(wallet, linkKey) {
+///* ---------------- Ecosystem Click XP ---------------- */
+export async function awardEcosystemClickXp(wallet, linkKey) {
   const walletLc = String(wallet).toLowerCase();
   const actions = readXpActions();
   const today = getTodayDateString();
@@ -184,7 +261,7 @@ export function awardEcosystemClickXp(wallet, linkKey) {
   actions[walletLc].ecosystemClicks = clicks;
   writeXpActions(actions);
 
-  const player = awardXp(walletLc, XP_REWARDS.ECOSYSTEM_CLICK);
+  const player = await awardXp(walletLc, XP_REWARDS.ECOSYSTEM_CLICK);
   return { awarded: true, amount: XP_REWARDS.ECOSYSTEM_CLICK, player };
 }
 
