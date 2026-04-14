@@ -17,15 +17,15 @@ export const XP_REWARDS = {
 export const XP_LEVELS = [
   { level: 0, minXp: 0, bonuses: { attack: 0, defense: 0, vitality: 0, agility: 0 } },
   { level: 1, minXp: 50, bonuses: { attack: 2, defense: 0, vitality: 0, agility: 0 } },
-  { level: 2, minXp: 200, bonuses: { attack: 2, defense: 4, vitality: 0, agility: 0 } },
-  { level: 3, minXp: 500, bonuses: { attack: 2, defense: 4, vitality: 5, agility: 0 } },
-  { level: 4, minXp: 1000, bonuses: { attack: 2, defense: 4, vitality: 5, agility: 5 } },
-  { level: 5, minXp: 1750, bonuses: { attack: 7, defense: 4, vitality: 5, agility: 5 } },
-  { level: 6, minXp: 2750, bonuses: { attack: 7, defense: 9, vitality: 5, agility: 5 } },
-  { level: 7, minXp: 4250, bonuses: { attack: 7, defense: 9, vitality: 10, agility: 5 } },
-  { level: 8, minXp: 6000, bonuses: { attack: 7, defense: 9, vitality: 10, agility: 15 } },
-  { level: 9, minXp: 8000, bonuses: { attack: 17, defense: 9, vitality: 10, agility: 15 } },
-  { level: 10, minXp: 12000, bonuses: { attack: 17, defense: 19, vitality: 10, agility: 15 } },
+  { level: 2, minXp: 100, bonuses: { attack: 2, defense: 4, vitality: 0, agility: 0 } },
+  { level: 3, minXp: 200, bonuses: { attack: 2, defense: 4, vitality: 5, agility: 0 } },
+  { level: 4, minXp: 400, bonuses: { attack: 2, defense: 4, vitality: 5, agility: 5 } },
+  { level: 5, minXp: 800, bonuses: { attack: 7, defense: 4, vitality: 5, agility: 5 } },
+  { level: 6, minXp: 1600, bonuses: { attack: 7, defense: 9, vitality: 5, agility: 5 } },
+  { level: 7, minXp: 3200, bonuses: { attack: 7, defense: 9, vitality: 10, agility: 5 } },
+  { level: 8, minXp: 6400, bonuses: { attack: 7, defense: 9, vitality: 10, agility: 15 } },
+  { level: 9, minXp: 12800, bonuses: { attack: 17, defense: 9, vitality: 10, agility: 15 } },
+  { level: 10, minXp: 25600, bonuses: { attack: 17, defense: 19, vitality: 10, agility: 15 } },
 ];
 
 function ensureDir(dirPath) {
