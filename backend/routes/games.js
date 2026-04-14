@@ -22,7 +22,7 @@ import VQLE_ABI from "../../src/abis/VQLEABI.json" with { type: "json" };
 import SCIONS_ABI from "../../src/abis/SCIONSABI.json" with { type: "json" };
 import { readBurnTotal } from "../store/burnStore.js";
 import { rebuildWeeklyLeaderboardForDate } from "../utils/weeklyLeaderboard.js";
-import { awardXp, XP_REWARDS } from "../utils/playerXp.js";
+import { awardXp, adjustXp, XP_REWARDS } from "../utils/playerXp.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -131,6 +131,11 @@ router.post("/", async (req, res) => {
         tie: false,
         player1Reveal: null,
         player2Reveal: null,
+        xp: {
+            createAwarded: true,
+            createAwardedAt: new Date().toISOString(),
+            createXpReverted: false,
+            },
       });
 
       writeGames(games);
@@ -1119,6 +1124,8 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
     console.log(`[CANCEL] confirmed on-chain`);
 
     let gamesSnapshot = null;
+    let shouldRevertCreateXp = false;
+    let cancelWallet = null;
 
     // Persist fresh backend state under lock
     await withLock(async () => {
@@ -1144,11 +1151,36 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
       game.settleTxHash ??= tx.hash;
       game.settlementState = "cancelled";
 
+      if (game.xp?.createAwarded && !game.xp?.createXpReverted) {
+        shouldRevertCreateXp = true;
+        cancelWallet = game.player1?.toLowerCase();
+
+        game.xp = {
+          ...(game.xp || {}),
+          createXpReverted: true,
+          createXpRevertedAt: new Date().toISOString(),
+        };
+      }
+
       writeGames(games);
       gamesSnapshot = games;
     });
 
     if (res.headersSent) return;
+
+        if (shouldRevertCreateXp && cancelWallet) {
+      try {
+        const updatedPlayer = adjustXp(cancelWallet, -XP_REWARDS.CREATE_GAME);
+        console.log(
+          `XP reverted: CANCEL_UNJOINED -${XP_REWARDS.CREATE_GAME} → ${cancelWallet}, total XP: ${updatedPlayer.xp}`
+        );
+      } catch (xpErr) {
+        console.error(
+          `Failed to revert CREATE_GAME XP for ${cancelWallet}:`,
+          xpErr.message || xpErr
+        );
+      }
+    }
 
     broadcast("GameCancelled", gamesSnapshot);
 
