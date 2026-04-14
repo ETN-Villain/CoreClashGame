@@ -135,33 +135,6 @@ export function ensurePlayer(wallet) {
   return all[walletLc];
 }
 
-export function awardXp(wallet, amount) {
-  const walletLc = String(wallet).toLowerCase();
-  const all = readPlayerXp();
-
-  if (!all[walletLc]) {
-    const levelData = getLevelData(0);
-    all[walletLc] = {
-      wallet: walletLc,
-      xp: 0,
-      level: levelData.level,
-      statsBonus: levelData.bonuses,
-      updatedAt: new Date().toISOString(),
-    };
-  }
-
-  all[walletLc].xp += amount;
-
-  const levelData = getLevelData(all[walletLc].xp);
-  all[walletLc].level = levelData.level;
-  all[walletLc].statsBonus = levelData.bonuses;
-  all[walletLc].updatedAt = new Date().toISOString();
-
-  writePlayerXp(all);
-
-  return all[walletLc];
-}
-
 export function getTodayDateString() {
   return new Date().toISOString().slice(0, 10);
 }
