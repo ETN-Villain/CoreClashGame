@@ -142,14 +142,15 @@ useEffect(() => {
   const handleEcosystemClick = async (linkKey, url) => {
   try {
     if (account) {
-      await fetch("/xp/ecosystem-click", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({ linkKey }),
-      });
+await fetch(`${BACKEND_URL}/xp/ecosystem-click`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-wallet": account.toLowerCase(),
+  },
+  credentials: "include",
+  body: JSON.stringify({ linkKey }),
+});
     }
   } catch (err) {
     console.warn("Ecosystem XP tracking failed:", err);
@@ -356,7 +357,10 @@ const loadXpProfile = useCallback(async () => {
 
     const res = await fetch(`${BACKEND_URL}/xp/me`, {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-wallet": account.toLowerCase(),
+      },
       credentials: "include",
     });
 
@@ -375,14 +379,41 @@ const loadXpProfile = useCallback(async () => {
   }
 }, [account]);
 
+const claimDailyLoginXp = useCallback(async () => {
+  if (!account) return;
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/xp/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-wallet": account.toLowerCase(),
+      },
+      credentials: "include",
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to claim daily login XP");
+    }
+
+    console.log("Daily login XP:", data);
+  } catch (err) {
+    console.warn("Daily login XP failed:", err);
+  } finally {
+    await loadXpProfile();
+  }
+}, [account, loadXpProfile]);
+
 useEffect(() => {
   if (!account) {
     setXpProfile(null);
     return;
   }
 
-  loadXpProfile();
-}, [account, loadXpProfile]);
+  claimDailyLoginXp();
+}, [account, claimDailyLoginXp]);
 
 /* ---------------- RESTORE WALLET (FIXED) ---------------- */
 useEffect(() => {
