@@ -62,6 +62,7 @@ app.use("/games", gamesRouter);
 app.use("/leaderboard", leaderboardRouter);
 app.use("/events", sseRouter);
 app.use("/nfts", nftsRouter);
+app.use("/xp", xpRouter);
 
 // ---------------- METADATA ----------------
 app.get("/metadata/:collection/:tokenId", (req, res) => {
@@ -320,6 +321,3 @@ setTimeout(() => {
     console.error("[SERVER] Startup backfill failed", err);
   }
 })();
-
-// ---------------- XP ROUTES ----------------
-app.use("/xp", xpRouter);
