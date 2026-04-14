@@ -213,12 +213,12 @@ if (xpLoading) {
 
       <div style={{ display: "grid", gap: 8 }}>
         {[
-          ["Daily login / refresh", "5 XP"],
+          ["Daily login / refresh", "5 XP per day"],
           ["Ecosystem link click", "5 XP per link, once per day"],
           ["Create game", "25 XP"],
-          ["Join game", "30 XP"],
-          ["Reveal", "50 XP"],
-          ["Settle game", "100 XP"],
+          ["Join game", "15 XP"],
+          ["Reveal", "25 XP"],
+          ["Settle game", "50 XP"],
         ].map(([label, value]) => (
 <div
   key={label}
