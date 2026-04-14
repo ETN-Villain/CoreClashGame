@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import csv from "csv-parser";
 import { METADATA_JSON_DIR, MAPPING_FILE } from "../paths.js";
-import { RARE_BACKGROUNDS } from "exportRareBackgrounds.js";
+import { RARE_BACKGROUNDS } from "../config.js";
 
 const tokenMap = new Map();
 
