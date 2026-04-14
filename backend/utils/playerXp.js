@@ -9,9 +9,9 @@ export const XP_REWARDS = {
   LOGIN: 5,
   ECOSYSTEM_CLICK: 5,
   CREATE_GAME: 25,
-  JOIN_GAME: 30,
-  REVEAL: 50,
-  SETTLE: 100,
+  JOIN_GAME: 15,
+  REVEAL: 25,
+  SETTLE: 30,
 };
 
 export const XP_LEVELS = [
