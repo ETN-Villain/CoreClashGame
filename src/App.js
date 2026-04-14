@@ -1459,7 +1459,8 @@ const gameCardProps = {
 const backgroundPriority = {
   Gold: 0,
   "Verdant Green": 1,
-  Silver: 2,
+  "Aether Purple": 2,
+  Silver: 3,
 };
 
 /* ---------------- FILTERED + SORTED GAMES ---------------- */
@@ -3668,7 +3669,7 @@ onClick={createGame} // <-- THIS IS REQUIRED
             <br />
             • 3 NFTs from approved collections
             <br />
-            • Only 1 rare background allowed (Gold, Verdant Green, Rose Gold, Silver)
+            • Only 1 rare background allowed (Gold, Verdant Green, Aether Purple, Rose Gold, Silver)
             <br />
             • Only 1 of each character
             <br />

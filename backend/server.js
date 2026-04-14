@@ -264,6 +264,10 @@ function backfillWeeklyLeaderboard(games) {
 
 // ---------------- STARTUP ----------------
 try {
+  if (!process.env.BACKEND_PRIVATE_KEY) {
+    throw new Error("Missing BACKEND_PRIVATE_KEY environment variable");
+  }
+
   ensureDataPaths();
   ensureWeeklyLeaderboardFile();
   initAdminWallet();
