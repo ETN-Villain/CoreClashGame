@@ -214,6 +214,10 @@ export function ensurePlayer(wallet) {
   return all[walletLc];
 }
 
+export function getTodayDateString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 ///* ---------------- Daily Login XP ---------------- */
 export async function awardDailyLoginXp(wallet) {
   const walletLc = String(wallet).toLowerCase();
