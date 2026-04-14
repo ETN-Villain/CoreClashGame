@@ -181,21 +181,23 @@ if (xpLoading) {
     </div>
   </div>
 
-  {showXpHelp && (
-    <div
-      style={{
-        position: "absolute",
-        top: 42,
-        left: 0,
-        zIndex: 20,
-        width: isMobile ? "100%" : 290,
-        background: "#111",
-        border: "1px solid #2f2f2f",
-        borderRadius: 12,
-        padding: "12px 14px",
-        boxShadow: "0 0 18px rgba(0,0,0,0.45)",
-      }}
-    >
+{showXpHelp && (
+  <div
+    style={{
+      position: "absolute",
+      top: 42,
+      left: isMobile ? "auto" : 0,
+      right: isMobile ? 0 : "auto",
+      zIndex: 20,
+      width: isMobile ? "min(320px, calc(100vw - 48px))" : 290,
+      maxWidth: 320,
+      background: "#111",
+      border: "1px solid #2f2f2f",
+      borderRadius: 12,
+      padding: "12px 14px",
+      boxShadow: "0 0 18px rgba(0,0,0,0.45)",
+    }}
+  >
       <div
         style={{
           fontSize: 11,
@@ -218,30 +220,32 @@ if (xpLoading) {
           ["Reveal", "50 XP"],
           ["Settle game", "100 XP"],
         ].map(([label, value]) => (
-          <div
-            key={label}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-              fontSize: 12,
-              color: "#ddd",
-              borderBottom: "1px solid #1f1f1f",
-              paddingBottom: 6,
-            }}
-          >
-            <span>{label}</span>
-            <span
-              style={{
-                color: "#18bb1a",
-                fontWeight: 700,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {value}
-            </span>
-          </div>
+<div
+  key={label}
+  style={{
+    display: "flex",
+    flexDirection: isMobile ? "column" : "row",
+    justifyContent: "space-between",
+    alignItems: isMobile ? "flex-start" : "center",
+    gap: isMobile ? 4 : 12,
+    fontSize: 12,
+    color: "#ddd",
+    borderBottom: "1px solid #1f1f1f",
+    paddingBottom: 6,
+  }}
+>
+  <span style={{ lineHeight: 1.4 }}>{label}</span>
+  <span
+    style={{
+      color: "#18bb1a",
+      fontWeight: 700,
+      whiteSpace: isMobile ? "normal" : "nowrap",
+      lineHeight: 1.4,
+    }}
+  >
+    {value}
+  </span>
+</div>
         ))}
       </div>
 
