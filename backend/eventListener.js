@@ -60,66 +60,60 @@ async function handleGameCreated(id) {
 /**
  * Auto-update owner cache for a wallet
  */
-async function updateMultipleWalletCaches(wallets) {
+async function updateMultipleWalletCaches(wallets, collection) {
   const uniqueWallets = [
-    ...new Set(wallets.filter(Boolean).map(w => w.toLowerCase()))
+    ...new Set(wallets.filter(Boolean).map((w) => w.toLowerCase())),
   ];
 
   if (uniqueWallets.length === 0) return;
 
+  if (!["VKIN", "VQLE", "SCIONS"].includes(collection)) {
+    console.error(`[AUTO-CACHE] Unknown collection for refresh: ${collection}`);
+    return;
+  }
+
   console.log(
-    `[AUTO-CACHE] Updating ${uniqueWallets.length} wallet cache(s): ${uniqueWallets.join(", ")}`
+    `[AUTO-CACHE] Updating ${collection} cache for ${uniqueWallets.length} wallet(s): ${uniqueWallets.join(", ")}`
   );
 
   const cache = readOwnerCache();
 
+  const contractMap = {
+    VKIN: vkinContract,
+    VQLE: vqleContract,
+    SCIONS: scionsContract,
+  };
+
+  const contractInstance = contractMap[collection];
+
   for (const wallet of uniqueWallets) {
     try {
-      const [vkinResult, vqleResult, scionsResult] = await Promise.allSettled([
-        fetchOwnedTokenIds(vkinContract, wallet, "VKIN"),
-        fetchOwnedTokenIds(vqleContract, wallet, "VQLE"),
-        fetchOwnedTokenIds(scionsContract, wallet, "SCIONS")
-      ]);
-
       const existing = cache[wallet] || { VKIN: [], VQLE: [], SCIONS: [] };
 
-      const nextVKIN =
-        vkinResult.status === "fulfilled" ? vkinResult.value : existing.VKIN;
-
-      const nextVQLE =
-        vqleResult.status === "fulfilled" ? vqleResult.value : existing.VQLE;
-
-      const nextSCIONS =
-        scionsResult.status === "fulfilled" ? scionsResult.value : existing.SCIONS;
-
-      if (vkinResult.status === "rejected") {
-        console.error(`[AUTO-CACHE] VKIN fetch failed for ${wallet}:`, vkinResult.reason);
-      }
-
-      if (vqleResult.status === "rejected") {
-        console.error(`[AUTO-CACHE] VQLE fetch failed for ${wallet}:`, vqleResult.reason);
-      }
-
-      if (scionsResult.status === "rejected") {
-        console.error(`[AUTO-CACHE] SCIONS fetch failed for ${wallet}:`, scionsResult.reason);
-      }
+      const refreshedTokenIds = await fetchOwnedTokenIds(
+        contractInstance,
+        wallet,
+        collection
+      );
 
       cache[wallet] = {
-        VKIN: nextVKIN,
-        VQLE: nextVQLE,
-        SCIONS: nextSCIONS
+        ...existing,
+        [collection]: refreshedTokenIds,
       };
 
       console.log(
-        `[AUTO-CACHE] Prepared ${wallet}: ${nextVKIN.length} VKIN, ${nextVQLE.length} VQLE, ${nextSCIONS.length} SCIONS`
+        `[AUTO-CACHE] Prepared ${wallet}: ${collection}=${refreshedTokenIds.length}`
       );
     } catch (err) {
-      console.error(`[AUTO-CACHE] Failed preparing cache for ${wallet}:`, err.message);
+      console.error(
+        `[AUTO-CACHE] Failed preparing ${collection} cache for ${wallet}:`,
+        err.message || err
+      );
     }
   }
 
   writeOwnerCache(cache);
-  console.log(`[AUTO-CACHE] Batch cache write complete`);
+  console.log(`[AUTO-CACHE] Batch ${collection} cache write complete`);
 }
 
 // ── POLLING LOOP ──
@@ -258,10 +252,13 @@ const processLogs = async (logs, contractName, contractInstance) => {
 
   if (affectedWallets.size > 0) {
     const walletList = [...affectedWallets];
+    const collection = contractName.toUpperCase();
+
     console.log(
-      `♻️ ${contractName.toUpperCase()} refreshing ${walletList.length} wallet(s): ${walletList.join(", ")}`
+      `♻️ ${collection} refreshing ${walletList.length} wallet(s): ${walletList.join(", ")}`
     );
-    await updateMultipleWalletCaches(walletList);
+
+    await updateMultipleWalletCaches(walletList, collection);
   }
 };
 

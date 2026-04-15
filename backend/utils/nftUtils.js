@@ -12,40 +12,69 @@ export async function fetchOwnedTokenIds(contract, wallet, collection) {
   console.log("fetchOwnedTokenIds called:", { wallet, collection });
 
   const tokenIds = [];
+  const walletLc = wallet.toLowerCase();
 
-  if (collection !== "VKIN" && collection !== "VQLE" && collection !== "SCIONS") {
+  if (!["VKIN", "VQLE", "SCIONS"].includes(collection)) {
     throw new Error(`Unknown collection: ${collection}`);
   }
 
-if (collection === "VKIN" || collection === "SCIONS") {
-  const balance = Number(await contract.balanceOf(wallet));
-  console.log(`${collection} balance: ${balance}`);
+  if (collection === "VKIN") {
+    const rawBalance = await contract.balanceOf(wallet);
+    const balance = Number(rawBalance);
 
-  for (let i = 0; i < balance; i++) {
-    await delay(200);
-    try {
-      const tokenId = await contract.tokenOfOwnerByIndex(wallet, i);
-      tokenIds.push(tokenId.toString());
-    } catch (err) {
-      console.warn(`Failed ${collection} index ${i}: ${err.message}`);
+    if (!Number.isInteger(balance) || balance < 0) {
+      throw new Error(`Invalid ${collection} balance for ${wallet}: ${rawBalance}`);
     }
-  }
-} else {
-  const MAX_TOKEN_ID = 30;
-  console.log(`Scanning VQLE 1 to ${MAX_TOKEN_ID}`);
 
-  for (let t = 1; t <= MAX_TOKEN_ID; t++) {
-    await delay(200);
-    try {
-      const owner = await contract.ownerOf(BigInt(t));
-      if (owner.toLowerCase() === wallet.toLowerCase()) {
-        tokenIds.push(t.toString());
+    console.log(`${collection} balance: ${balance}`);
+
+    for (let i = 0; i < balance; i++) {
+      await delay(200);
+      try {
+        const tokenId = await contract.tokenOfOwnerByIndex(wallet, i);
+        tokenIds.push(tokenId.toString());
+      } catch (err) {
+        console.warn(`Failed ${collection} index ${i}: ${err.message}`);
       }
-    } catch {
-      continue;
+    }
+  } else if (collection === "VQLE") {
+    const MAX_TOKEN_ID = 30;
+    console.log(`Scanning VQLE 1 to ${MAX_TOKEN_ID}`);
+
+    for (let t = 1; t <= MAX_TOKEN_ID; t++) {
+      await delay(200);
+      try {
+        const owner = await contract.ownerOf(BigInt(t));
+        if (owner.toLowerCase() === walletLc) {
+          tokenIds.push(t.toString());
+        }
+      } catch {
+        continue;
+      }
+    }
+  } else if (collection === "SCIONS") {
+    const rawTotalSupply = await contract.totalSupply();
+    const totalSupply = Number(rawTotalSupply);
+
+    if (!Number.isInteger(totalSupply) || totalSupply < 0) {
+      throw new Error(`Invalid SCIONS totalSupply: ${rawTotalSupply}`);
+    }
+
+    console.log(`Scanning SCIONS 1 to ${totalSupply}`);
+
+    for (let t = 1; t <= totalSupply; t++) {
+      await delay(200);
+      try {
+        const owner = await contract.ownerOf(BigInt(t));
+        if (owner.toLowerCase() === walletLc) {
+          tokenIds.push(t.toString());
+        }
+      } catch (err) {
+        console.warn(`Failed SCIONS token ${t}: ${err.message}`);
+        continue;
+      }
     }
   }
-}
 
   console.log(`Fetched ${tokenIds.length} ${collection} tokens for ${wallet}`);
   return tokenIds;

@@ -5,11 +5,11 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const CACHE_DIR = fs.existsSync("/backend/data")
-  ? "/backend/data/cache"
-  : path.join(__dirname, "..", "cache");
+const CACHE_DIR = "/backend/data/cache";
 const CACHE_FILE = path.join(CACHE_DIR, "owners.json");
-
+if (!fs.existsSync("/backend/data")) {
+  throw new Error("Persistent disk /backend/data is missing");
+}
 console.log("🔥 ownerCache.js LOADED FROM:", import.meta.url);
 
 function ensureCacheDir() {
