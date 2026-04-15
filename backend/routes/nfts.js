@@ -132,41 +132,47 @@ walletCache = {
 };
 
   // Force scan if cache is empty
-if (
-  walletCache.VKIN.length === 0 &&
-  walletCache.VQLE.length === 0 &&
-  walletCache.SCIONS.length === 0
-) { console.log("Cache miss/empty — scanning blockchain for", wallet);
+const shouldScanVKIN = !Array.isArray(walletCache.VKIN) || walletCache.VKIN.length === 0;
+const shouldScanVQLE = !Array.isArray(walletCache.VQLE) || walletCache.VQLE.length === 0;
+const shouldScanSCIONS = !Array.isArray(walletCache.SCIONS) || walletCache.SCIONS.length === 0;
 
-    try {
-      const provider = new ethers.JsonRpcProvider(RPC_URL);
-      const vkin = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
-      const vqle = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLE_ABI, provider);
-      const scions = new ethers.Contract(SCIONS_CONTRACT_ADDRESS, SCIONS_ABI, provider);
+if (shouldScanVKIN || shouldScanVQLE || shouldScanSCIONS) {
+  console.log("Partial/empty cache — scanning missing collections for", wallet);
 
-      const queue = new PQueue({ concurrency: RPC_CONCURRENCY });
+  try {
+    const provider = new ethers.JsonRpcProvider(RPC_URL);
+    const vkin = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
+    const vqle = new ethers.Contract(VQLE_CONTRACT_ADDRESS, VQLE_ABI, provider);
+    const scions = new ethers.Contract(SCIONS_CONTRACT_ADDRESS, SCIONS_ABI, provider);
 
+    if (shouldScanVKIN) {
       console.log("Scanning VKIN...");
-      const vkinIds = await fetchOwnedTokenIds(vkin, wallet, "VKIN");  // ← fixed: "VKIN"
-
-      console.log("Scanning VQLE...");
-      const vqleIds = await fetchOwnedTokenIds(vqle, wallet, "VQLE");  // ← fixed: "VQLE"
-
-      console.log("Scanning SCIONS...");
-      const scionsIds = await fetchOwnedTokenIds(scions, wallet, "SCIONS");  // ← fixed: "SCIONS"
-
-      walletCache = { VKIN: vkinIds, VQLE: vqleIds, SCIONS: scionsIds };
-      cache[wallet] = walletCache;
-      writeOwnerCache(cache);
-
-      console.log(`Cache filled: ${vkinIds.length} VKIN, ${vqleIds.length} VQLE, ${scionsIds.length} SCIONS`);
-} catch (err) {
-      console.error("On-chain scan failed:", err.message);
-      return res.status(500).json({ error: err.message });
+      walletCache.VKIN = await fetchOwnedTokenIds(vkin, wallet, "VKIN");
     }
-  } else {
-    console.log("Cache hit — using cached data");
+
+    if (shouldScanVQLE) {
+      console.log("Scanning VQLE...");
+      walletCache.VQLE = await fetchOwnedTokenIds(vqle, wallet, "VQLE");
+    }
+
+    if (shouldScanSCIONS) {
+      console.log("Scanning SCIONS...");
+      walletCache.SCIONS = await fetchOwnedTokenIds(scions, wallet, "SCIONS");
+    }
+
+    cache[wallet] = walletCache;
+    writeOwnerCache(cache);
+
+    console.log(
+      `Cache updated: ${walletCache.VKIN.length} VKIN, ${walletCache.VQLE.length} VQLE, ${walletCache.SCIONS.length} SCIONS`
+    );
+  } catch (err) {
+    console.error("On-chain scan failed:", err.message);
+    return res.status(500).json({ error: err.message });
   }
+} else {
+  console.log("Cache hit — using cached data");
+}
   
   // Enrich and return (your existing code)
 // After cache fill or cache hit
