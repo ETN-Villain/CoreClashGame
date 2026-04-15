@@ -31,6 +31,7 @@ export const METADATA_IMAGES_DIR = path.join(
 
 export const MAPPING_FILE = path.join(BASE_DATA_DIR, "mapping.csv");
 export const FRONTEND_MAPPING_FILE = path.join(BASE_DATA_DIR, "mapping.json");
+export const WEEKLY_LEADERBOARD_FILE = path.join(BASE_DATA_DIR, "weeklyLeaderboards.json");
 export const REVEAL_DIR = path.join(BASE_DATA_DIR, "reveals");
 
 export const VKIN_ABI = VKIN_ABI_JSON;

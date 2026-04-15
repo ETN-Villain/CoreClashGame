@@ -3,6 +3,9 @@ import cors from "cors";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import cron from "node-cron";
+import { generateMapping } from "./utils/generateMapping.js";
+import { checkFrontendMapping } from "./checkFrontendMapping.js";
 
 import { initAdminWallet } from "./admin.js";
 import {
@@ -10,6 +13,8 @@ import {
   METADATA_JSON_DIR,
   METADATA_IMAGES_DIR,
   ensureDataPaths,
+  FRONTEND_MAPPING_FILE,
+  WEEKLY_LEADERBOARD_FILE,
 } from "./paths.js";
 import { readGames } from "./store/gamesStore.js";
 import { readBurnTotal } from "./store/burnStore.js";
@@ -31,9 +36,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3001;
 
-const weeklyFilePath = fs.existsSync("/backend/data")
-  ? "/backend/data/weeklyLeaderboards.json"
-  : path.join(__dirname, "store", "weeklyLeaderboards.json");
+const weeklyFilePath = WEEKLY_LEADERBOARD_FILE;
 
 // ---------------- MIDDLEWARE ----------------
 app.use(cors({
@@ -58,7 +61,7 @@ app.use(express.json());
 app.use("/images", express.static(METADATA_IMAGES_DIR));
 
 app.get("/mapping.json", (req, res) => {
-  res.sendFile("/backend/data/mapping.json");
+  res.sendFile(FRONTEND_MAPPING_FILE);
 });
 
 // ---------------- ROUTES ----------------
@@ -280,20 +283,6 @@ try {
   process.exit(1);
 }
 
-app.listen(PORT, () => {
-  console.log(`🚀 Backend server running on port ${PORT}`);
-});
-
-// ---------------- RECONCILE ON STARTUP ----------------
-(async () => {
-  try {
-    await reconcileActiveGamesScheduled();
-    console.log("[SERVER] Reconciliation complete");
-  } catch (err) {
-    console.error("[SERVER] Reconciliation failed", err);
-  }
-})();
-
 // ---------------- WEEKLY LEADERBOARD BACKFILL ----------------
 try {
   const allGames = readGames();
@@ -329,3 +318,59 @@ setTimeout(() => {
     console.error("[SERVER] Startup backfill failed", err);
   }
 })();
+
+// ---------------- SCHEDULED JOBS ----------------
+// Add these lock flags near your startup section
+let generateMappingRunning = false;
+let checkFrontendMappingRunning = false;
+
+// Add this function somewhere below your helper functions
+function startScheduledJobs() {
+  console.log("[SCHEDULER] Starting scheduled NFT jobs...");
+
+  // generateMapping every hour at minute 50
+  cron.schedule("50 * * * *", async () => {
+    if (generateMappingRunning) {
+      console.log("[SCHEDULER] generateMapping skipped: previous run still active");
+      return;
+    }
+
+    generateMappingRunning = true;
+    console.log("[SCHEDULER] generateMapping started");
+
+    try {
+      await generateMapping("ALL");
+      console.log("[SCHEDULER] generateMapping finished");
+    } catch (err) {
+      console.error("[SCHEDULER] generateMapping failed:", err);
+    } finally {
+      generateMappingRunning = false;
+    }
+  });
+
+  // checkFrontendMapping every hour at minute 00
+  cron.schedule("0 * * * *", async () => {
+    if (checkFrontendMappingRunning) {
+      console.log("[SCHEDULER] checkFrontendMapping skipped: previous run still active");
+      return;
+    }
+
+    checkFrontendMappingRunning = true;
+    console.log("[SCHEDULER] checkFrontendMapping started");
+
+    try {
+      await checkFrontendMapping();
+      console.log("[SCHEDULER] checkFrontendMapping finished");
+    } catch (err) {
+      console.error("[SCHEDULER] checkFrontendMapping failed:", err);
+    } finally {
+      checkFrontendMappingRunning = false;
+    }
+  });
+}
+
+// Replace your existing app.listen block with this:
+app.listen(PORT, () => {
+  console.log(`🚀 Backend server running on port ${PORT}`);
+  startScheduledJobs();
+});
