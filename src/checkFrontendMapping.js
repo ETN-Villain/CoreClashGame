@@ -1,5 +1,9 @@
 import fs from "fs";
-import { MAPPING_FILE, FRONTEND_MAPPING_FILE, ensureDataPaths } from "./paths.js";
+import {
+  MAPPING_FILE,
+  FRONTEND_MAPPING_FILE,
+  ensureDataPaths,
+} from "../backend/paths.js";
 
 function parseSimpleCSV(content) {
   const lines = content.split(/\r?\n/).filter(Boolean);
