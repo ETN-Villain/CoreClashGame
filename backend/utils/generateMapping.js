@@ -16,6 +16,7 @@ import {
   METADATA_JSON_DIR,
   METADATA_IMAGES_DIR,
   MAPPING_FILE,
+  ensureDataPaths,
 } from "../paths.js";
 
 /* ---------------- Paths ---------------- */
@@ -241,6 +242,8 @@ async function generateSCIONS(rows, provider) {
 
 /* ---------------- Main ---------------- */
 export async function generateMapping(mode = "ALL") {
+  ensureDataPaths();
+
   const rows = ["collection,token_id,token_uri,image_file"];
   const provider = new ethers.JsonRpcProvider(RPC_URL);
   const selected = String(mode).toUpperCase();
@@ -262,7 +265,7 @@ export async function generateMapping(mode = "ALL") {
 }
 
 /* ---------------- CLI ---------------- */
-if (process.argv[1].endsWith("generateMapping.js")) {
+if (process.argv[1]?.endsWith("generateMapping.js")) {
   const mode = process.env.MAPPING_MODE || process.argv[2] || "ALL";
   generateMapping(mode).catch(console.error);
 }

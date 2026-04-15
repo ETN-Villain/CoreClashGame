@@ -10,11 +10,13 @@ import { RPC_URL } from "./config.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BASE_DATA_DIR = "/backend/data";
+// Prefer Render disk mount if provided, otherwise fall back to local project dir
+const BASE_DATA_DIR =
+  process.env.DATA_DIR ||
+  process.env.RENDER_DISK_PATH ||
+  path.join(__dirname, "data");
 
-if (!fs.existsSync(BASE_DATA_DIR)) {
-  throw new Error("Persistent disk /backend/data is missing");
-}
+export const FRONTEND_MAPPING_FILE = path.join(BASE_DATA_DIR, "mapping.json");
 
 export const METADATA_JSON_DIR = path.join(
   BASE_DATA_DIR,
