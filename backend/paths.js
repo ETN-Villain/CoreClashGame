@@ -91,3 +91,16 @@ export function loadMapping() {
 
   return map;
 }
+
+function getMissingTokenIds(existingMap, collection, maxSupply) {
+  const existing = existingMap[collection] || {};
+  const missing = [];
+
+  for (let tokenId = 1; tokenId <= maxSupply; tokenId++) {
+    if (!existing[String(tokenId)]) {
+      missing.push(tokenId);
+    }
+  }
+
+  return missing;
+}

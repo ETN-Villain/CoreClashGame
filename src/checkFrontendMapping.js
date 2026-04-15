@@ -1,5 +1,4 @@
 import fs from "fs";
-import { parse } from "csv-parse/sync";
 import { MAPPING_FILE, FRONTEND_MAPPING_FILE, ensureDataPaths } from "./paths.js";
 
 ensureDataPaths();
@@ -9,14 +8,25 @@ if (!fs.existsSync(MAPPING_FILE)) {
   process.exit(1);
 }
 
-const csvContent = fs.readFileSync(MAPPING_FILE, "utf8");
+const csvContent = fs.readFileSync(MAPPING_FILE, "utf8").trim();
 
-const records = parse(csvContent, {
-  columns: true,
-  skip_empty_lines: true,
-  trim: true,
-});
+function parseSimpleCSV(content) {
+  const lines = content.split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
 
+  const headers = lines[0].split(",").map((h) => h.trim());
+
+  return lines.slice(1).map((line) => {
+    const values = line.split(",").map((v) => v.trim());
+    const row = {};
+    headers.forEach((header, i) => {
+      row[header] = values[i] ?? "";
+    });
+    return row;
+  });
+}
+
+const records = parseSimpleCSV(csvContent);
 const mapping = {};
 
 for (const row of records) {

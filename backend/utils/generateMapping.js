@@ -17,6 +17,7 @@ import {
   METADATA_IMAGES_DIR,
   MAPPING_FILE,
   ensureDataPaths,
+  loadMapping,
 } from "../paths.js";
 
 /* ---------------- Paths ---------------- */
@@ -30,10 +31,11 @@ const VQLE_IMAGE_DIR = path.join(METADATA_IMAGES_DIR, "VQLE");
 const SCIONS_JSON_DIR = path.join(METADATA_JSON_DIR, "SCIONS");
 const SCIONS_IMAGE_DIR = path.join(METADATA_IMAGES_DIR, "SCIONS");
 
-/* ---------------- Config ---------------- */
+/* ---------------- Fixed Supplies ---------------- */
 const VKIN_MAX_SUPPLY = 474;
 const VQLE_MAX_SUPPLY = 30;
 const SCIONS_MAX_SUPPLY = 198;
+
 const VKIN_ABI = ["function tokenURI(uint256 tokenId) view returns (string)"];
 const SCIONS_ABI = ["function tokenURI(uint256 tokenId) view returns (string)"];
 
@@ -42,6 +44,29 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+function getMissingTokenIds(existingMap, collection, maxSupply) {
+  const existing = existingMap[collection] || {};
+  const missing = [];
+
+  for (let tokenId = 1; tokenId <= maxSupply; tokenId++) {
+    if (!existing[String(tokenId)]) {
+      missing.push(tokenId);
+    }
+  }
+
+  return missing;
+}
+
+function flattenExistingRows(existingMap, rows) {
+  for (const [collection, tokens] of Object.entries(existingMap)) {
+    for (const [tokenId, data] of Object.entries(tokens)) {
+      rows.push(
+        `${collection},${tokenId},${data.token_uri || ""},${data.image_file || ""}`
+      );
+    }
+  }
 }
 
 async function fetchWithRetries(
@@ -75,13 +100,21 @@ async function fetchWithRetries(
 }
 
 /* ---------------- VKIN ---------------- */
-async function generateVKIN(rows, provider) {
+async function generateVKIN(rows, provider, existingMap) {
   ensureDir(VKIN_JSON_DIR);
   ensureDir(VKIN_IMAGE_DIR);
 
+  const missingIds = getMissingTokenIds(existingMap, "VKIN", VKIN_MAX_SUPPLY);
+  if (missingIds.length === 0) {
+    console.log("✅ VKIN already fully cached");
+    return;
+  }
+
+  console.log(`VKIN missing tokens: ${missingIds.length}`);
+
   const contract = new ethers.Contract(VKIN_CONTRACT_ADDRESS, VKIN_ABI, provider);
 
-  for (let tokenId = 1; tokenId <= VKIN_MAX_SUPPLY; tokenId++) {
+  for (const tokenId of missingIds) {
     let jsonFile = null;
     let imageFile = `${tokenId}.png`;
 
@@ -122,10 +155,8 @@ async function generateVKIN(rows, provider) {
         imageFile = downloadedImageFile;
       }
 
-      if (jsonFile) {
-        rows.push(`VKIN,${tokenId},${jsonFile},${imageFile}`);
-        console.log(`Added VKIN ${tokenId} → ${jsonFile} / ${imageFile}`);
-      }
+      rows.push(`VKIN,${tokenId},${jsonFile},${imageFile}`);
+      console.log(`Added VKIN ${tokenId} → ${jsonFile} / ${imageFile}`);
     } catch (err) {
       console.warn(`⚠️ VKIN tokenId ${tokenId} skipped: ${err.message}`);
     }
@@ -135,13 +166,21 @@ async function generateVKIN(rows, provider) {
 }
 
 /* ---------------- VQLE ---------------- */
-async function generateVQLE(rows) {
+async function generateVQLE(rows, existingMap) {
   ensureDir(VQLE_JSON_DIR);
   ensureDir(VQLE_IMAGE_DIR);
 
+  const missingIds = getMissingTokenIds(existingMap, "VQLE", VQLE_MAX_SUPPLY);
+  if (missingIds.length === 0) {
+    console.log("✅ VQLE already fully cached");
+    return;
+  }
+
+  console.log(`VQLE missing tokens: ${missingIds.length}`);
+
   const baseCid = VQLE_IPFS_BASE.replace(/https?:\/\/[^/]+\//, "");
 
-  for (let tokenId = 1; tokenId <= VQLE_MAX_SUPPLY; tokenId++) {
+  for (const tokenId of missingIds) {
     const jsonFile = `${tokenId}.json`;
     const jsonPath = path.join(VQLE_JSON_DIR, jsonFile);
     let metadata;
@@ -176,18 +215,28 @@ async function generateVQLE(rows) {
     }
 
     rows.push(`VQLE,${tokenId},${jsonFile},${imageFile}`);
+    console.log(`Added VQLE ${tokenId} → ${jsonFile} / ${imageFile}`);
+
     await sleep(100);
   }
 }
 
 /* ---------------- SCIONS ---------------- */
-async function generateSCIONS(rows, provider) {
+async function generateSCIONS(rows, provider, existingMap) {
   ensureDir(SCIONS_JSON_DIR);
   ensureDir(SCIONS_IMAGE_DIR);
 
+  const missingIds = getMissingTokenIds(existingMap, "SCIONS", SCIONS_MAX_SUPPLY);
+  if (missingIds.length === 0) {
+    console.log("✅ SCIONS already fully cached");
+    return;
+  }
+
+  console.log(`SCIONS missing tokens: ${missingIds.length}`);
+
   const contract = new ethers.Contract(SCIONS_CONTRACT_ADDRESS, SCIONS_ABI, provider);
 
-  for (let tokenId = 1; tokenId <= SCIONS_MAX_SUPPLY; tokenId++) {
+  for (const tokenId of missingIds) {
     let jsonFile = null;
     let imageFile = `${tokenId}.png`;
 
@@ -228,10 +277,8 @@ async function generateSCIONS(rows, provider) {
         imageFile = downloadedImageFile;
       }
 
-      if (jsonFile) {
-        rows.push(`SCIONS,${tokenId},${jsonFile},${imageFile}`);
-        console.log(`Added SCIONS ${tokenId} → ${jsonFile} / ${imageFile}`);
-      }
+      rows.push(`SCIONS,${tokenId},${jsonFile},${imageFile}`);
+      console.log(`Added SCIONS ${tokenId} → ${jsonFile} / ${imageFile}`);
     } catch (err) {
       console.warn(`⚠️ SCIONS tokenId ${tokenId} skipped: ${err.message}`);
     }
@@ -244,20 +291,25 @@ async function generateSCIONS(rows, provider) {
 export async function generateMapping(mode = "ALL") {
   ensureDataPaths();
 
+  const existingMap = loadMapping();
   const rows = ["collection,token_id,token_uri,image_file"];
+
+  // preserve existing rows first
+  flattenExistingRows(existingMap, rows);
+
   const provider = new ethers.JsonRpcProvider(RPC_URL);
   const selected = String(mode).toUpperCase();
 
   if (selected === "VKIN" || selected === "ALL") {
-    await generateVKIN(rows, provider);
+    await generateVKIN(rows, provider, existingMap);
   }
 
   if (selected === "SCIONS" || selected === "ALL") {
-    await generateSCIONS(rows, provider);
+    await generateSCIONS(rows, provider, existingMap);
   }
 
   if (selected === "VQLE" || selected === "ALL") {
-    await generateVQLE(rows);
+    await generateVQLE(rows, existingMap);
   }
 
   fs.writeFileSync(MAPPING_FILE, rows.join("\n"));
