@@ -2,6 +2,7 @@
   "name": "coreclashgame",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "dependencies": {
     "@metamask/providers": "^22.1.1",
     "@testing-library/dom": "^10.4.1",

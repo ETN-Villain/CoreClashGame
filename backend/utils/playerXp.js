@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { ethers } from "ethers";
-import { RPC_URL, BACKEND_PRIVATE_KEY, CORE_TOKEN_ADDRESS } from "../config.js";
+import { RPC_URL, BACKEND_PRIVATE_KEY, CORE_TOKEN_ADDRESS, WETN_TOKEN_ADDRESS } from "../config.js";
 
 const DATA_DIR = "/backend/data";
 const XP_FILE = path.join(DATA_DIR, "playerXp.json");
@@ -9,6 +9,8 @@ const XP_ACTIONS_FILE = path.join(DATA_DIR, "xpActions.json");
 
 const CORE_REWARD_LEVELS = [1, 2, 3, 4, 5];
 const CORE_REWARD_AMOUNT = "10";
+const WETN_REWARD_LEVEL = 1;
+const WETN_REWARD_AMOUNT = "1";
 
 const ERC20ABI = [
   "function transfer(address to, uint256 amount) returns (bool)",
@@ -68,6 +70,21 @@ async function sendCoreReward(toWallet, level) {
   };
 }
 
+async function sendWetnReward(toWallet) {
+  const wetnToken = getRewardSignerAndContract(WETN_TOKEN_ADDRESS);
+  const amountWei = ethers.parseUnits(WETN_REWARD_AMOUNT, 18);
+
+  const tx = await wetnToken.transfer(toWallet, amountWei);
+  await tx.wait(1);
+
+  return {
+    token: "WETN",
+    level: WETN_REWARD_LEVEL,
+    amount: WETN_REWARD_AMOUNT,
+    txHash: tx.hash,
+  };
+}
+
 ///* ---------------- XP & Leveling Logic ---------------- */
 export async function adjustXp(wallet, amount) {
   const walletLc = String(wallet).toLowerCase();
@@ -88,6 +105,7 @@ export async function adjustXp(wallet, amount) {
   const rewardedLevels = Array.isArray(all[walletLc].rewardedLevels)
     ? all[walletLc].rewardedLevels
     : [];
+  const wetnLevel1Rewarded = Boolean(all[walletLc].wetnLevel1Rewarded);
 
   all[walletLc].xp = Math.max(0, all[walletLc].xp + amount);
 
@@ -97,6 +115,7 @@ export async function adjustXp(wallet, amount) {
   all[walletLc].level = newLevel;
   all[walletLc].statsBonus = levelData.bonuses;
   all[walletLc].rewardedLevels = rewardedLevels;
+  all[walletLc].wetnLevel1Rewarded = wetnLevel1Rewarded;
   all[walletLc].updatedAt = new Date().toISOString();
 
   writePlayerXp(all);
@@ -107,8 +126,11 @@ export async function adjustXp(wallet, amount) {
     rewardedLevels
   );
 
+  const shouldSendWetnLevel1 =
+    !wetnLevel1Rewarded && crossedSpecificLevel(oldLevel, newLevel, WETN_REWARD_LEVEL);
+    
   const rewardResults = [];
-  
+
   for (const lvl of crossedRewardLevels) {
     try {
       const reward = await sendCoreReward(walletLc, lvl);
@@ -129,6 +151,26 @@ export async function adjustXp(wallet, amount) {
     }
   }
 
+  if (shouldSendEtnLevel1) {
+    try {
+      const reward = await sendEtnReward(walletLc);
+      rewardResults.push(reward);
+
+      all[walletLc].etnLevel1Rewarded = true;
+      all[walletLc].updatedAt = new Date().toISOString();
+      writePlayerXp(all);
+
+      console.log(
+        `ETN reward sent: level 1, wallet ${walletLc}, tx ${reward.txHash}`
+      );
+    } catch (err) {
+      console.error(
+        `Failed to send ETN reward for wallet ${walletLc} at level 1:`,
+        err.message || err
+      );
+    }
+  }
+  
   return {
     ...all[walletLc],
     rewardResults,
@@ -220,6 +262,7 @@ export function ensurePlayer(wallet) {
       level: levelData.level,
       statsBonus: levelData.bonuses,
       rewardedLevels: [],
+      etnLevel1Rewarded: false,
       updatedAt: new Date().toISOString(),
     };
     writePlayerXp(all);
