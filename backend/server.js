@@ -5,7 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import cron from "node-cron";
 import { generateMapping } from "./utils/generateMapping.js";
-import { checkFrontendMapping } from "./checkFrontendMapping.js";
+import { checkFrontendMapping } from "../src/checkFrontendMapping.js";
 
 import { initAdminWallet } from "./admin.js";
 import {
