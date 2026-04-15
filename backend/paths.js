@@ -10,12 +10,23 @@ import { RPC_URL } from "./config.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BASE_DATA_DIR = fs.existsSync("/backend/data")
-  ? "/backend/data"
-  : __dirname;
+const BASE_DATA_DIR = "/backend/data";
 
-export const METADATA_JSON_DIR = path.join(BASE_DATA_DIR, "metadata-cache", "json");
-export const METADATA_IMAGES_DIR = path.join(BASE_DATA_DIR, "metadata-cache", "images");
+if (!fs.existsSync(BASE_DATA_DIR)) {
+  throw new Error("Persistent disk /backend/data is missing");
+}
+
+export const METADATA_JSON_DIR = path.join(
+  BASE_DATA_DIR,
+  "metadata-cache",
+  "json"
+);
+
+export const METADATA_IMAGES_DIR = path.join(
+  BASE_DATA_DIR,
+  "metadata-cache",
+  "images"
+);
 
 export const MAPPING_FILE = path.join(BASE_DATA_DIR, "mapping.csv");
 export const REVEAL_DIR = path.join(BASE_DATA_DIR, "reveals");
