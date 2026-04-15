@@ -10,13 +10,12 @@ import { RPC_URL } from "./config.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Prefer Render disk mount if provided, otherwise fall back to local project dir
 const BASE_DATA_DIR =
   process.env.DATA_DIR ||
   process.env.RENDER_DISK_PATH ||
-  path.join(__dirname, "data");
+  "/backend/data";
 
-export const FRONTEND_MAPPING_FILE = path.join(BASE_DATA_DIR, "mapping.json");
+console.log("BASE_DATA_DIR =", BASE_DATA_DIR);
 
 export const METADATA_JSON_DIR = path.join(
   BASE_DATA_DIR,
@@ -31,6 +30,7 @@ export const METADATA_IMAGES_DIR = path.join(
 );
 
 export const MAPPING_FILE = path.join(BASE_DATA_DIR, "mapping.csv");
+export const FRONTEND_MAPPING_FILE = path.join(BASE_DATA_DIR, "mapping.json");
 export const REVEAL_DIR = path.join(BASE_DATA_DIR, "reveals");
 
 export const VKIN_ABI = VKIN_ABI_JSON;
@@ -47,7 +47,10 @@ function ensureDir(dir) {
 }
 
 export function ensureDataPaths() {
-  ensureDir(BASE_DATA_DIR);
+  if (!fs.existsSync(BASE_DATA_DIR)) {
+    throw new Error(`Base data dir is not mounted or missing: ${BASE_DATA_DIR}`);
+  }
+
   ensureDir(METADATA_JSON_DIR);
   ensureDir(METADATA_IMAGES_DIR);
   ensureDir(REVEAL_DIR);
