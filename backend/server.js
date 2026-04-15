@@ -57,6 +57,10 @@ app.use(express.json());
 // ---------------- STATIC ----------------
 app.use("/images", express.static(METADATA_IMAGES_DIR));
 
+app.get("/mapping.json", (req, res) => {
+  res.sendFile("/backend/data/mapping.json");
+});
+
 // ---------------- ROUTES ----------------
 app.use("/games", gamesRouter);
 app.use("/leaderboard", leaderboardRouter);
