@@ -54,7 +54,7 @@ function getRewardableLevelsCrossed(oldLevel, newLevel, rewardedLevels = []) {
 async function sendCoreReward(toWallet, level) {
   const provider = new ethers.JsonRpcProvider(RPC_URL);
   const adminWallet = new ethers.Wallet(BACKEND_PRIVATE_KEY, provider);
-  const coreToken = new ethers.Contract(CORE_TOKEN_ADDRESS, ERC20_REWARD_ABI, adminWallet);
+  const coreToken = new ethers.Contract(CORE_TOKEN_ADDRESS, ERC20ABI, adminWallet);
 
   const amountWei = ethers.parseUnits(CORE_REWARD_AMOUNT, 18);
 
@@ -107,6 +107,8 @@ export async function adjustXp(wallet, amount) {
     rewardedLevels
   );
 
+  const rewardResults = [];
+  
   for (const lvl of crossedRewardLevels) {
     try {
       const reward = await sendCoreReward(walletLc, lvl);
@@ -159,12 +161,24 @@ function ensureFile(filePath) {
 
 function readJsonFile(filePath) {
   ensureFile(filePath);
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+
+  try {
+    const raw = fs.readFileSync(filePath, "utf8").trim();
+    return raw ? JSON.parse(raw) : {};
+  } catch (err) {
+    console.error(`Corrupt JSON detected in ${filePath}:`, err.message);
+
+    fs.writeFileSync(filePath, JSON.stringify({}, null, 2), "utf8");
+    return {};
+  }
 }
 
 function writeJsonFile(filePath, data) {
   ensureFile(filePath);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+
+  const tempPath = `${filePath}.tmp`;
+  fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), "utf8");
+  fs.renameSync(tempPath, filePath);
 }
 
 export function readPlayerXp() {

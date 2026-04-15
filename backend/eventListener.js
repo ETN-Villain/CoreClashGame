@@ -208,10 +208,6 @@ game.settled = true;
 game.burnRecorded = true;
 game.burnWei = burn.toString();
 writeGames(games);
-
-  console.log(
-    `🔥 Burn added: ${ethers.formatEther(burn)} CORE | Total: ${ethers.formatEther(totalBurn)}`
-  );
 }
 
       // ----- NFT transfer logs (VKIN & VQLE) -----
