@@ -3,12 +3,8 @@ import path from "path";
 import { parse } from "csv-parse/sync"; // ✅ correct named import
 
 // ---------- CONFIG ----------
-const MAPPING_CSV = path.join(
-  "C:/Users/Butle_jz8osua/coreclashgame/backend/mapping.csv"
-);
-const OUTPUT_MAPPING_FILE = path.join(
-  "C:/Users/Butle_jz8osua/coreclashgame/src/mapping.json"
-);
+const MAPPING_CSV = "/backend/data/mapping.csv";
+const OUTPUT_MAPPING_FILE = "/backend/data/mapping.json";
 
 // ---------- LOAD CSV ----------
 if (!fs.existsSync(MAPPING_CSV)) {

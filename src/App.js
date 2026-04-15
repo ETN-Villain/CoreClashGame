@@ -27,7 +27,6 @@ import {
   RPC_URL,
 } from "./config.js";
 
-import mapping from "./mapping.json";
 import { renderTokenImages } from "./renderTokenImages.jsx";
 
 import {
@@ -122,6 +121,27 @@ useEffect(() => {
   });
   console.groupEnd();
 }, [nfts]);
+
+/* ---------------- MAPPING (CSV → JSON) ---------------- */
+const [mapping, setMapping] = useState({});
+
+useEffect(() => {
+  async function loadMapping() {
+    try {
+      const res = await fetch(`${BACKEND_URL}/mapping.json`);
+      const data = await res.json();
+      setMapping(data);
+    } catch (err) {
+      console.error("Failed to load mapping:", err);
+    }
+  }
+
+  loadMapping();
+
+  const interval = setInterval(loadMapping, 300000);
+
+  return () => clearInterval(interval);
+}, []);
 
   /* ---------------- GAMES STATE ---------------- */
   const [games, setGames] = useState([]);

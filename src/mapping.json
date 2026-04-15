@@ -2018,5 +2018,63 @@
       "token_uri": "30.json",
       "image_file": "8.png"
     }
+  },
+  "SCIONS": {
+    "1": {
+      "token_uri": "67.json",
+      "image_file": "67.png"
+    },
+    "2": {
+      "token_uri": "99.json",
+      "image_file": "99.png"
+    },
+    "3": {
+      "token_uri": "100.json",
+      "image_file": "100.png"
+    },
+    "4": {
+      "token_uri": "92.json",
+      "image_file": "92.png"
+    },
+    "5": {
+      "token_uri": "146.json",
+      "image_file": "146.png"
+    },
+    "6": {
+      "token_uri": "17.json",
+      "image_file": "17.png"
+    },
+    "7": {
+      "token_uri": "194.json",
+      "image_file": "194.png"
+    },
+    "8": {
+      "token_uri": "95.json",
+      "image_file": "95.png"
+    },
+    "9": {
+      "token_uri": "129.json",
+      "image_file": "129.png"
+    },
+    "10": {
+      "token_uri": "128.json",
+      "image_file": "128.png"
+    },
+    "11": {
+      "token_uri": "169.json",
+      "image_file": "169.png"
+    },
+    "12": {
+      "token_uri": "183.json",
+      "image_file": "183.png"
+    },
+    "13": {
+      "token_uri": "193.json",
+      "image_file": "193.png"
+    },
+    "14": {
+      "token_uri": "50.json",
+      "image_file": "50.png"
+    }
   }
 }
