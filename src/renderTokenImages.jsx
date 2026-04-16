@@ -1,7 +1,6 @@
 import React from "react";
-import mapping from "./mapping.json";
-import { StableImage } from './gameCard';
-import { BACKEND_URL } from "./config.js"
+import { StableImage } from "./gameCard";
+import { BACKEND_URL } from "./config.js";
 
 // Mapping (lowercase + checksummed)
 const addressToCollection = {
@@ -13,21 +12,34 @@ const addressToCollection = {
   "0xAc620b1A3dE23F4EB0A69663613baBf73F6C535D": "SCIONS",
 };
 
-export const renderTokenImages = (input = []) => {
+export const renderTokenImages = (input = [], mapping = {}) => {
   console.log("[renderTokenImages] Raw input:", JSON.stringify(input, null, 2));
+  console.log("[renderTokenImages] Live mapping loaded:", mapping);
 
   let tokens = [];
 
   if (Array.isArray(input)) {
-    tokens = input;
+    tokens = input.map((token) => {
+      const rawCollection = token.collection || token.mappingKey || "VKIN";
+      const collection = String(rawCollection).toUpperCase();
+      const tokenId = String(token.tokenId ?? "");
+      const imageFile = token.imageFile || `${tokenId}.png`;
+
+      return {
+        collection,
+        mappingKey: collection,
+        tokenId,
+        imageFile,
+      };
+    });
   } else if (input && typeof input === "object") {
     const { nftContracts = [], tokenIds = [], tokenURIs = [] } = input;
 
     tokens = tokenIds.map((id, idx) => {
-      let rawAddr = nftContracts[idx];
-      console.log(`Slot ${idx} raw type:`, typeof rawAddr, "length:", rawAddr?.length || "N/A");
-
+      const rawAddr = nftContracts[idx];
       let addr = (rawAddr || "").toString().trim();
+
+      console.log(`Slot ${idx} raw type:`, typeof rawAddr, "length:", rawAddr?.length || "N/A");
 
       const charCodes = addr.split("").map((c) => c.charCodeAt(0)).join(", ");
       console.log(`Slot ${idx} char codes:`, charCodes);
@@ -40,13 +52,6 @@ export const renderTokenImages = (input = []) => {
 
       let collection = addressToCollection[addr];
 
-      // Debug override for token ID 24 (remove after fix)
-      if (id === "24") {
-        console.log(`Slot ${idx} token ID 24 → forcing VQLE (debug override)`);
-        collection = "VQLE";
-      }
-
-      // More forgiving pattern match
       if (!collection && (addr.includes("8cfb") || addr.includes("8cfbb04c"))) {
         console.log(`Slot ${idx} VQLE pattern match → forcing VQLE`);
         collection = "VQLE";
@@ -59,22 +64,21 @@ export const renderTokenImages = (input = []) => {
         collection = "VKIN";
       }
 
-      // SCIONS uses VKIN mapping, but SCIONS image folder
-      const mappingKey =
-        collection === "SCIONS" || collection === "VKIN" ? "VKIN" : "VQLE";
+      const mappingKey = collection;
+      const tokenId = String(id);
+      let imageFile = `${tokenId}.png`;
+
+      const mapped = mapping?.[mappingKey]?.[tokenId];
 
       console.log(`Slot ${idx} final:`, {
         rawAddr,
         cleanedAddr: addr,
         collection,
         mappingKey,
-        tokenId: id,
+        tokenId,
         tokenURI: tokenURIs[idx] || "none",
+        mapped,
       });
-
-      let imageFile = `${id}.png`;
-
-      const mapped = mapping[mappingKey]?.[String(id)];
 
       // Priority 1: explicit tokenURI from backend
       if (tokenURIs[idx]) {
@@ -83,17 +87,21 @@ export const renderTokenImages = (input = []) => {
           .toLowerCase();
 
         console.log(
-          `Slot ${idx}: backend tokenURI → ${imageFile} (coll: ${collection}, mappingKey: ${mappingKey})`
+          `Slot ${idx}: backend tokenURI → ${imageFile} (collection: ${collection}, mappingKey: ${mappingKey})`
         );
       }
-      // Priority 2: mapping.json
+      // Priority 2: live mapping.json from backend
       else if (mapped) {
         imageFile =
           mapped?.image_file ??
           mapped?.token_uri?.replace(/\.json$/i, ".png") ??
-          `${id}.png`;
+          `${tokenId}.png`;
 
-        console.log(`Slot ${idx}: mapping → ${imageFile}`);
+        console.log(`Slot ${idx}: live mapping → ${imageFile}`);
+      } else {
+        console.warn(
+          `Slot ${idx}: no live mapping found for ${mappingKey} #${tokenId}, defaulting to ${imageFile}`
+        );
       }
 
       console.log(`Slot ${idx} final imageFile: ${imageFile}`);
@@ -101,7 +109,7 @@ export const renderTokenImages = (input = []) => {
       return {
         collection,
         mappingKey,
-        tokenId: id,
+        tokenId,
         imageFile,
       };
     });
@@ -116,7 +124,7 @@ export const renderTokenImages = (input = []) => {
 
         let finalImageFile = imageFile;
 
-        const mapped = mapping[mappingKey]?.[String(tokenId)];
+        const mapped = mapping?.[mappingKey]?.[String(tokenId)];
         if (mapped) {
           finalImageFile =
             mapped?.image_file ??
