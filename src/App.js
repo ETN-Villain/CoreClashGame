@@ -2860,7 +2860,6 @@ return (
               borderRadius: 10,
               padding: 4,
               textAlign: "center",
-              boxShadow: "0 0 6px rgba(0,0,0,0.25)",
               justifyContent: selectedNftCount < 3 ? "center" : "flex-start",
             }}
           >
