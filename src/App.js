@@ -2519,6 +2519,63 @@ return (
   />
 </div>
 
+<div
+  style={{
+    background: "#0f0f0f",
+    border: "1px solid #333",
+    borderRadius: 14,
+    padding: "16px 18px",
+    boxShadow: "0 0 10px rgba(0,0,0,0.35)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    minWidth: isMobile ? "100%" : 260,
+  }}
+>
+  <div
+    style={{
+      fontSize: 11,
+      color: "#888",
+      textTransform: "uppercase",
+      letterSpacing: 1.2,
+      marginBottom: 8,
+      lineHeight: 1.4,
+    }}
+  >
+    Total CORE Burned from Core Clash
+  </div>
+
+  <div
+    style={{
+      fontSize: isMobile ? 24 : 28,
+      fontWeight: 800,
+      color: "#ff8a3d",
+      textShadow: "0 0 10px rgba(255,138,61,0.3)",
+      marginBottom: 8,
+    }}
+  >
+    🔥
+    {totalGameBurned.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}
+    {" "}🔥
+  </div>
+
+  <div
+    style={{
+      fontSize: 12,
+      color: "#aaa",
+      lineHeight: 1.5,
+      maxWidth: 240,
+    }}
+  >
+    1% of every settled game is burned
+  </div>
+</div>
+
 {/* ---------------- CREATE GAME SECTION ---------------- */}
 <div
   style={{
