@@ -2532,6 +2532,7 @@ return (
     justifyContent: "center",
     textAlign: "center",
     minWidth: isMobile ? "100%" : 260,
+    marginBottom: 12,
   }}
 >
   <div
