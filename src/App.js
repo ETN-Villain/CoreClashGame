@@ -2727,7 +2727,7 @@ return (
 {/* ---------------- NFT GALLERY ---------------- */}
 <div
   style={{
-    marginBottom: 40,
+    marginBottom: 12,
     background: "#0f0f0f",
     border: "1px solid #2a2a2a",
     borderRadius: 14,
