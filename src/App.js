@@ -2886,7 +2886,7 @@ return (
                 textOverflow: "ellipsis",
               }}
             >
-              #{slot.name}
+              {slot.metadata?.name}
             </div>
           </div>
         );
