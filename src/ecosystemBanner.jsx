@@ -6,6 +6,10 @@ export default function EcosystemBanner({
   alt,
   isMobile,
   objectFit = "contain",
+  desktopMaxWidth = 320,
+  desktopHeight = 78,
+  imageScale = 1,
+  imageTranslateY = 0,
 }) {
   return (
     <div
@@ -13,7 +17,7 @@ export default function EcosystemBanner({
       style={{
         textDecoration: "none",
         width: "100%",
-        maxWidth: isMobile ? "100%" : 280,
+        maxWidth: isMobile ? "100%" : desktopMaxWidth,
         gridColumn: isMobile ? "1 / span 2" : undefined,
         cursor: "pointer",
       }}
@@ -24,28 +28,43 @@ export default function EcosystemBanner({
           border: "1px solid #333",
           borderRadius: 12,
           width: "100%",
-          height: isMobile ? 60 : 74,
+          height: isMobile ? 60 : desktopHeight,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           boxShadow: "0 0 8px rgba(0,0,0,0.5)",
           transition: "all 0.2s ease",
           overflow: "hidden",
-          padding: isMobile ? 0 : 6,
+          padding: isMobile ? 0 : "6px 10px",
           boxSizing: "border-box",
         }}
       >
-        <img
-          src={imageSrc}
-          alt={alt}
+        <div
           style={{
             width: "100%",
             height: "100%",
-            objectFit,
-            borderRadius: 8,
-            display: "block",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
           }}
-        />
+        >
+          <img
+            src={imageSrc}
+            alt={alt}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit,
+              borderRadius: 8,
+              display: "block",
+              transform: isMobile
+                ? "none"
+                : `scale(${imageScale}) translateY(${imageTranslateY}px)`,
+              transformOrigin: "center center",
+            }}
+          />
+        </div>
       </div>
     </div>
   );

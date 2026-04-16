@@ -28,30 +28,42 @@ export default function EcosystemBlock({
       videoSrc: PlanetZephyrosAE,
       url: "https://planetetn.org/zephyros",
     },
-    {
-      type: "banner",
-      linkKey: "vkin",
-      alt: "Verdant Kin",
-      imageSrc: VerdantKinBanner,
-      objectFit: "contain",
-      url: "https://app.electroswap.io/nfts/collection/0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
-    },
-    {
-      type: "banner",
-      linkKey: "vqle",
-      alt: "Verdant Queen",
-      imageSrc: VerdantQueenBanner,
-      objectFit: "cover",
-      url: "https://panth.art/collections/0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0",
-    },
-    {
-      type: "banner",
-      linkKey: "scions",
-      alt: "Aether Scions",
-      imageSrc: AetherScionsBanner,
-      objectFit: "contain",
-      url: "https://app.electroswap.io/nfts/collection/0xAc620b1A3dE23F4EB0A69663613baBf73F6C535D",
-    },
+{
+  type: "banner",
+  linkKey: "vkin",
+  alt: "Verdant Kin",
+  imageSrc: VerdantKinBanner,
+  objectFit: "contain",
+  desktopMaxWidth: 320,
+  desktopHeight: 78,
+  imageScale: 1,
+  imageTranslateY: 0,
+  url: "https://app.electroswap.io/nfts/collection/0x3fc7665B1F6033FF901405CdDF31C2E04B8A2AB4",
+},
+{
+  type: "banner",
+  linkKey: "vqle",
+  alt: "Verdant Queen",
+  imageSrc: VerdantQueenBanner,
+  objectFit: "contain",
+  desktopMaxWidth: 320,
+  desktopHeight: 78,
+  imageScale: 0.94,
+  imageTranslateY: 0,
+  url: "https://panth.art/collections/0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0",
+},
+{
+  type: "banner",
+  linkKey: "scions",
+  alt: "Aether Scions",
+  imageSrc: AetherScionsBanner,
+  objectFit: "contain",
+  desktopMaxWidth: 320,
+  desktopHeight: 78,
+  imageScale: 0.92,
+  imageTranslateY: 0,
+  url: "https://app.electroswap.io/nfts/collection/0xAc620b1A3dE23F4EB0A69663613baBf73F6C535D",
+},
   ];
 
   return (
@@ -88,15 +100,19 @@ export default function EcosystemBlock({
 
     case "banner":
       return (
-        <EcosystemBanner
-          key={item.linkKey}
-          isMobile={isMobile}
-          imageSrc={item.imageSrc}
-          alt={item.alt}
-          objectFit={item.objectFit}
-          onClick={onClick}
-        />
-      );
+<EcosystemBanner
+  key={item.linkKey}
+  isMobile={isMobile}
+  imageSrc={item.imageSrc}
+  alt={item.alt}
+  objectFit={item.objectFit}
+  desktopMaxWidth={item.desktopMaxWidth}
+  desktopHeight={item.desktopHeight}
+  imageScale={item.imageScale}
+  imageTranslateY={item.imageTranslateY}
+  onClick={onClick}
+/>
+  );
 
     default:
       return null;
