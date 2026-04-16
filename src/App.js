@@ -2547,23 +2547,22 @@ return (
     Total CORE Burned from Core Clash
   </div>
 
-  <div
-    style={{
-      fontSize: isMobile ? 24 : 28,
-      fontWeight: 800,
-      color: "#ff8a3d",
-      textShadow: "0 0 10px rgba(255,138,61,0.3)",
-      marginBottom: 8,
-    }}
-  >
-    🔥
-    {totalGameBurned.toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}
-    {" "}🔥
-  </div>
-
+<div
+  style={{
+    fontSize: isMobile ? 24 : 28,
+    fontWeight: 800,
+    color: "#ff8a3d",
+    textShadow: "0 0 10px rgba(255,138,61,0.3)",
+    marginBottom: 8,
+  }}
+>
+  🔥
+  {totalGameBurned.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}
+  🔥
+</div>
   <div
     style={{
       fontSize: 12,
