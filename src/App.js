@@ -2803,35 +2803,97 @@ return (
     </div>
   </button>
 
-  {/* Selected NFT preview while collapsed */}
-  {!showNftGallery && selectedNftCount > 0 && (
-    <div
-      style={{
-        padding: "0 16px 14px 16px",
-        display: "flex",
-        gap: 8,
-        flexWrap: "wrap",
-      }}
-    >
-      {nfts
-        .filter((slot) => slot?.tokenId)
-        .map((slot, idx) => (
+{/* Selected NFT preview while collapsed */}
+{!showNftGallery && selectedNftCount > 0 && (
+  <div
+    style={{
+      padding: "0 16px 14px 16px",
+      display: "flex",
+      gap: 10,
+      flexWrap: "wrap",
+    }}
+  >
+    {nfts
+      .filter((slot) => slot?.tokenId)
+      .map((slot, idx) => {
+        const rawAddr = (slot.address || "")
+          .toString()
+          .trim()
+          .toLowerCase();
+
+        let collectionKey;
+        if (rawAddr === VKIN_CONTRACT_ADDRESS.toLowerCase()) {
+          collectionKey = "VKIN";
+        } else if (rawAddr === VQLE_CONTRACT_ADDRESS.toLowerCase()) {
+          collectionKey = "VQLE";
+        } else if (rawAddr === SCIONS_CONTRACT_ADDRESS.toLowerCase()) {
+          collectionKey = "SCIONS";
+        } else {
+          collectionKey = null;
+        }
+
+        const mapped =
+          slot.tokenId && collectionKey
+            ? mapping[collectionKey]?.[String(slot.tokenId)]
+            : null;
+
+        const imageFile = mapped
+          ? mapped.image_file ||
+            mapped.token_uri?.replace(/\.json$/i, ".png") ||
+            `${slot.tokenId}.png`
+          : `${slot.tokenId}.png`;
+
+        const imageSrc =
+          imageFile && collectionKey
+            ? `${BACKEND_URL}/images/${collectionKey}/${imageFile}`
+            : "/placeholder.png";
+
+        return (
           <div
             key={`${slot.address}-${slot.tokenId}-${idx}`}
             style={{
-              background: "#141414",
-              border: "1px solid #252525",
+              width: 64,
+              minWidth: 64,
+              background: "#111",
+              border: "1px solid #2a2a2a",
+              boxShadow: "0 0 6px rgba(24,187,26,0.25)",
               borderRadius: 10,
-              padding: "6px 10px",
-              fontSize: 12,
-              color: "#d5d5d5",
+              padding: 4,
+              textAlign: "center",
+              boxShadow: "0 0 6px rgba(0,0,0,0.25)",
+              justifyContent: selectedNftCount < 3 ? "center" : "flex-start",
             }}
           >
-            {slot.metadata?.name || "NFT"} #{slot.tokenId}
+            <img
+              src={imageSrc}
+              alt={`NFT #${slot.tokenId}`}
+              onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+              style={{
+                width: "100%",
+                height: 48,
+                objectFit: "cover",
+                borderRadius: 6,
+                display: "block",
+                marginBottom: 4,
+              }}
+            />
+
+            <div
+              style={{
+                fontSize: 10,
+                color: "#ccc",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              #{slot.tokenId}
+            </div>
           </div>
-        ))}
-    </div>
-  )}
+        );
+      })}
+  </div>
+)}
 
   {/* Expandable gallery body */}
   {showNftGallery && (
