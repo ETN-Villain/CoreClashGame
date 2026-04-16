@@ -2886,7 +2886,7 @@ return (
                 textOverflow: "ellipsis",
               }}
             >
-              #{slot.tokenId}
+              #{slot.name}
             </div>
           </div>
         );
