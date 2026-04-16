@@ -2702,7 +2702,26 @@ return (
           maxWidth: "100%",
         }}
       >
-        {ownedNFTs.map((nftOption) => {
+        {[...ownedNFTs]
+  .sort((a, b) => {
+    const aPriority =
+      backgroundPriority[a?.background] ?? 999;
+    const bPriority =
+      backgroundPriority[b?.background] ?? 999;
+
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority;
+    }
+
+    const aName = a?.name || "";
+    const bName = b?.name || "";
+    if (aName !== bName) {
+      return aName.localeCompare(bName);
+    }
+
+    return Number(a?.tokenId || 0) - Number(b?.tokenId || 0);
+  })
+  .map((nftOption) => {
           const selected = nfts[i]?.tokenId === nftOption.tokenId;
           const label = WHITELISTED_NFTS.find(
             (x) => x.address?.toLowerCase() === nftOption.nftAddress?.toLowerCase()
