@@ -3,15 +3,15 @@ import React, { useState } from "react";
 const XP_LEVELS = [
   { level: 0, minXp: 0 },
   { level: 1, minXp: 50 },
-  { level: 2, minXp: 200 },
-  { level: 3, minXp: 500 },
-  { level: 4, minXp: 1000 },
-  { level: 5, minXp: 1750 },
-  { level: 6, minXp: 2750 },
-  { level: 7, minXp: 4250 },
-  { level: 8, minXp: 6000 },
-  { level: 9, minXp: 8000 },
-  { level: 10, minXp: 12000 },
+  { level: 2, minXp: 100 },
+  { level: 3, minXp: 200 },
+  { level: 4, minXp: 400 },
+  { level: 5, minXp: 800 },
+  { level: 6, minXp: 1600 },
+  { level: 7, minXp: 3200 },
+  { level: 8, minXp: 6400 },
+  { level: 9, minXp: 12800 },
+  { level: 10, minXp: 25600 },
 ];
 
 const getLevelProgress = (xp, level) => {
@@ -298,10 +298,10 @@ if (xpLoading) {
             letterSpacing: 0.2,
           }}
         >
-          {xpProfile.nextLevelXp
-            ? `${xpProfile.xp} / ${xpProfile.nextLevelXp} XP to next level`
-            : "Maximum level reached"}
-        </div>
+        {xpProfile.nextLevelXp
+          ? `${xpProfile.nextLevelXp - xpProfile.xp} XP to next level`
+          : "Maximum level reached"}
+          </div>
       </div>
 
       {/* Perks */}
