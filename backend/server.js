@@ -366,9 +366,11 @@ function startScheduledJobs() {
 app.listen(PORT, () => {
   console.log(`🚀 Backend server running on port ${PORT}`);
   startScheduledJobs();
-});
 
-// Start the CORE burn listener
-startCoreBurnListener().catch((err) => {
-  console.error("Failed to start CORE burn listener:", err);
+  try {
+    startCoreBurnListener();
+    console.log("[SERVER] CORE burn listener started");
+  } catch (err) {
+    console.error("Failed to start CORE burn listener:", err);
+  }
 });
