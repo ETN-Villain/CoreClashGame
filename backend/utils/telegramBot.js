@@ -160,6 +160,7 @@ export async function sendZephyrosAnimationMessage({
 
 export async function sendZephyrosBurnMessage({
   symbol = "CORE",
+  burnAmount,
   totalBurned,
   burnPercent,
   txHash,
@@ -169,13 +170,14 @@ export async function sendZephyrosBurnMessage({
     ? `https://blockexplorer.electroneum.com/tx/${txHash}`
     : null;
 
-  const caption =
-    `🔥🔥 <b>${escapeHtml(symbol)} Burned!</b> 🔥🔥\n` +
-    `Total burned: <b>${escapeHtml(totalBurned)} ${escapeHtml(symbol)}</b> (${escapeHtml(burnPercent)}%)\n\n` +
-    (explorerUrl
-      ? `<a href="${escapeHtml(explorerUrl)}">View Transaction</a>`
-      : `Transaction unavailable`);
-
+const caption =
+  `🔥🔥 <b>${escapeHtml(symbol)} Burned!</b> 🔥🔥\n\n` +
+  `<b>${escapeHtml(burnAmount)} ${escapeHtml(symbol)}</b> is gone forever!\n\n` +
+  `Total Burned: <b>${escapeHtml(totalBurned)} ${escapeHtml(symbol)}</b> (${escapeHtml(burnPercent)}%)\n\n` +
+  (explorerUrl
+    ? `<a href="${escapeHtml(explorerUrl)}">View Transaction</a>`
+    : `Transaction unavailable`);
+    
   return sendZephyrosAnimationMessage({
     caption,
     animationUrl: "https://coreclashgame.onrender.com/public/core_burn.gif",
