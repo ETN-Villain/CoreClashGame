@@ -1,9 +1,10 @@
 // backend/utils/telegramBot.js
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const ZEPHYROS_TELEGRAM_BOT_TOKEN = process.env.ZEPHYROS_TELEGRAM_BOT_TOKEN;
 const TELEGRAM_GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
 
-// Optional: if you want messages to go into a specific forum topic/thread
+// Default topic for Core Clash bot messages
 const TELEGRAM_MESSAGE_THREAD_ID = process.env.TELEGRAM_MESSAGE_THREAD_ID
   ? Number(process.env.TELEGRAM_MESSAGE_THREAD_ID)
   : null;
@@ -12,8 +13,16 @@ const TELEGRAM_API_BASE = TELEGRAM_BOT_TOKEN
   ? `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`
   : null;
 
+const ZEPHYROS_TELEGRAM_API_BASE = ZEPHYROS_TELEGRAM_BOT_TOKEN
+  ? `https://api.telegram.org/bot${ZEPHYROS_TELEGRAM_BOT_TOKEN}`
+  : null;
+
 function isTelegramConfigured() {
   return !!TELEGRAM_BOT_TOKEN && !!TELEGRAM_GROUP_CHAT_ID;
+}
+
+function isZephyrosTelegramConfigured() {
+  return !!ZEPHYROS_TELEGRAM_BOT_TOKEN && !!TELEGRAM_GROUP_CHAT_ID;
 }
 
 function escapeHtml(value = "") {
@@ -49,28 +58,23 @@ function formatTokenAmount(amount, decimals = 18, maxFractionDigits = 4) {
   }
 }
 
-async function telegramRequest(method, payload = {}) {
-  if (!isTelegramConfigured()) {
-    throw new Error(
-      "Telegram bot not configured. Missing TELEGRAM_BOT_TOKEN or TELEGRAM_GROUP_CHAT_ID."
-    );
+async function telegramRequest(apiBase, method, payload) {
+  if (!apiBase) {
+    throw new Error("Telegram API base is not configured.");
   }
 
-  const res = await fetch(`${TELEGRAM_API_BASE}/${method}`, {
+  const res = await fetch(`${apiBase}/${method}`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
 
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok || !data.ok) {
-    const description =
-      data?.description ||
-      `Telegram API request failed with status ${res.status}`;
-    throw new Error(description);
+    throw new Error(
+      data?.description || `Telegram API request failed with status ${res.status}`
+    );
   }
 
   return data.result;
@@ -86,21 +90,19 @@ function buildFooter() {
 
 export async function sendTelegramGroupMessage(text, options = {}) {
   if (!isTelegramConfigured()) {
-    console.warn(
-      "Telegram bot not configured; skipping group message:",
-      text
-    );
+    console.warn("Telegram bot not configured; skipping group message:", text);
     return null;
   }
 
   const {
     skipDefaultThread = false,
+    includeFooter = true,
     ...restOptions
   } = options;
 
   const payload = {
     chat_id: TELEGRAM_GROUP_CHAT_ID,
-    text: text + buildFooter(),
+    text: includeFooter ? text + buildFooter() : text,
     parse_mode: "HTML",
     disable_web_page_preview: true,
     ...restOptions,
@@ -113,13 +115,72 @@ export async function sendTelegramGroupMessage(text, options = {}) {
   ) {
     payload.message_thread_id = TELEGRAM_MESSAGE_THREAD_ID;
   }
-  
+
   try {
-    return await telegramRequest("sendMessage", payload);
+    return await telegramRequest(TELEGRAM_API_BASE, "sendMessage", payload);
   } catch (err) {
     console.error("sendTelegramGroupMessage failed:", err.message);
     throw err;
   }
+}
+
+export async function sendZephyrosAnimationMessage({
+  caption,
+  animationUrl,
+  messageThreadId,
+}) {
+  if (!isZephyrosTelegramConfigured()) {
+    console.warn(
+      "Zephyros Telegram bot not configured; skipping animation message:",
+      caption
+    );
+    return null;
+  }
+
+  const payload = {
+    chat_id: TELEGRAM_GROUP_CHAT_ID,
+    animation: animationUrl,
+    caption,
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+    ...(messageThreadId != null ? { message_thread_id: messageThreadId } : {}),
+  };
+
+  try {
+    return await telegramRequest(
+      ZEPHYROS_TELEGRAM_API_BASE,
+      "sendAnimation",
+      payload
+    );
+  } catch (err) {
+    console.error("sendZephyrosAnimationMessage failed:", err.message);
+    throw err;
+  }
+}
+
+export async function sendZephyrosBurnMessage({
+  symbol = "CORE",
+  totalBurned,
+  burnPercent,
+  txHash,
+  messageThreadId,
+}) {
+  const explorerUrl = txHash
+    ? `https://blockexplorer.electroneum.com/tx/${txHash}`
+    : null;
+
+  const caption =
+    `🔥🔥 <b>${escapeHtml(symbol)} Burned!</b> 🔥🔥\n` +
+    `Total burned: <b>${escapeHtml(totalBurned)} ${escapeHtml(symbol)}</b> (${escapeHtml(burnPercent)}%)\n\n` +
+    (explorerUrl
+      ? `<a href="${escapeHtml(explorerUrl)}">View Transaction</a>`
+      : `Transaction unavailable`);
+
+  return sendZephyrosAnimationMessage({
+    caption,
+    animationUrl: "https://coreclashgame.onrender.com/public/core-burn.gif",
+    messageThreadId,
+  });
 }
 
 export async function sendTelegramGameCreated({
@@ -222,7 +283,7 @@ export async function getTelegramUpdates(offset) {
   }
 
   try {
-    return await telegramRequest("getUpdates", payload);
+    return await telegramRequest(TELEGRAM_API_BASE, "getUpdates", payload);
   } catch (err) {
     console.error("getTelegramUpdates failed:", err.message);
     return [];
@@ -231,6 +292,7 @@ export async function getTelegramUpdates(offset) {
 
 export {
   isTelegramConfigured,
+  isZephyrosTelegramConfigured,
   escapeHtml,
   shortWallet,
   formatTokenAmount,

@@ -52,6 +52,8 @@ app.use(express.json());
 // ---------------- STATIC ----------------
 app.use("/images", express.static(METADATA_IMAGES_DIR));
 
+app.use("/public", express.static(path.join(__dirname, "public")));
+
 app.get("/mapping.json", (req, res) => {
   res.sendFile(FRONTEND_MAPPING_FILE);
 });
