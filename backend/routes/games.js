@@ -61,9 +61,6 @@ router.get("/", (req, res) => {
   }
 });
 
-// convert stake from wei to human-readable format for Telegram messages
-const prettyStake = formatTokenAmount(stakeAmount.toString(), 18, 4);
-
 /* ------- TRACK BURNS -------- */
 router.get("/burn-total", (req, res) => {
   try {
@@ -102,6 +99,9 @@ router.post("/", async (req, res) => {
   console.log("🔥 CREATE GAME HIT", req.body);
 
   const { gameId, creator, stakeToken, stakeAmount } = req.body;
+
+  // convert stake from wei to human-readable format for Telegram messages
+  const prettyStake = formatTokenAmount(stakeAmount.toString(), 18, 4);
 
   if (!creator || !stakeToken || !stakeAmount) {
     return res.status(400).json({ error: "Invalid payload" });
