@@ -12,16 +12,6 @@ const POLL_INTERVAL_MS = 6000;
 const MAX_BLOCK_RANGE = 500;
 
 const INITIAL_SUPPLY = 1_000_000;
-const totalSupplyRaw = await token.totalSupply();
-const totalSupplyFormatted = Number(
-  ethers.formatUnits(totalSupplyRaw, decimals)
-);
-const totalBurnedRaw = INITIAL_SUPPLY - totalSupplyFormatted;
-const totalBurned = totalBurnedRaw.toLocaleString(undefined, {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-const burnPercent = ((totalBurned / INITIAL_SUPPLY) * 100).toFixed(2);
 
 const STATE_DIR = fs.existsSync("/backend/data")
   ? "/backend/data/state"
@@ -124,36 +114,47 @@ export function startCoreBurnListener() {
           ],
         });
 
-        for (const log of logs) {
-          try {
-            const from = ethers.getAddress(`0x${log.topics[1].slice(26)}`);
-            const value = BigInt(log.data);
-            const formatted = Number(ethers.formatUnits(value, decimals));
-            const prettyAmount = formatted.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-        });
+for (const log of logs) {
+  try {
+    const value = BigInt(log.data);
 
-try {
-await sendZephyrosBurnMessage({
-  symbol,
-  totalBurned: totalBurned.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }),
-  burnPercent,
-  txHash: log.transactionHash,
-});
-  console.log(
-    `[BurnListener] Telegram sent for ${prettyAmount} ${symbol} burn in tx ${log.transactionHash}`
-  );
-} catch (tgErr) {
-  console.error("[BurnListener] Telegram send failed:", tgErr.message || tgErr);
+    const formatted = Number(ethers.formatUnits(value, decimals));
+    const prettyAmount = formatted.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+    const totalSupplyRaw = await token.totalSupply();
+    const totalSupplyFormatted = Number(
+      ethers.formatUnits(totalSupplyRaw, decimals)
+    );
+
+    const totalBurnedRaw = INITIAL_SUPPLY - totalSupplyFormatted;
+    const totalBurned = totalBurnedRaw.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+    const burnPercent = ((totalBurnedRaw / INITIAL_SUPPLY) * 100).toFixed(2);
+
+    try {
+      await sendZephyrosBurnMessage({
+        symbol,
+        totalBurned,
+        burnPercent,
+        txHash: log.transactionHash,
+      });
+
+      console.log(
+        `[BurnListener] Telegram sent for ${prettyAmount} ${symbol} burn in tx ${log.transactionHash}`
+      );
+    } catch (tgErr) {
+      console.error("[BurnListener] Telegram send failed:", tgErr.message || tgErr);
+    }
+  } catch (logErr) {
+    console.error("[BurnListener] Failed to process burn log:", logErr);
+  }
 }
-          } catch (logErr) {
-            console.error("[BurnListener] Failed to process burn log:", logErr);
-          }
-        }
 
         lastBlock = toBlock;
         saveLastBurnBlock(lastBlock);
