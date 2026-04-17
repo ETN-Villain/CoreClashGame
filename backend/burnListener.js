@@ -8,11 +8,6 @@ import { loadLastBlockLocked, saveLastBlockLocked } from "./utils/blockState.js"
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
 
-const ERC20ABI = [
-  "function decimals() view returns (uint8)",
-  "function symbol() view returns (string)",
-];
-
 let running = false;
 
 function topicAddress(address) {
