@@ -131,10 +131,9 @@ export function startCoreBurnListener() {
               `Tx: <code>${shortHash(log.transactionHash)}</code>`;
 
             try {
-              await sendTelegramGroupMessage(text, {
-                message_thread_id: 1, // General topic
-              });
-
+            await sendTelegramGroupMessage(text, {
+                skipDefaultThread: true,
+        });
               console.log(
                 `[BurnListener] Telegram sent for ${prettyAmount} ${symbol} burn in tx ${log.transactionHash}`
               );
