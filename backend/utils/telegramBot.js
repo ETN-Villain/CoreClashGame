@@ -93,18 +93,27 @@ export async function sendTelegramGroupMessage(text, options = {}) {
     return null;
   }
 
+  const {
+    skipDefaultThread = false,
+    ...restOptions
+  } = options;
+
   const payload = {
     chat_id: TELEGRAM_GROUP_CHAT_ID,
     text: text + buildFooter(),
     parse_mode: "HTML",
     disable_web_page_preview: true,
-    ...options,
+    ...restOptions,
   };
 
-  if (TELEGRAM_MESSAGE_THREAD_ID && !payload.message_thread_id) {
+  if (
+    !skipDefaultThread &&
+    TELEGRAM_MESSAGE_THREAD_ID != null &&
+    !payload.message_thread_id
+  ) {
     payload.message_thread_id = TELEGRAM_MESSAGE_THREAD_ID;
   }
-
+  
   try {
     return await telegramRequest("sendMessage", payload);
   } catch (err) {
