@@ -1,15 +1,27 @@
 // backend/burnListener.js
 import { ethers } from "ethers";
-import { sendTelegramGroupMessage, formatTokenAmount } from "./utils/telegramBot.js";
 import { CORE_TOKEN_ADDRESS, RPC_URL } from "./config.js";
 import ERC20ABI from "../src/abis/ERC20ABI.json" with { type: "json" };
 import fs from "fs";
 import path from "path";
+import { sendZephyrosBurnMessage, formatTokenAmount } from "./utils/telegramBot.js";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
 const POLL_INTERVAL_MS = 6000;
 const MAX_BLOCK_RANGE = 500;
+
+const INITIAL_SUPPLY = 1_000_000;
+const totalSupplyRaw = await token.totalSupply();
+const totalSupplyFormatted = Number(
+  ethers.formatUnits(totalSupplyRaw, decimals)
+);
+const totalBurnedRaw = INITIAL_SUPPLY - totalSupplyFormatted;
+const totalBurned = totalBurnedRaw.toLocaleString(undefined, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const burnPercent = ((totalBurned / INITIAL_SUPPLY) * 100).toFixed(2);
 
 const STATE_DIR = fs.existsSync("/backend/data")
   ? "/backend/data/state"
@@ -53,11 +65,6 @@ function saveLastBurnBlock(block) {
 
 function topicAddress(address) {
   return ethers.zeroPadValue(address, 32).toLowerCase();
-}
-
-function shortHash(hash) {
-  if (!hash) return "Unknown";
-  return `${hash.slice(0, 10)}...${hash.slice(-8)}`;
 }
 
 let started = false;
@@ -121,25 +128,28 @@ export function startCoreBurnListener() {
           try {
             const from = ethers.getAddress(`0x${log.topics[1].slice(26)}`);
             const value = BigInt(log.data);
-            const prettyAmount = formatTokenAmount(value.toString(), decimals, 4);
-
-            const text =
-              `🔥 <b>${symbol} Burn Detected</b>\n` +
-              `Amount: <b>${prettyAmount} ${symbol}</b>\n` +
-              `From: <code>${from.slice(0, 6)}...${from.slice(-4)}</code>\n` +
-              `Block: <b>${log.blockNumber}</b>\n` +
-              `Tx: <code>${shortHash(log.transactionHash)}</code>`;
-
-            try {
-            await sendTelegramGroupMessage(text, {
-                skipDefaultThread: true,
+            const formatted = Number(ethers.formatUnits(value, decimals));
+            const prettyAmount = formatted.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
         });
-              console.log(
-                `[BurnListener] Telegram sent for ${prettyAmount} ${symbol} burn in tx ${log.transactionHash}`
-              );
-            } catch (tgErr) {
-              console.error("[BurnListener] Telegram send failed:", tgErr.message || tgErr);
-            }
+
+try {
+await sendZephyrosBurnMessage({
+  symbol,
+  totalBurned: totalBurned.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }),
+  burnPercent,
+  txHash: log.transactionHash,
+});
+  console.log(
+    `[BurnListener] Telegram sent for ${prettyAmount} ${symbol} burn in tx ${log.transactionHash}`
+  );
+} catch (tgErr) {
+  console.error("[BurnListener] Telegram send failed:", tgErr.message || tgErr);
+}
           } catch (logErr) {
             console.error("[BurnListener] Failed to process burn log:", logErr);
           }
