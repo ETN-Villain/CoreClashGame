@@ -178,7 +178,7 @@ export async function sendZephyrosBurnMessage({
 
   return sendZephyrosAnimationMessage({
     caption,
-    animationUrl: "https://coreclashgame.onrender.com/public/core-burn.gif",
+    animationUrl: "https://coreclashgame.onrender.com/public/core_burn.gif",
     messageThreadId,
   });
 }
