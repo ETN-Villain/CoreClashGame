@@ -24,5 +24,8 @@
   },
   "author": "",
   "license": "MIT",
-  "keywords": []
+  "keywords": [],
+  "devDependencies": {
+    "@types/express": "^5.0.6"
+  }
 }
