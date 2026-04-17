@@ -62,7 +62,7 @@ router.get("/", (req, res) => {
 });
 
 // convert stake from wei to human-readable format for Telegram messages
-const prettyStake = formatTokenAmount(stakeWei.toString(), 18, 4);
+const prettyStake = formatTokenAmount(stakeAmount.toString(), 18, 4);
 
 /* ------- TRACK BURNS -------- */
 router.get("/burn-total", (req, res) => {
