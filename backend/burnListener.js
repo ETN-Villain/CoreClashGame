@@ -3,26 +3,30 @@ import { ethers } from "ethers";
 import { sendTelegramGroupMessage, formatTokenAmount } from "./utils/telegramBot.js";
 import { CORE_TOKEN_ADDRESS, RPC_URL } from "./config.js"; // adjust path if needed
 import ERC20ABI from "../src/abis/ERC20ABI.json" with {type: "json"}; // reuse minimal ERC20 ABI for decimals/symbol
+import { loadLastBlockLocked, saveLastBlockLocked } from "./utils/blockState.js";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
 
-// Minimal ERC20 ABI just for decimals/symbol parsing if you want it
-const ERC20_MIN_ABI = [
+const ERC20ABI = [
   "function decimals() view returns (uint8)",
   "function symbol() view returns (string)",
 ];
 
-let lastProcessedBlock = null;
-let isRunning = false;
+let running = false;
 
 function topicAddress(address) {
   return ethers.zeroPadValue(address, 32).toLowerCase();
 }
 
+function shortHash(hash) {
+  if (!hash) return "Unknown";
+  return `${hash.slice(0, 10)}...${hash.slice(-8)}`;
+}
+
 export async function startCoreBurnListener() {
-  if (isRunning) return;
-  isRunning = true;
+  if (running) return;
+  running = true;
 
   const provider = new ethers.JsonRpcProvider(RPC_URL);
   const token = new ethers.Contract(CORE_TOKEN_ADDRESS, ERC20ABI, provider);
@@ -33,25 +37,22 @@ export async function startCoreBurnListener() {
   try {
     decimals = await token.decimals();
   } catch {}
+
   try {
     symbol = await token.symbol();
   } catch {}
 
-  try {
-    const currentBlock = await provider.getBlockNumber();
+  let lastProcessedBlock = await loadLastBlockLocked();
+  const currentBlock = await provider.getBlockNumber();
+
+  if (lastProcessedBlock == null) {
     lastProcessedBlock = currentBlock;
-    console.log(`[BurnListener] starting from block ${lastProcessedBlock}`);
-  } catch (err) {
-    console.error("[BurnListener] failed to get starting block:", err);
-    isRunning = false;
-    return;
+    await saveLastBlockLocked(lastProcessedBlock);
   }
 
-  provider.on("block", async (blockNumber) => {
-    if (lastProcessedBlock == null) {
-      lastProcessedBlock = blockNumber - 1;
-    }
+  console.log(`[BurnListener] Watching ${symbol} burns from block ${lastProcessedBlock}`);
 
+  provider.on("block", async (blockNumber) => {
     if (blockNumber <= lastProcessedBlock) return;
 
     const fromBlock = lastProcessedBlock + 1;
@@ -65,43 +66,42 @@ export async function startCoreBurnListener() {
         topics: [
           TRANSFER_TOPIC,
           null,
-          topicAddress(ZERO_ADDRESS), // indexed "to" == zero address
+          topicAddress(ZERO_ADDRESS),
         ],
       });
 
       for (const log of logs) {
         try {
           const from = ethers.getAddress(`0x${log.topics[1].slice(26)}`);
-          const burnedRaw = BigInt(log.data);
-          const burnedFormatted = formatTokenAmount(burnedRaw.toString(), decimals, 4);
+          const value = BigInt(log.data);
+          const prettyAmount = formatTokenAmount(value.toString(), decimals, 4);
 
-          const message =
+          const text =
             `🔥 <b>${symbol} Burn Detected</b>\n` +
-            `Amount: <b>${burnedFormatted} ${symbol}</b>\n` +
+            `Amount: <b>${prettyAmount} ${symbol}</b>\n` +
             `From: <code>${from.slice(0, 6)}...${from.slice(-4)}</code>\n` +
             `Block: <b>${log.blockNumber}</b>\n` +
-            `Tx: <code>${log.transactionHash.slice(0, 10)}...${log.transactionHash.slice(-8)}</code>`;
+            `Tx: <code>${shortHash(log.transactionHash)}</code>`;
 
-          await sendTelegramGroupMessage(message, {
-            message_thread_id: 1, // 👈 hardcode General topic
-        });
-          console.log(
-            `[BurnListener] burn sent to Telegram: ${burnedFormatted} ${symbol} in tx ${log.transactionHash}`
-          );
-        } catch (innerErr) {
-          console.error("[BurnListener] failed to process burn log:", innerErr);
+          try {
+            await sendTelegramGroupMessage(text, {
+              message_thread_id: 1, // hardcoded General topic
+            });
+            console.log(
+              `[BurnListener] Telegram sent for ${prettyAmount} ${symbol} burn in tx ${log.transactionHash}`
+            );
+          } catch (tgErr) {
+            console.error("[BurnListener] Telegram send failed:", tgErr.message || tgErr);
+          }
+        } catch (logErr) {
+          console.error("[BurnListener] Failed to process burn log:", logErr);
         }
       }
 
       lastProcessedBlock = toBlock;
+      await saveLastBlockLocked(lastProcessedBlock);
     } catch (err) {
       console.error("[BurnListener] getLogs failed:", err);
     }
   });
-
-  provider._websocket?.on?.("error", (err) => {
-    console.error("[BurnListener] websocket error:", err);
-  });
-
-  console.log("[BurnListener] live");
 }
