@@ -10,18 +10,13 @@ const router = express.Router();
 router.get("/test-telegram", async (req, res) => {
   try {
     const result = await sendTelegramTestMessage();
-
-    if (!result) {
-      return res.status(500).json({
-        success: false,
-        error: "Telegram send failed. Check /admin/telegram-updates and Render logs.",
-      });
-    }
-
     res.json({ success: true, result });
   } catch (err) {
     console.error("Telegram test failed:", err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({
+      success: false,
+      error: err.message || "Telegram test failed",
+    });
   }
 });
 
