@@ -13,8 +13,14 @@ const MAX_BLOCK_RANGE = 500;
 
 const INITIAL_SUPPLY = 1_000_000;
 const totalSupplyRaw = await token.totalSupply();
-const totalSupply = Number(ethers.formatUnits(totalSupplyRaw, decimals));
-const totalBurned = INITIAL_SUPPLY - totalSupply;
+const totalSupplyFormatted = Number(
+  ethers.formatUnits(totalSupplyRaw, decimals)
+);
+const totalBurnedRaw = INITIAL_SUPPLY - totalSupplyFormatted;
+const totalBurned = totalBurnedRaw.toLocaleString(undefined, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 const burnPercent = ((totalBurned / INITIAL_SUPPLY) * 100).toFixed(2);
 
 const STATE_DIR = fs.existsSync("/backend/data")
@@ -122,7 +128,11 @@ export function startCoreBurnListener() {
           try {
             const from = ethers.getAddress(`0x${log.topics[1].slice(26)}`);
             const value = BigInt(log.data);
-            const prettyAmount = formatTokenAmount(value.toString(), decimals, 4);
+            const formatted = Number(ethers.formatUnits(value, decimals));
+            const prettyAmount = formatted.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+        });
 
 try {
 await sendZephyrosBurnMessage({
