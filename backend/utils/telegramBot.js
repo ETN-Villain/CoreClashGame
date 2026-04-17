@@ -101,7 +101,7 @@ export async function sendTelegramGroupMessage(text, options = {}) {
     return await telegramRequest("sendMessage", payload);
   } catch (err) {
     console.error("sendTelegramGroupMessage failed:", err.message);
-    return null;
+    throw err;
   }
 }
 
