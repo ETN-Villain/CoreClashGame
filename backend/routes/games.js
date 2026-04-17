@@ -24,7 +24,7 @@ import { readBurnTotal } from "../store/burnStore.js";
 import { rebuildWeeklyLeaderboardForDate } from "../utils/weeklyLeaderboard.js";
 import { awardXp, adjustXp, XP_REWARDS } from "../utils/playerXp.js";
 import { sendTelegramGameCreated, sendTelegramGameJoined, sendTelegramReveal, sendTelegramBothRevealed,
-         sendTelegramGameSettled, sendTelegramGameCancelled } from "../utils/telegramBot.js";
+         sendTelegramGameSettled, sendTelegramGameCancelled, formatTokenAmount } from "../utils/telegramBot.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
