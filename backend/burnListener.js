@@ -59,7 +59,7 @@ export async function startCoreBurnListener() {
 
     try {
       const logs = await provider.getLogs({
-        address: CORE_TOKEN,
+        address: CORE_TOKEN_ADDRESS,
         fromBlock,
         toBlock,
         topics: [
