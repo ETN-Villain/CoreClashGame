@@ -4,7 +4,7 @@ import { sendTelegramTestMessage } from "../utils/telegramBot.js";
 
 const router = express.Router();
 
-router.post("/test-telegram", async (req, res) => {
+router.get("/test-telegram", async (req, res) => {
   try {
     const result = await sendTelegramTestMessage();
     res.json({ success: true, result });
