@@ -20,6 +20,7 @@ import { reconcileActiveGamesScheduled } from "./reconcile.js";
 import "./eventListener.js";
 import xpRouter from "./routes/xp.js";
 import testTelegramRoutes from "./routes/testTelegram.js";
+import { startCoreBurnListener } from "./burnListener.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -365,4 +366,9 @@ function startScheduledJobs() {
 app.listen(PORT, () => {
   console.log(`🚀 Backend server running on port ${PORT}`);
   startScheduledJobs();
+});
+
+// Start the CORE burn listener
+startCoreBurnListener().catch((err) => {
+  console.error("Failed to start CORE burn listener:", err);
 });
