@@ -140,6 +140,7 @@ for (const log of logs) {
     try {
       await sendZephyrosBurnMessage({
         symbol,
+        burnAmount: prettyAmount,
         totalBurned,
         burnPercent,
         txHash: log.transactionHash,
