@@ -2,7 +2,7 @@
 import { ethers } from "ethers";
 import { sendTelegramGroupMessage, formatTokenAmount } from "./utils/telegramBot.js";
 import { CORE_TOKEN_ADDRESS, RPC_URL } from "./config.js"; // adjust path if needed
-import { ERC20ABI } from "../src/abis/ERC20ABI.json"; // reuse minimal ERC20 ABI for decimals/symbol
+import ERC20ABI from "../src/abis/ERC20ABI.json" with {type: "json"}; // reuse minimal ERC20 ABI for decimals/symbol
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
