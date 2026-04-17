@@ -76,6 +76,14 @@ async function telegramRequest(method, payload = {}) {
   return data.result;
 }
 
+function buildFooter() {
+  return (
+    `\n\n━━━━━━━━━━━━━━\n` +
+    `🎮 <a href="https://coreclashgame.planetzephyros.xyz">Play Core Clash</a>\n` +
+    `🌍 <a href="https://planetetn.org/zephyros">Explore PlanetETN</a>`
+  );
+}
+
 export async function sendTelegramGroupMessage(text, options = {}) {
   if (!isTelegramConfigured()) {
     console.warn(
@@ -87,7 +95,7 @@ export async function sendTelegramGroupMessage(text, options = {}) {
 
   const payload = {
     chat_id: TELEGRAM_GROUP_CHAT_ID,
-    text,
+    text: text + buildFooter(),
     parse_mode: "HTML",
     disable_web_page_preview: true,
     ...options,
