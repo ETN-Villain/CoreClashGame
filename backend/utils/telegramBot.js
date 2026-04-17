@@ -191,35 +191,6 @@ export async function sendTelegramGameCancelled({
   return sendTelegramGroupMessage(text);
 }
 
-export async function sendTelegramTestMessage() {
-  return sendTelegramGroupMessage(
-    `✅ <b>Core Clash bot test</b>\nTelegram notifications are working.`
-  );
-}
-
-export async function getTelegramUpdates(offset) {
-  if (!isTelegramConfigured()) {
-    throw new Error(
-      "Telegram bot not configured. Missing TELEGRAM_BOT_TOKEN or TELEGRAM_GROUP_CHAT_ID."
-    );
-  }
-
-  const payload = {
-    timeout: 10,
-  };
-
-  if (offset !== undefined) {
-    payload.offset = offset;
-  }
-
-  try {
-    return await telegramRequest("getUpdates", payload);
-  } catch (err) {
-    console.error("getTelegramUpdates failed:", err.message);
-    return [];
-  }
-}
-
 export {
   isTelegramConfigured,
   escapeHtml,
