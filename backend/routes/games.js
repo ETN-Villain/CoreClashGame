@@ -101,7 +101,7 @@ router.post("/", async (req, res) => {
   const { gameId, creator, stakeToken, stakeAmount } = req.body;
 
   // convert stake from wei to human-readable format for Telegram messages
-  const prettyStake = formatTokenAmount(stakeAmount.toString(), 18, 4);
+  const prettyStake = formatTokenAmount(stakeAmount, 18, 4);
 
   if (!creator || !stakeToken || !stakeAmount) {
     return res.status(400).json({ error: "Invalid payload" });
@@ -166,14 +166,18 @@ router.post("/", async (req, res) => {
       }
     }
 
-    broadcast("GameCreated", createdGamesSnapshot);
+broadcast("GameCreated", createdGamesSnapshot);
 
-    await sendTelegramGameCreated({
-      gameId,
-      creator: account,
-      stakeAmount: prettyStake,
-      tokenLabel: "CORE",
-});
+try {
+  await sendTelegramGameCreated({
+    gameId,
+    creator,
+    stakeAmount: prettyStake,
+    tokenLabel: "CORE",
+  });
+} catch (tgErr) {
+  console.error("Telegram GameCreated notification failed:", tgErr.message || tgErr);
+}
 
     // Populate ownership cache for creator (Player 1)
     const cache = readOwnerCache();
@@ -289,13 +293,17 @@ router.post("/:id/join", async (req, res) => {
       }
     }
 
-    broadcast("GameJoined", gamesSnapshot);
+broadcast("GameJoined", gamesSnapshot);
 
-    await sendTelegramGameJoined({
-      gameId: numericGameId,
-      player1: game.player1,
-      player2: gameOnChain.player2,
-    });
+try {
+  await sendTelegramGameJoined({
+    gameId: numericGameId,
+    player1: game.player1,
+    player2: gameOnChain.player2,
+  });
+} catch (tgErr) {
+  console.error("Telegram GameJoined notification failed:", tgErr.message || tgErr);
+}
 
     return res.json({ success: true });
   } catch (err) {
@@ -471,14 +479,26 @@ router.post("/:id/reveal", authWallet, async (req, res) => {
       }
     }
 
-    broadcast("GameRevealed", gamesSnapshot);
+broadcast("GameRevealed", gamesSnapshot);
 
-    await sendTelegramReveal({
-      gameId,
-      revealedBy: account.toLowerCase(),
-      player1Revealed: game.player1Revealed,
-      player2Revealed: game.player2Revealed,
-    });
+try {
+  await sendTelegramReveal({
+    gameId,
+    revealedBy: account.toLowerCase(),
+    player1Revealed: game.player1Revealed,
+    player2Revealed: game.player2Revealed,
+  });
+} catch (tgErr) {
+  console.error("Telegram GameRevealed notification failed:", tgErr.message || tgErr);
+}
+
+if (game.player1Revealed && game.player2Revealed) {
+  try {
+    await sendTelegramBothRevealed({ gameId });
+  } catch (tgErr) {
+    console.error("Telegram BothRevealed notification failed:", tgErr.message || tgErr);
+  }
+}
 
     if (game.player1Revealed && game.player2Revealed) {
       await sendTelegramBothRevealed({ gameId });
@@ -1040,13 +1060,17 @@ router.post("/:id/settle-game", async (req, res) => {
       }
     }
 
-    await rebuildWeeklyLeaderboardForDate(finalSettledAt);
+await rebuildWeeklyLeaderboardForDate(finalSettledAt);
 
-    await sendTelegramGameSettled({
-      gameId,
-      winner: game.winner,
-      tie: game.tie,
-    });
+try {
+  await sendTelegramGameSettled({
+    gameId,
+    winner: game.winner,
+    tie: game.tie,
+  });
+} catch (tgErr) {
+  console.error("Telegram GameSettled notification failed:", tgErr.message || tgErr);
+}
 
     return res.json({ success: true, gameId, txHash: txSettle.hash });
   } catch (err) {
@@ -1217,12 +1241,16 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
       }
     }
 
-    broadcast("GameCancelled", gamesSnapshot);
+broadcast("GameCancelled", gamesSnapshot);
 
-    await sendTelegramGameCancelled({
-      gameId,
-      cancelledBy: req.wallet,
-    });
+try {
+  await sendTelegramGameCancelled({
+    gameId,
+    cancelledBy: req.wallet?.toLowerCase(),
+  });
+} catch (tgErr) {
+  console.error("Telegram GameCancelled notification failed:", tgErr.message || tgErr);
+}
 
     return res.json({
       success: true,
