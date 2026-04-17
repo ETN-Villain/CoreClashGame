@@ -79,7 +79,7 @@ async function telegramRequest(method, payload = {}) {
 function buildFooter() {
   return (
     `\n\n━━━━━━━━━━━━━━\n` +
-    `🎮 <a href="https://coreclash.planetzephyros.xyz">Play Core Clash</a>\n` +
+    `🎮 <a href="https://coreclashgame.planetzephyros.xyz">Play Core Clash</a>\n` +
     `🌍 <a href="https://planetetn.org/zephyros">Explore PlanetETN</a>`
   );
 }
