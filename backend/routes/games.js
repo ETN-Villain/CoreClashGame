@@ -23,6 +23,8 @@ import SCIONS_ABI from "../../src/abis/SCIONSABI.json" with { type: "json" };
 import { readBurnTotal } from "../store/burnStore.js";
 import { rebuildWeeklyLeaderboardForDate } from "../utils/weeklyLeaderboard.js";
 import { awardXp, adjustXp, XP_REWARDS } from "../utils/playerXp.js";
+import { sendTelegramGameCreated, sendTelegramGameJoined, sendTelegramReveal, sendTelegramBothRevealed,
+         sendTelegramGameSettled, sendTelegramGameCancelled } from "../utils/telegramBot.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -58,6 +60,9 @@ router.get("/", (req, res) => {
     res.status(500).json({ error: "Failed to load games" });
   }
 });
+
+// convert stake from wei to human-readable format for Telegram messages
+const prettyStake = formatTokenAmount(stakeWei.toString(), 18, 4);
 
 /* ------- TRACK BURNS -------- */
 router.get("/burn-total", (req, res) => {
@@ -162,6 +167,13 @@ router.post("/", async (req, res) => {
     }
 
     broadcast("GameCreated", createdGamesSnapshot);
+
+    await sendTelegramGameCreated({
+      gameId,
+      creator: account,
+      stakeAmount: prettyStake,
+      tokenLabel: "CORE",
+});
 
     // Populate ownership cache for creator (Player 1)
     const cache = readOwnerCache();
@@ -278,6 +290,12 @@ router.post("/:id/join", async (req, res) => {
     }
 
     broadcast("GameJoined", gamesSnapshot);
+
+    await sendTelegramGameJoined({
+      gameId: numericGameId,
+      player1: game.player1,
+      player2: gameOnChain.player2,
+    });
 
     return res.json({ success: true });
   } catch (err) {
@@ -454,6 +472,17 @@ router.post("/:id/reveal", authWallet, async (req, res) => {
     }
 
     broadcast("GameRevealed", gamesSnapshot);
+
+    await sendTelegramReveal({
+      gameId,
+      revealedBy: account.toLowerCase(),
+      player1Revealed: game.player1Revealed,
+      player2Revealed: game.player2Revealed,
+    });
+
+    if (game.player1Revealed && game.player2Revealed) {
+      await sendTelegramBothRevealed({ gameId });
+    }
 
     // ---- Auto-resolve in background ----
     if (bothRevealed) {
@@ -1013,6 +1042,12 @@ router.post("/:id/settle-game", async (req, res) => {
 
     await rebuildWeeklyLeaderboardForDate(finalSettledAt);
 
+    await sendTelegramGameSettled({
+      gameId,
+      winner: game.winner,
+      tie: game.tie,
+    });
+
     return res.json({ success: true, gameId, txHash: txSettle.hash });
   } catch (err) {
     console.error("manual settle-game error:", err);
@@ -1183,6 +1218,11 @@ router.post("/:id/cancel-unjoined", async (req, res) => {
     }
 
     broadcast("GameCancelled", gamesSnapshot);
+
+    await sendTelegramGameCancelled({
+      gameId,
+      cancelledBy: req.wallet,
+    });
 
     return res.json({
       success: true,

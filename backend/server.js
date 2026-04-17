@@ -6,29 +6,20 @@ import { fileURLToPath } from "url";
 import cron from "node-cron";
 import { generateMapping } from "./utils/generateMapping.js";
 import { checkFrontendMapping } from "../src/checkFrontendMapping.js";
-
 import { initAdminWallet } from "./admin.js";
-import {
-  loadMapping,
-  METADATA_JSON_DIR,
-  METADATA_IMAGES_DIR,
-  ensureDataPaths,
-  FRONTEND_MAPPING_FILE,
-  WEEKLY_LEADERBOARD_FILE,
-} from "./paths.js";
+import { loadMapping, METADATA_JSON_DIR, METADATA_IMAGES_DIR, ensureDataPaths, FRONTEND_MAPPING_FILE,
+         WEEKLY_LEADERBOARD_FILE, } from "./paths.js";
 import { readGames } from "./store/gamesStore.js";
 import { readBurnTotal } from "./store/burnStore.js";
-
 import gamesRouter from "./routes/games.js";
 import sseRouter from "./routes/sse.js";
 import nftsRouter from "./routes/nfts.js";
 import leaderboardRouter from "./routes/leaderboard.js";
 import { backfillWeeklyLeaderboardsFromGames } from "./store/weeklyLeaderboardStore.js";
-
 import { reconcileActiveGamesScheduled } from "./reconcile.js";
 import "./eventListener.js";
-
 import xpRouter from "./routes/xp.js";
+import testTelegramRoutes from "./routes/testTelegram.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,6 +61,7 @@ app.use("/leaderboard", leaderboardRouter);
 app.use("/events", sseRouter);
 app.use("/nfts", nftsRouter);
 app.use("/xp", xpRouter);
+app.use("/admin", testTelegramRoutes);
 
 // ---------------- METADATA ----------------
 app.get("/metadata/:collection/:tokenId", (req, res) => {
