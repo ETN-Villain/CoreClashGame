@@ -364,8 +364,11 @@ await axios.post(url, {
   message_thread_id: CLUB_TELEGRAM_MESSAGE_THREAD_ID,
 });
   } catch (err) {
-    console.error("[Telegram] sendSwapMessage error:", err.message || err);
-  }
+console.error(
+  "[Telegram] sendSwapMessage error:",
+  JSON.stringify(err.response?.data, null, 2) || err.message
+);  
+}
 }
 
 export {
