@@ -15,4 +15,4 @@ export const VQLE_CONTRACT_ADDRESS = "0x8cFBB04c54d35e2e8471Ad9040D40D73C08136f0
 export const SCIONS_CONTRACT_ADDRESS = "0xAc620b1A3dE23F4EB0A69663613baBf73F6C535D";
 export const CORE_TOKEN_ADDRESS = process.env.CORE_TOKEN_ADDRESS;
 export const WETN_TOKEN_ADDRESS = process.env.WETN_TOKEN_ADDRESS;
-export const EXPLORER_BASE_URL = "https://blockexplorer.electroneum.com/";
+export const EXPLORER_BASE_URL = "https://blockexplorer.electroneum.com";
