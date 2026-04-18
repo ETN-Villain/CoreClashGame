@@ -303,9 +303,6 @@ export async function getTelegramUpdates(offset) {
   }
 }
 
-// Send Swap Message with optional USD value
-const EXPLORER_BASE_URL = "https://blockexplorer.electroneum.com";
-
 function formatUsd(value) {
   if (value == null || !Number.isFinite(value)) return null;
 
