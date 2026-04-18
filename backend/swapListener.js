@@ -6,7 +6,7 @@ import { loadLastBlockLocked, saveLastBlockLocked } from "./utils/blockState.js"
 import { sendSwapMessage } from "./utils/telegramBot.js";
 import { buildPriceEngine } from "./utils/priceEngine.js";
 
-const POLL_INTERVAL_MS = 6000;
+const POLL_INTERVAL_MS = 60000;
 const MAX_BLOCK_RANGE = 500;
 const REORG_BUFFER_BLOCKS = 2;
 
