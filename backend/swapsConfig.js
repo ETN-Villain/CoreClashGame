@@ -10,7 +10,7 @@ export const TRACKED_TOKENS = [
     pools: [
       {
         address: "0x86566c3c78424e3c3c2aDb274FAB551B7262E0ca",
-        dex: "UNIV2", // confirm
+        dex: "ELECTROV3", // confirm
       },
       {
         address: "0x2132e7c909C4c3338Eda5F0e165A3A43AaDC3FBe",
