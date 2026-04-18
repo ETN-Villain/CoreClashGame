@@ -365,19 +365,12 @@ function startScheduledJobs() {
     }
   });
 }
-
-// Replace your existing app.listen block with this:
-app.listen(PORT, () => {
-  console.log(`🚀 Backend server running on port ${PORT}`);
-  startScheduledJobs();
-
   try {
     startCoreBurnListener();
     console.log("[SERVER] CORE burn listener started");
   } catch (err) {
     console.error("Failed to start CORE burn listener:", err);
   }
-});
 
 // ---------------- START SWAP LISTENER ----------------
 async function bootstrap() {
@@ -391,6 +384,8 @@ async function bootstrap() {
 
 bootstrap();
 
+// Replace your existing app.listen block with this:
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+  console.log(`🚀 Backend server running on port ${PORT}`);
+  startScheduledJobs();
+  });
