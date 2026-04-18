@@ -244,7 +244,7 @@ try {
 }
 
 let lastPriceRefreshMs = 0;
-const PRICE_REFRESH_MS = 60_000;
+const PRICE_REFRESH_MS = 300000; // 5 minutes
 
   let runtime;
 try {
