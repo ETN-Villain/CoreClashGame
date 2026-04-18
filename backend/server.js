@@ -390,7 +390,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
