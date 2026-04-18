@@ -98,21 +98,15 @@ async function buildRuntimePoolMap(provider) {
         continue;
       }
 
-      if (trackedTokenAddress !== token0 && trackedTokenAddress !== token1) {
-        console.warn(
-          `[SwapListener] Token ${trackedFallbackSymbol} (${trackedTokenAddress}) is not in pool ${poolAddress}. token0=${token0}, token1=${token1}`
-        );
-        continue;
-      }
+if (trackedTokenAddress !== token0 && trackedTokenAddress !== token1) {
+  console.warn(
+    `[SwapListener] Token ${trackedFallbackSymbol} (${trackedTokenAddress}) is not in pool ${poolAddress}. token0=${token0}, token1=${token1}`
+  );
+  continue;
+}
 
-      const swap = decodeSwap(parsed, poolMeta, trackedMeta);
-        if (!swap || swap.baseAmountRaw <= 0n) continue;
-
-    // Skip sells entirely
-        if (swap.side !== "BUY") continue;
-
-      const baseTokenAddress = trackedTokenAddress;
-      const quoteTokenAddress = baseTokenAddress === token0 ? token1 : token0;
+const baseTokenAddress = trackedTokenAddress;
+const quoteTokenAddress = baseTokenAddress === token0 ? token1 : token0;
 
       const baseTokenContract = new ethers.Contract(baseTokenAddress, ERC20_MIN_ABI, provider);
       const quoteTokenContract = new ethers.Contract(quoteTokenAddress, ERC20_MIN_ABI, provider);
@@ -253,13 +247,12 @@ let lastPriceRefreshMs = 0;
 const PRICE_REFRESH_MS = 60_000;
 
   let runtime;
-  try {
-    runtime = await buildRuntimePoolMap(provider);
-  } catch (err) {
-    console.error("[SwapListener] Failed during startup:", err);
-    return;
-  }
-
+try {
+  runtime = await buildRuntimePoolMap(provider);
+} catch (err) {
+  console.error("[SwapListener] Failed during startup:", err);
+  throw err;
+}
   const { poolMap, watchedPoolAddresses } = runtime;
 
   if (!watchedPoolAddresses.length) {
@@ -352,39 +345,39 @@ const PRICE_REFRESH_MS = 60_000;
               continue;
             }
 
-            for (const trackedMeta of poolMeta.trackedTokens) {
-              try {
-                const swap = decodeSwap(parsed, poolMeta, trackedMeta);
-                if (!swap || swap.baseAmountRaw <= 0n) continue;
-                
-                const usdValue = estimateSwapUsdValue(priceEngine, trackedMeta, swap);
+for (const trackedMeta of poolMeta.trackedTokens) {
+  try {
+    const swap = decodeSwap(parsed, poolMeta, trackedMeta);
+    if (!swap || swap.baseAmountRaw <= 0n) continue;
+    if (swap.side !== "BUY") continue;
 
-                if (usdValue != null && usdValue < 20) {
-                continue;
-                }
+    const usdValue = estimateSwapUsdValue(priceEngine, trackedMeta, swap);
 
-                const baseAmount = formatUnitsSafe(swap.baseAmountRaw, trackedMeta.decimals);
-                const quoteAmount = formatUnitsSafe(swap.quoteAmountRaw, trackedMeta.quoteDecimals);
+    if (usdValue != null && usdValue < 20) {
+      continue;
+    }
 
-                await sendSwapMessage({
-                  symbol: trackedMeta.symbol,
-                  side: swap.side,
-                  baseAmount,
-                  quoteAmount,
-                  quoteSymbol: trackedMeta.quoteSymbol,
-                  trader: swap.trader,
-                  txHash: log.transactionHash,
-                  dex: poolMeta.dex,
-                  poolAddress: shortAddr(poolMeta.poolAddress),
-                });
+    const baseAmount = formatUnitsSafe(swap.baseAmountRaw, trackedMeta.decimals);
+    const quoteAmount = formatUnitsSafe(swap.quoteAmountRaw, trackedMeta.quoteDecimals);
 
-                console.log(
-                  `[SwapListener] ${trackedMeta.symbol} ${swap.side} ${baseAmount} in tx ${log.transactionHash}`
-                );
-              } catch (err) {
-                console.error("[SwapListener] Failed processing tracked token swap:", err);
-              }
-            }
+    await sendSwapMessage({
+      symbol: trackedMeta.symbol,
+      side: swap.side,
+      baseAmount,
+      quoteAmount,
+      quoteSymbol: trackedMeta.quoteSymbol,
+      trader: swap.trader,
+      txHash: log.transactionHash,
+      usdValue,
+    });
+
+    console.log(
+      `[SwapListener] ${trackedMeta.symbol} ${swap.side} ${baseAmount} in tx ${log.transactionHash}`
+    );
+  } catch (err) {
+    console.error("[SwapListener] Failed processing tracked token swap:", err);
+  }
+}
           }
         }
 
