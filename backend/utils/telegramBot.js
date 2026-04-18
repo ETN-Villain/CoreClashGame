@@ -1,4 +1,14 @@
 // backend/utils/telegramBot.js
+import axios from "axios";
+import {
+  EXPLORER_BASE_URL,
+} from "../config.js";
+
+import {
+  CLUB_TELEGRAM_BOT_TOKEN,
+  CLUB_TELEGRAM_CHAT_ID,
+  CLUB_TELEGRAM_MESSAGE_THREAD_ID,
+} from "../swapsConfig.js";
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ZEPHYROS_TELEGRAM_BOT_TOKEN = process.env.ZEPHYROS_TELEGRAM_BOT_TOKEN;
@@ -290,6 +300,81 @@ export async function getTelegramUpdates(offset) {
   } catch (err) {
     console.error("getTelegramUpdates failed:", err.message);
     return [];
+  }
+}
+
+// Send Swap Message with optional USD value
+const EXPLORER_BASE_URL = "https://blockexplorer.electroneum.com";
+
+function formatUsd(value) {
+  if (value == null || !Number.isFinite(value)) return null;
+
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function escapeHtml(str = "") {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function shortAddr(address) {
+  if (!address) return "Unknown";
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+export async function sendSwapMessage({
+  symbol,
+  side,
+  baseAmount,
+  quoteAmount,
+  quoteSymbol,
+  trader,
+  txHash,
+  usdValue,
+}) {
+  try {
+    // Buy-only safety guard
+    if (side !== "BUY") return;
+
+    const txUrl = `${EXPLORER_BASE_URL}/tx/${txHash}`;
+    const traderUrl = `${EXPLORER_BASE_URL}/address/${trader}`;
+
+    const usdLine =
+      usdValue != null
+        ? `💵 $${formatUsd(usdValue)}\n`
+        : "";
+
+    const text = [
+      `🟢 <b>${escapeHtml(symbol)} BUY</b>`,
+      ``,
+      usdLine.trimEnd(),
+      `<b>Amount:</b> ${escapeHtml(baseAmount)} ${escapeHtml(symbol)}`,
+      `<b>Paid:</b> ${escapeHtml(quoteAmount)} ${escapeHtml(quoteSymbol)}`,
+      `<b>Trader:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
+      ``,
+      `<a href="${txUrl}">View Transaction</a>`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const url = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendMessage`;
+
+await axios.post(url, {
+  chat_id: CLUB_TELEGRAM_CHAT_ID,
+  text,
+  parse_mode: "HTML",
+  disable_web_page_preview: true,
+  message_thread_id: CLUB_TELEGRAM_MESSAGE_THREAD_ID,
+});
+  } catch (err) {
+    console.error("[Telegram] sendSwapMessage error:", err.message || err);
   }
 }
 

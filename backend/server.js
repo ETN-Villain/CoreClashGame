@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import cron from "node-cron";
+import "dotenv/config";
 import { generateMapping } from "./utils/generateMapping.js";
 import { checkFrontendMapping } from "../src/checkFrontendMapping.js";
 import { initAdminWallet } from "./admin.js";
@@ -21,6 +22,7 @@ import "./eventListener.js";
 import xpRouter from "./routes/xp.js";
 import testTelegramRoutes from "./routes/testTelegram.js";
 import { startCoreBurnListener } from "./burnListener.js";
+import { startSwapListener } from "./swapListener.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -375,4 +377,20 @@ app.listen(PORT, () => {
   } catch (err) {
     console.error("Failed to start CORE burn listener:", err);
   }
+});
+
+// ---------------- START SWAP LISTENER ----------------
+async function bootstrap() {
+  try {
+    await startSwapListener();
+    console.log("Swap listener started");
+  } catch (err) {
+    console.error("Failed to start swap listener:", err);
+  }
+}
+
+bootstrap();
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
