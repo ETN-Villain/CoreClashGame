@@ -168,6 +168,13 @@ router.post("/", async (req, res) => {
 
 broadcast("GameCreated", createdGamesSnapshot);
 
+console.log("[TG] create about to send", {
+  gameId,
+  creator,
+  prettyStake,
+  threadId: process.env.TELEGRAM_MESSAGE_THREAD_ID || null,
+});
+
 try {
   await sendTelegramGameCreated({
     gameId,
@@ -175,8 +182,12 @@ try {
     stakeAmount: prettyStake,
     tokenLabel: "CORE",
   });
+  console.log("[TG] create sent", {
+    messageId: tgResult?.message_id ?? null,
+    ok: !!tgResult,
+  });
 } catch (tgErr) {
-  console.error("Telegram GameCreated notification failed:", tgErr.message || tgErr);
+  console.error("[TG] create failed:", tgErr.message || tgErr);
 }
 
     // Populate ownership cache for creator (Player 1)

@@ -176,7 +176,8 @@ const caption =
   `Total Burned: <b>${escapeHtml(totalBurned)} ${escapeHtml(symbol)}</b> (${escapeHtml(burnPercent)}%)\n\n` +
   (explorerUrl
     ? `<a href="${escapeHtml(explorerUrl)}">View Transaction</a>`
-    : `Transaction unavailable`);
+    : `Transaction unavailable`)+
+    buildFooter();
     
   return sendZephyrosAnimationMessage({
     caption,
