@@ -3,6 +3,7 @@ import express from "express";
 import {
   sendTelegramTestMessage,
   getTelegramUpdates,
+  sendTelegramGameCreated,
 } from "../utils/telegramBot.js";
 
 const router = express.Router();
