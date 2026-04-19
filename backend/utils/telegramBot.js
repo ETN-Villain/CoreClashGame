@@ -352,13 +352,8 @@ export async function sendSwapMessage({
 
     const usdLine =
       usdValue != null
-        ? `💵 $${formatUsd(usdValue)}`
+        ? `💲 $${formatUsd(usdValue)}`
         : null;
-
-const paidLine =
-  usdValue != null
-    ? `💲 $${formatUsd(usdValue)}`
-    : null;
 
 const priceLine =
   tokenPriceUsd != null && Number.isFinite(tokenPriceUsd)
@@ -367,9 +362,10 @@ const priceLine =
 
 const text = [
   `🟢 <b>${escapeHtml(symbol)} BUY</b>`,
-  priceLine,
+  priceLine, 
   `🔢 <b>Amount:</b> ${escapeHtml(baseAmount)} ${escapeHtml(symbol)}`,
   `💰 <b>Paid:</b> ${escapeHtml(quoteAmount)} ${escapeHtml(quoteSymbol)}`,
+  usdLine,
   `👤 <b>Trader:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
   `🔗 <a href="${txUrl}">View Transaction</a>`,
   "",
