@@ -413,7 +413,7 @@ for (const trackedMeta of poolMeta.trackedTokens) {
 
 for (const aggregated of aggregatedBuys.values()) {
   try {
-    if (aggregated.usdValue != null || aggregated.usdValue < 20) {
+    if (aggregated.usdValue != null || aggregated.usdValue < 1) {
       continue;
     }
 
