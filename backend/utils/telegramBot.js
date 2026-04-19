@@ -357,7 +357,7 @@ export async function sendSwapMessage({
 
 const priceLine =
   tokenPriceUsd != null && Number.isFinite(tokenPriceUsd)
-    ? `💵 <b>Price:</b> $${formatUsd(tokenPriceUsd)}`
+    ? `💵 <b>Price:</b> $${formatUsdPrice(tokenPriceUsd)}`
     : null;
 
 const text = [
@@ -382,24 +382,24 @@ const text = [
     };
 
     // 1) Try animation first
-    if (animationUrl) {
-      try {
-        const animationEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendAnimation`;
+if (animationFileId || animationUrl) {
+  try {
+    const animationEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendAnimation`;
 
-await axios.post(animationEndpoint, {
-  ...basePayload,
-  animation: animationFileId || animationUrl,
-  caption: text,
-});
+    await axios.post(animationEndpoint, {
+      ...basePayload,
+      animation: animationFileId || animationUrl,
+      caption: text,
+    });
 
-        return;
-      } catch (err) {
-        console.error(
-          "[Telegram] sendAnimation fallback triggered:",
-          err.response?.data || err.message || err
-        );
-      }
-    }
+    return;
+  } catch (err) {
+    console.error(
+      "[Telegram] sendAnimation fallback triggered:",
+      err.response?.data || err.message || err
+    );
+  }
+}
 
     // 2) Fall back to photo
     if (image) {

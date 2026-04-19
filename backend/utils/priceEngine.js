@@ -30,11 +30,33 @@ async function safeRead(contract, method, fallback) {
   }
 }
 
-function formatNum(n) {
-  if (!Number.isFinite(n)) return "0";
+function formatUsdPrice(n) {
+  if (n == null || !Number.isFinite(n)) return "0";
+
+  if (n >= 1) {
+    return n.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    });
+  }
+
+  if (n >= 0.01) {
+    return n.toLocaleString(undefined, {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 6,
+    });
+  }
+
+  if (n >= 0.0001) {
+    return n.toLocaleString(undefined, {
+      minimumFractionDigits: 6,
+      maximumFractionDigits: 8,
+    });
+  }
+
   return n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 6,
+    minimumFractionDigits: 8,
+    maximumFractionDigits: 10,
   });
 }
 
