@@ -138,3 +138,14 @@ export const TRACKED_TOKENS = [
     ],
   },
 ];
+
+export const PRICING_POOLS = [
+  {
+    address: "0x0CC625331C9b22D94fEF29d462aB1c9B26dFF196",
+    dex: "ELECTROV3",
+  },
+  {
+    address: "0x2cB2Af7aef7AB4cc3228F9c55EE8542Cb323Ad8A",
+    dex: "ELECTROV3",
+  },
+];

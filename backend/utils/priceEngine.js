@@ -1,5 +1,6 @@
 // backend/utils/priceEngine.js
 import { ethers } from "ethers";
+import { TRACKED_TOKENS, PRICING_POOLS } from "../swapsConfig.js";
 
 const ERC20_MIN_ABI = [
   "function symbol() view returns (string)",
@@ -124,47 +125,57 @@ export async function buildPriceEngine(provider, trackedTokens) {
     return meta;
   }
 
-  for (const tracked of trackedTokens) {
-    for (const poolCfg of tracked.pools || []) {
-      const poolAddress = addr(poolCfg.address);
-      const dex = poolCfg.dex;
+  async function registerPool(poolCfg) {
+    const poolAddress = addr(poolCfg.address);
+    const dex = poolCfg.dex;
 
-      try {
-        if (dex === "UNIV2") {
-          const pool = new ethers.Contract(poolAddress, UNIV2_PAIR_ABI, provider);
-          const [token0Addr, token1Addr] = await Promise.all([pool.token0(), pool.token1()]);
-          const token0 = await getTokenMeta(token0Addr);
-          const token1 = await getTokenMeta(token1Addr);
+    try {
+      if (dex === "UNIV2") {
+        const pool = new ethers.Contract(poolAddress, UNIV2_PAIR_ABI, provider);
+        const [token0Addr, token1Addr] = await Promise.all([pool.token0(), pool.token1()]);
+        const token0 = await getTokenMeta(token0Addr);
+        const token1 = await getTokenMeta(token1Addr);
 
-          pools.push({
-            address: poolAddress,
-            dex,
-            contract: pool,
-            token0,
-            token1,
-          });
-        } else if (dex === "ELECTROV3") {
-          const pool = new ethers.Contract(poolAddress, UNIV3_POOL_ABI, provider);
-          const [token0Addr, token1Addr] = await Promise.all([pool.token0(), pool.token1()]);
-          const token0 = await getTokenMeta(token0Addr);
-          const token1 = await getTokenMeta(token1Addr);
+        pools.push({
+          address: poolAddress,
+          dex,
+          contract: pool,
+          token0,
+          token1,
+        });
+      } else if (dex === "ELECTROV3") {
+        const pool = new ethers.Contract(poolAddress, UNIV3_POOL_ABI, provider);
+        const [token0Addr, token1Addr] = await Promise.all([pool.token0(), pool.token1()]);
+        const token0 = await getTokenMeta(token0Addr);
+        const token1 = await getTokenMeta(token1Addr);
 
-          pools.push({
-            address: poolAddress,
-            dex,
-            contract: pool,
-            token0,
-            token1,
-          });
-        } else {
-          console.warn(`[PriceEngine] Unsupported dex ${dex} for pool ${poolAddress}`);
-        }
-      } catch (err) {
-        console.error(`[PriceEngine] Failed loading pool ${poolAddress}:`, err.message || err);
+        pools.push({
+          address: poolAddress,
+          dex,
+          contract: pool,
+          token0,
+          token1,
+        });
+      } else {
+        console.warn(`[PriceEngine] Unsupported dex ${dex} for pool ${poolAddress}`);
       }
+    } catch (err) {
+      console.error(`[PriceEngine] Failed loading pool ${poolAddress}:`, err.message || err);
     }
   }
 
+  // 1) Load tracked-token pools
+  for (const tracked of trackedTokens) {
+    for (const poolCfg of tracked.pools || []) {
+      await registerPool(poolCfg);
+    }
+  }
+
+  // 2) Load pricing-only pools
+  for (const poolCfg of PRICING_POOLS || []) {
+    await registerPool(poolCfg);
+  }
+  
   const uniquePools = new Map();
   for (const p of pools) uniquePools.set(p.address.toLowerCase(), p);
 
