@@ -354,20 +354,24 @@ export async function sendSwapMessage({
         ? `💵 $${formatUsd(usdValue)}`
         : null;
 
+const priceLine =
+  usdValue != null
+    ? `💵 <b>Price:</b> $${formatUsd(usdValue)}`
+    : null;
+
 const text = [
   `🟢 <b>${escapeHtml(symbol)} BUY</b>`,
+  priceLine,
+  `🔢 <b>Amount:</b> ${escapeHtml(baseAmount)} ${escapeHtml(symbol)}`,
+  `💰 <b>Paid:</b> ${escapeHtml(quoteAmount)} ${escapeHtml(quoteSymbol)}`,
+  `👤 <b>Trader:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
+  `🔗 <a href="${txUrl}">View Transaction</a>`,
   "",
-  usdLine,
-  `<b>Amount:</b> ${escapeHtml(baseAmount)} ${escapeHtml(symbol)}`,
-  `<b>Paid:</b> ${escapeHtml(quoteAmount)} ${escapeHtml(quoteSymbol)}`,
-  `<b>Trader:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
-  "",
-  `<a href="${txUrl}">View Transaction</a>`,
   buildClubFooter(),
 ]
   .filter(Boolean)
   .join("\n");
-
+  
     const basePayload = {
       chat_id: CLUB_TELEGRAM_CHAT_ID,
       message_thread_id: Number(CLUB_TELEGRAM_MESSAGE_THREAD_ID),
