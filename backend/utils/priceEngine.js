@@ -302,7 +302,7 @@ export async function buildPriceEngine(provider, trackedTokens) {
       console.log("[PriceEngine] Refreshed USD prices:");
       for (const [key, usd] of this.pricesUsd.entries()) {
         const meta = tokenMeta.get(key);
-        console.log(`  ${meta?.symbol || key}: $${formatNum(usd)}`);
+        console.log(`  ${meta?.symbol || key}: $${formatUsdPrice(usd)}`);
       }
 
       return this.pricesUsd;
