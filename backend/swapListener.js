@@ -413,7 +413,10 @@ for (const trackedMeta of poolMeta.trackedTokens) {
 
 for (const aggregated of aggregatedBuys.values()) {
   try {
-    if (aggregated.usdValue != null || aggregated.usdValue < 1) {
+    console.log(
+  `[SwapListener][DEBUG] ${aggregated.symbol} tx=${aggregated.txHash} usdValue=${aggregated.usdValue}`
+);
+    if (aggregated.usdValue != null && aggregated.usdValue < 1) {
       continue;
     }
 
