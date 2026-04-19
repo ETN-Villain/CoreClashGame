@@ -7,6 +7,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "CLUB",
     address: process.env.CLUB_TOKEN_ADDRESS,
+    animationFileId: "AAMCBAADGQEAAwNp5ThOWRT-kwf8pugjVQoAAYnqq6IAAnoeAAL9hyhT6nBeyw8a6w8BAAdtAAM7BA",
     pools: [
       {
         address: "0x86566c3c78424e3c3c2aDb274FAB551B7262E0ca",
@@ -22,6 +23,7 @@ export const TRACKED_TOKENS = [
     {
     symbol: "BOLT",
     address: process.env.BOLT_TOKEN_ADDRESS,
+    animationFileId: "AAMCBAADGQEAAwJp5ThOW0W47NhPajr5nDclD3RNJAACeR4AAv2HKFNGXW-zTB8LKAEAB20AAzsE",
     pools: [
       {
         address: "0x32ECfC060373e3379A86538A5017b4D89A5A75c1",
@@ -37,6 +39,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "CORE",
     address: process.env.CORE_TOKEN_ADDRESS,
+    animationFileId: "AAMCBAADGQEAAwRp5ThP3iIiH5LvpoN4NXWb8-z9LAACex4AAv2HKFMN1mv6LVgvIgEAB20AAzsE",
     pools: [
       {
         address: "0xc3FE6f98765493aB62AD87C9B5022Ff2FAA2e98D",
@@ -48,6 +51,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "USDT",
     address: process.env.USDT_TOKEN_ADDRESS,
+    animationFileId: "AAMCBAADGQEAAwlp5ThUEtA1SrPGO1Pytrh_5S9OlwACfh4AAv2HKFPjcVuJ1W28fgEAB20AAzsE",
     pools: [
       {
         address: "0x0CC625331C9b22D94fEF29d462aB1c9B26dFF196",
@@ -59,6 +63,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "USDC",
     address: process.env.USDC_TOKEN_ADDRESS,
+    animationFileId: "AAMCBAADGQEAAwhp5ThS5PLQ-kGuy8Aj4yfIHafgQQACfR4AAv2HKFO7vpyV59M3hwEAB20AAzsE",
     pools: [
       {
         address: "0x2cB2Af7aef7AB4cc3228F9c55EE8542Cb323Ad8A",
@@ -70,6 +75,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "DCNT",
     address: process.env.DCNT_TOKEN_ADDRESS,
+    imageFileId: "AgACAgQAAxkBAAMFaeU4UFhJVTHEr7IC5NwI-9hOqQADygxrG_2HKFOUi4Hl8IFWCAEAAwIAA3MAAzsE",
     pools: [
       {
         address: "0x6cDF9e7c8177BFCEc940E3f195ACf5a9C04ae3CD",
@@ -103,6 +109,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "DYNO",
     address: process.env.DYNO_TOKEN_ADDRESS,
+    animationFileId: "AAMCBAADGQEAAwZp5ThRkcenqHAMWefGgxc8ME6mIAACfB4AAv2HKFMEL88VXdFf6wEAB20AAzsE",
     pools: [
       {
         address: "0x32ECfC060373e3379A86538A5017b4D89A5A75c1",
@@ -122,6 +129,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "FUGAZI",
     address: process.env.FUGAZI_TOKEN_ADDRESS,
+    imageFileId: "AgACAgQAAxkBAAMHaeU4UaFtHkC3sazhaC0LtHq--y8AAssMaxv9hyhToYIPkNKbT0oBAAMCAANzAAM7BA",
     pools: [
       {
         address: "0x5F868b7E7345c0D6D4daD376521e6Ac4ac0CC836",

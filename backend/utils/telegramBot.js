@@ -100,6 +100,16 @@ function buildFooter() {
   );
 }
 
+function buildClubFooter() {
+  return (
+    `\n\n━━━━━━━━━━━━━━\n` +
+    `💵 <a href="https://app.electroswap.io/explore/tokens/electroneum/0xc9fc4ab00911793d99b5c7bd01f01203c21d4131?inputCurrency=ETN"><b>Buy CLUB</b></a>\n\n` +
+    `⚡ <a href="https://app.electroswap.io/explore/transactions">Live ElectroSwap Transactions</a>\n` +
+    `🌍 <a href="https://planetetn.org/profile/4-etn-club">CLUB PlanetETN Profile</a>\n\n` +
+    `<i>🛠 Built by @ETN_Villain</i>`
+  );
+}
+
 export async function sendTelegramGroupMessage(text, options = {}) {
   if (!isTelegramConfigured()) {
     console.warn("Telegram bot not configured; skipping group message:", text);
@@ -193,7 +203,7 @@ const caption =
     
   return sendZephyrosAnimationMessage({
     caption,
-    animationUrl: "https://coreclashgame.onrender.com/public/core_burn.gif",
+    animationUrl: "AAMCBAADGQEAAwJp5TrAMkFtkLPuS0IZ2XJCRz-UVAACnCkAArK0KVPcgJNOS8ZCpQEAB20AAzsE",
     messageThreadId,
   });
 }
@@ -328,9 +338,10 @@ export async function sendSwapMessage({
   trader,
   txHash,
   usdValue,
+  image,
+  animationUrl,
 }) {
   try {
-    // Buy-only safety guard
     if (side !== "BUY") return;
 
     const txUrl = `${EXPLORER_BASE_URL}/tx/${txHash}`;
@@ -338,37 +349,83 @@ export async function sendSwapMessage({
 
     const usdLine =
       usdValue != null
-        ? `💵 $${formatUsd(usdValue)}\n`
-        : "";
+        ? `💵 $${formatUsd(usdValue)}`
+        : null;
 
     const text = [
       `🟢 <b>${escapeHtml(symbol)} BUY</b>`,
-      ``,
-      usdLine.trimEnd(),
+      "",
+      usdLine,
       `<b>Amount:</b> ${escapeHtml(baseAmount)} ${escapeHtml(symbol)}`,
       `<b>Paid:</b> ${escapeHtml(quoteAmount)} ${escapeHtml(quoteSymbol)}`,
       `<b>Trader:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
-      ``,
-      `<a href="${txUrl}">View Transaction</a>`,
+      "",
+  `<a href="${txUrl}">View Transaction</a>`,
+  includeFooter ? buildClubFooter() : null,
     ]
       .filter(Boolean)
       .join("\n");
 
-    const url = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendMessage`;
+    const basePayload = {
+      chat_id: CLUB_TELEGRAM_CHAT_ID,
+      message_thread_id: Number(CLUB_TELEGRAM_MESSAGE_THREAD_ID),
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+    };
 
-await axios.post(url, {
-  chat_id: CLUB_TELEGRAM_CHAT_ID,
-  text,
-  parse_mode: "HTML",
-  disable_web_page_preview: true,
-  message_thread_id: CLUB_TELEGRAM_MESSAGE_THREAD_ID,
-});
+    // 1) Try animation first
+    if (animationUrl) {
+      try {
+        const animationEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendAnimation`;
+
+        await axios.post(animationEndpoint, {
+          ...basePayload,
+          animation: animationFileId,
+          caption: text,
+        });
+
+        return;
+      } catch (err) {
+        console.error(
+          "[Telegram] sendAnimation fallback triggered:",
+          err.response?.data || err.message || err
+        );
+      }
+    }
+
+    // 2) Fall back to photo
+    if (image) {
+      try {
+        const photoEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendPhoto`;
+
+        await axios.post(photoEndpoint, {
+          ...basePayload,
+          photo: imageFileId,
+          caption: text,
+        });
+
+        return;
+      } catch (err) {
+        console.error(
+          "[Telegram] sendPhoto fallback triggered:",
+          err.response?.data || err.message || err
+        );
+      }
+    }
+
+    // 3) Final fallback: plain text
+    const messageEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendMessage`;
+
+    await axios.post(messageEndpoint, {
+      ...basePayload,
+      text,
+    });
   } catch (err) {
-console.error(
-  "[Telegram] sendSwapMessage error:",
-  JSON.stringify(err.response?.data, null, 2) || err.message
-);  
-}
+    console.error(
+      "[Telegram] sendSwapMessage error:",
+      err.response?.data || err.message || err
+    );
+  }
 }
 
 export {
