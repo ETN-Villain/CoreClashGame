@@ -8,7 +8,7 @@ import { sendZephyrosBurnMessage, formatTokenAmount } from "./utils/telegramBot.
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
-const POLL_INTERVAL_MS = 6000;
+const POLL_INTERVAL_MS = 60000; // 1 minute
 const MAX_BLOCK_RANGE = 500;
 
 const INITIAL_SUPPLY = 1_000_000;
