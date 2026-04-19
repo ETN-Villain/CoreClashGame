@@ -163,6 +163,7 @@ const quoteTokenAddress = baseTokenAddress === token0 ? token1 : token0;
         trackedIsToken0: baseTokenAddress.toLowerCase() === token0.toLowerCase(),
         image: tracked.image || null,
         animationUrl: tracked.animationUrl || null,
+        animationFileId: tracked.animationFileId || null,
       });
 
       poolMap.set(poolAddress.toLowerCase(), existing);
@@ -421,6 +422,7 @@ for (const trackedMeta of poolMeta.trackedTokens) {
       usdValue: usdValue ?? null,
       image: trackedMeta.image || null,
       animationUrl: trackedMeta.animationUrl || null,
+      animationFileId: trackedMeta.animationFileId || null,
     });
   } catch (err) {
     console.error("[SwapListener] Failed processing tracked token swap:", err);
