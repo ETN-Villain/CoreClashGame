@@ -161,6 +161,8 @@ const quoteTokenAddress = baseTokenAddress === token0 ? token1 : token0;
         quoteAddress: quoteTokenAddress,
         quoteDecimals: Number(quoteDecimals),
         trackedIsToken0: baseTokenAddress.toLowerCase() === token0.toLowerCase(),
+        image: tracked.image || null,
+        animationUrl: tracked.animationUrl || null,
       });
 
       poolMap.set(poolAddress.toLowerCase(), existing);
@@ -417,6 +419,8 @@ for (const trackedMeta of poolMeta.trackedTokens) {
       quoteSymbol: trackedMeta.quoteSymbol,
       trader: buyerAddress,
       usdValue: usdValue ?? null,
+      image: trackedMeta.image || null,
+      animationUrl: trackedMeta.animationUrl || null,
     });
   } catch (err) {
     console.error("[SwapListener] Failed processing tracked token swap:", err);
@@ -447,16 +451,18 @@ for (const aggregated of aggregatedBuys.values()) {
       );
     }
 
-    await sendSwapMessage({
-      symbol: aggregated.symbol,
-      side: "BUY",
-      baseAmount,
-      quoteAmount: quoteAmount || "-",
-      quoteSymbol: aggregated.quoteSymbol === "MULTI" ? "multi-hop" : aggregated.quoteSymbol,
-      trader: aggregated.trader,
-      txHash: aggregated.txHash,
-      usdValue: aggregated.usdValue ?? null,
-    });
+await sendSwapMessage({
+  symbol: aggregated.symbol,
+  side: "BUY",
+  baseAmount,
+  quoteAmount: quoteAmount || "-",
+  quoteSymbol: aggregated.quoteSymbol === "MULTI" ? "multi-hop" : aggregated.quoteSymbol,
+  trader: aggregated.trader,
+  txHash: aggregated.txHash,
+  usdValue: aggregated.usdValue ?? null,
+  image: aggregated.image || null,
+  animationUrl: aggregated.animationUrl || null,
+});
 
     console.log(
       `[SwapListener] ${aggregated.symbol} BUY ${baseAmount} in tx ${aggregated.txHash}`
