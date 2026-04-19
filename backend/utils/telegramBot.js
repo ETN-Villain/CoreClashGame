@@ -35,6 +35,45 @@ function isZephyrosTelegramConfigured() {
   return !!ZEPHYROS_TELEGRAM_BOT_TOKEN && !!TELEGRAM_GROUP_CHAT_ID;
 }
 
+function formatUsd(value) {
+  if (value == null || !Number.isFinite(value)) return null;
+
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatUsdPrice(n) {
+  if (n == null || !Number.isFinite(n)) return "0";
+
+  if (n >= 1) {
+    return n.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    });
+  }
+
+  if (n >= 0.01) {
+    return n.toLocaleString(undefined, {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 6,
+    });
+  }
+
+  if (n >= 0.0001) {
+    return n.toLocaleString(undefined, {
+      minimumFractionDigits: 6,
+      maximumFractionDigits: 8,
+    });
+  }
+
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: 8,
+    maximumFractionDigits: 10,
+  });
+}
+
 function escapeHtml(str = "") {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -42,6 +81,11 @@ function escapeHtml(str = "") {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function shortAddr(address) {
+  if (!address) return "Unknown";
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 function shortWallet(address) {
@@ -324,11 +368,6 @@ function formatUsd(value) {
   });
 }
 
-function shortAddr(address) {
-  if (!address) return "Unknown";
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
 export async function sendSwapMessage({
   symbol,
   side,
@@ -350,11 +389,11 @@ export async function sendSwapMessage({
     const txUrl = `${EXPLORER_BASE_URL}/tx/${txHash}`;
     const traderUrl = `${EXPLORER_BASE_URL}/address/${trader}`;
 
-    const usdLine =
-      usdValue != null
-        ? `💲 $${formatUsd(usdValue)}`
-        : null;
-
+const usdLine =
+  usdValue != null
+    ? `💲 <b>Value:</b> $${formatUsd(usdValue)}`
+    : null;
+    
 const priceLine =
   tokenPriceUsd != null && Number.isFinite(tokenPriceUsd)
     ? `💵 <b>Price:</b> $${formatUsdPrice(tokenPriceUsd)}`
