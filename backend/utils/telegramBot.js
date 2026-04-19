@@ -35,15 +35,6 @@ function isZephyrosTelegramConfigured() {
   return !!ZEPHYROS_TELEGRAM_BOT_TOKEN && !!TELEGRAM_GROUP_CHAT_ID;
 }
 
-function formatUsd(value) {
-  if (value == null || !Number.isFinite(value)) return null;
-
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
 function formatUsdPrice(n) {
   if (n == null || !Number.isFinite(n)) return "0";
 
@@ -393,7 +384,7 @@ const usdLine =
   usdValue != null
     ? `💲 <b>Value:</b> $${formatUsd(usdValue)}`
     : null;
-    
+
 const priceLine =
   tokenPriceUsd != null && Number.isFinite(tokenPriceUsd)
     ? `💵 <b>Price:</b> $${formatUsdPrice(tokenPriceUsd)}`
