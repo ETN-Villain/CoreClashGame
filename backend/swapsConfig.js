@@ -7,7 +7,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "CLUB",
     address: process.env.CLUB_TOKEN_ADDRESS,
-    animationFileId: "AAMCBAADGQEAAwNp5ThOWRT-kwf8pugjVQoAAYnqq6IAAnoeAAL9hyhT6nBeyw8a6w8BAAdtAAM7BA",
+    animationFileId: "CgACAgQAAxkBAAMTaeVPB28-3Q8V23ze5ubFmPj3_qUAApceAAL9hyhT0dUyofZKLpU7BA",
     pools: [
       {
         address: "0x86566c3c78424e3c3c2aDb274FAB551B7262E0ca",
@@ -23,7 +23,7 @@ export const TRACKED_TOKENS = [
     {
     symbol: "BOLT",
     address: process.env.BOLT_TOKEN_ADDRESS,
-    animationFileId: "AAMCBAADGQEAAwJp5ThOW0W47NhPajr5nDclD3RNJAACeR4AAv2HKFNGXW-zTB8LKAEAB20AAzsE",
+    animationFileId: "CgACAgQAAxkBAAMSaeVPBzR5WutnD7vfJhtOFjZQ2sYAApYeAAL9hyhT5JKVAWiGYnw7BA",
     pools: [
       {
         address: "0x32ECfC060373e3379A86538A5017b4D89A5A75c1",
@@ -39,7 +39,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "CORE",
     address: process.env.CORE_TOKEN_ADDRESS,
-    animationFileId: "AAMCBAADGQEAAwRp5ThP3iIiH5LvpoN4NXWb8-z9LAACex4AAv2HKFMN1mv6LVgvIgEAB20AAzsE",
+    animationFileId: "CgACAgQAAxkBAAMUaeVPB7KE3I4HyzQbVWApm86iGPkAApgeAAL9hyhTxYC3rKcDPdk7BA",
     pools: [
       {
         address: "0xc3FE6f98765493aB62AD87C9B5022Ff2FAA2e98D",
@@ -109,7 +109,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "DYNO",
     address: process.env.DYNO_TOKEN_ADDRESS,
-    animationFileId: "AAMCBAADGQEAAwZp5ThRkcenqHAMWefGgxc8ME6mIAACfB4AAv2HKFMEL88VXdFf6wEAB20AAzsE",
+    animationFileId: "CgACAgQAAxkBAAMVaeVPCEIgpWes0jRUTjz8Q-PM4zcAApkeAAL9hyhTBnHlEs9fAgw7BA",
     pools: [
       {
         address: "0x32ECfC060373e3379A86538A5017b4D89A5A75c1",

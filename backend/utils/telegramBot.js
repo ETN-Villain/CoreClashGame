@@ -340,6 +340,7 @@ export async function sendSwapMessage({
   usdValue,
   image,
   animationUrl,
+  animationFileId,
   includeFooter = true, // default
 }) {
   try {
@@ -381,7 +382,7 @@ const text = [
 
 await axios.post(animationEndpoint, {
   ...basePayload,
-  animation: animationUrl,
+  animation: animationFileId || animationUrl,
   caption: text,
 });
 
