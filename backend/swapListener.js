@@ -62,6 +62,31 @@ function getPoolInterface(dex) {
   return new ethers.Interface(getPoolAbi(dex));
 }
 
+function getAggregateKey(txHash, tokenAddress) {
+  return `${txHash}:${tokenAddress.toLowerCase()}`;
+}
+
+function addToAggregate(map, key, fragment) {
+  const existing = map.get(key);
+
+  if (!existing) {
+    map.set(key, { ...fragment });
+    return;
+  }
+
+  existing.baseAmountRaw += fragment.baseAmountRaw;
+  existing.quoteAmountRaw += fragment.quoteAmountRaw;
+
+  if (fragment.usdValue != null) {
+    existing.usdValue = (existing.usdValue || 0) + fragment.usdValue;
+  }
+
+  // If quote symbols differ across fragments, mark as multi-hop
+  if (existing.quoteSymbol !== fragment.quoteSymbol) {
+    existing.quoteSymbol = "MULTI";
+  }
+}
+
 async function buildRuntimePoolMap(provider) {
   const poolMap = new Map();
   const allWatchedPoolAddresses = new Set();
@@ -240,7 +265,7 @@ try {
   priceEngine = await buildPriceEngine(provider, TRACKED_TOKENS);
 } catch (err) {
   console.error("[SwapListener] Failed to initialize price engine:", err);
-  return;
+  throw err;
 }
 
 let lastPriceRefreshMs = 0;
@@ -316,7 +341,7 @@ try {
 
         console.log(`[SwapListener] Fetching logs ${fromBlock} -> ${toBlock}`);
 
-const seenAlerts = new Set();
+const aggregatedBuys = new Map();
 const txCache = new Map();
 
 for (const poolAddress of watchedPoolAddresses) {
@@ -354,9 +379,6 @@ for (const trackedMeta of poolMeta.trackedTokens) {
     if (!swap || swap.baseAmountRaw <= 0n) continue;
     if (swap.side !== "BUY") continue;
 
-    const alertKey = `${log.transactionHash}:${trackedMeta.address.toLowerCase()}:BUY`;
-    if (seenAlerts.has(alertKey)) continue;
-
     let tx;
     if (txCache.has(log.transactionHash)) {
       tx = txCache.get(log.transactionHash);
@@ -366,35 +388,66 @@ for (const trackedMeta of poolMeta.trackedTokens) {
     }
 
     const buyerAddress = tx?.from || swap.trader;
-
     const usdValue = estimateSwapUsdValue(priceEngine, trackedMeta, swap);
-    if (usdValue != null && usdValue < 20) continue;
 
-    const baseAmount = formatUnitsSafe(swap.baseAmountRaw, trackedMeta.decimals);
-    const quoteAmount = formatUnitsSafe(swap.quoteAmountRaw, trackedMeta.quoteDecimals);
+    const aggregateKey = getAggregateKey(log.transactionHash, trackedMeta.address);
 
-    seenAlerts.add(alertKey);
-
-    await sendSwapMessage({
+    addToAggregate(aggregatedBuys, aggregateKey, {
+      txHash: log.transactionHash,
       symbol: trackedMeta.symbol,
-      side: swap.side,
-      baseAmount,
-      quoteAmount,
+      tokenAddress: trackedMeta.address,
+      baseAmountRaw: swap.baseAmountRaw,
+      baseDecimals: trackedMeta.decimals,
+      quoteAmountRaw: swap.quoteAmountRaw,
+      quoteDecimals: trackedMeta.quoteDecimals,
       quoteSymbol: trackedMeta.quoteSymbol,
       trader: buyerAddress,
-      txHash: log.transactionHash,
-      usdValue,
+      usdValue: usdValue ?? null,
     });
-
-    console.log(
-      `[SwapListener] ${trackedMeta.symbol} ${swap.side} ${baseAmount} in tx ${log.transactionHash}`
-    );
   } catch (err) {
     console.error("[SwapListener] Failed processing tracked token swap:", err);
   }
 }
           }
         }
+
+for (const aggregated of aggregatedBuys.values()) {
+  try {
+    if (aggregated.usdValue != null || aggregated.usdValue < 20) {
+      continue;
+    }
+
+    const baseAmount = formatUnitsSafe(
+      aggregated.baseAmountRaw,
+      aggregated.baseDecimals
+    );
+
+    let quoteAmount = null;
+    if (aggregated.quoteSymbol !== "MULTI") {
+      quoteAmount = formatUnitsSafe(
+        aggregated.quoteAmountRaw,
+        aggregated.quoteDecimals
+      );
+    }
+
+    await sendSwapMessage({
+      symbol: aggregated.symbol,
+      side: "BUY",
+      baseAmount,
+      quoteAmount: quoteAmount || "-",
+      quoteSymbol: aggregated.quoteSymbol === "MULTI" ? "multi-hop" : aggregated.quoteSymbol,
+      trader: aggregated.trader,
+      txHash: aggregated.txHash,
+      usdValue: aggregated.usdValue ?? null,
+    });
+
+    console.log(
+      `[SwapListener] ${aggregated.symbol} BUY ${baseAmount} in tx ${aggregated.txHash}`
+    );
+  } catch (err) {
+    console.error("[SwapListener] Failed sending aggregated swap message:", err);
+  }
+}
 
         lastBlock = toBlock;
         await saveLastBlockLocked(lastBlock);
