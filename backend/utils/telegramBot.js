@@ -340,6 +340,7 @@ export async function sendSwapMessage({
   usdValue,
   image,
   animationUrl,
+  includeFooter = true, // default
 }) {
   try {
     if (side !== "BUY") return;
@@ -352,19 +353,19 @@ export async function sendSwapMessage({
         ? `💵 $${formatUsd(usdValue)}`
         : null;
 
-    const text = [
-      `🟢 <b>${escapeHtml(symbol)} BUY</b>`,
-      "",
-      usdLine,
-      `<b>Amount:</b> ${escapeHtml(baseAmount)} ${escapeHtml(symbol)}`,
-      `<b>Paid:</b> ${escapeHtml(quoteAmount)} ${escapeHtml(quoteSymbol)}`,
-      `<b>Trader:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
-      "",
+const text = [
+  `🟢 <b>${escapeHtml(symbol)} BUY</b>`,
+  "",
+  usdLine,
+  `<b>Amount:</b> ${escapeHtml(baseAmount)} ${escapeHtml(symbol)}`,
+  `<b>Paid:</b> ${escapeHtml(quoteAmount)} ${escapeHtml(quoteSymbol)}`,
+  `<b>Trader:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
+  "",
   `<a href="${txUrl}">View Transaction</a>`,
-  includeFooter ? buildClubFooter() : null,
-    ]
-      .filter(Boolean)
-      .join("\n");
+  buildClubFooter(),
+]
+  .filter(Boolean)
+  .join("\n");
 
     const basePayload = {
       chat_id: CLUB_TELEGRAM_CHAT_ID,
@@ -378,11 +379,11 @@ export async function sendSwapMessage({
       try {
         const animationEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendAnimation`;
 
-        await axios.post(animationEndpoint, {
-          ...basePayload,
-          animation: animationFileId,
-          caption: text,
-        });
+await axios.post(animationEndpoint, {
+  ...basePayload,
+  animation: animationUrl,
+  caption: text,
+});
 
         return;
       } catch (err) {
@@ -398,11 +399,11 @@ export async function sendSwapMessage({
       try {
         const photoEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendPhoto`;
 
-        await axios.post(photoEndpoint, {
-          ...basePayload,
-          photo: imageFileId,
-          caption: text,
-        });
+await axios.post(photoEndpoint, {
+  ...basePayload,
+  photo: image,
+  caption: text,
+});
 
         return;
       } catch (err) {
