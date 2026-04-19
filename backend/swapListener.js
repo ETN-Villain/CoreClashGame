@@ -316,24 +316,27 @@ try {
 
         console.log(`[SwapListener] Fetching logs ${fromBlock} -> ${toBlock}`);
 
-        for (const poolAddress of watchedPoolAddresses) {
-          const poolMeta = poolMap.get(poolAddress.toLowerCase());
-          if (!poolMeta) continue;
+const seenAlerts = new Set();
+const txCache = new Map();
 
-          let logs = [];
-          try {
-            const swapTopic = poolMeta.iface.getEvent("Swap").topicHash;
+for (const poolAddress of watchedPoolAddresses) {
+  const poolMeta = poolMap.get(poolAddress.toLowerCase());
+  if (!poolMeta) continue;
 
-            logs = await provider.getLogs({
-              address: poolAddress,
-              fromBlock,
-              toBlock,
-              topics: [swapTopic],
-            });
-          } catch (err) {
-            console.error(`[SwapListener] getLogs failed for pool ${poolAddress}:`, err.message || err);
-            continue;
-          }
+  let logs = [];
+  try {
+    const swapTopic = poolMeta.iface.getEvent("Swap").topicHash;
+
+    logs = await provider.getLogs({
+      address: poolAddress,
+      fromBlock,
+      toBlock,
+      topics: [swapTopic],
+    });
+  } catch (err) {
+    console.error(`[SwapListener] getLogs failed for pool ${poolAddress}:`, err.message || err);
+    continue;
+  }
 
           for (const log of logs) {
             let parsed;
@@ -351,14 +354,26 @@ for (const trackedMeta of poolMeta.trackedTokens) {
     if (!swap || swap.baseAmountRaw <= 0n) continue;
     if (swap.side !== "BUY") continue;
 
-    const usdValue = estimateSwapUsdValue(priceEngine, trackedMeta, swap);
+    const alertKey = `${log.transactionHash}:${trackedMeta.address.toLowerCase()}:BUY`;
+    if (seenAlerts.has(alertKey)) continue;
 
-    if (usdValue != null && usdValue < 20) {
-      continue;
+    let tx;
+    if (txCache.has(log.transactionHash)) {
+      tx = txCache.get(log.transactionHash);
+    } else {
+      tx = await provider.getTransaction(log.transactionHash);
+      txCache.set(log.transactionHash, tx);
     }
+
+    const buyerAddress = tx?.from || swap.trader;
+
+    const usdValue = estimateSwapUsdValue(priceEngine, trackedMeta, swap);
+    if (usdValue != null && usdValue < 20) continue;
 
     const baseAmount = formatUnitsSafe(swap.baseAmountRaw, trackedMeta.decimals);
     const quoteAmount = formatUnitsSafe(swap.quoteAmountRaw, trackedMeta.quoteDecimals);
+
+    seenAlerts.add(alertKey);
 
     await sendSwapMessage({
       symbol: trackedMeta.symbol,
@@ -366,7 +381,7 @@ for (const trackedMeta of poolMeta.trackedTokens) {
       baseAmount,
       quoteAmount,
       quoteSymbol: trackedMeta.quoteSymbol,
-      trader: swap.trader,
+      trader: buyerAddress,
       txHash: log.transactionHash,
       usdValue,
     });
