@@ -304,24 +304,38 @@ try {
   );
 
   // Initial price refresh to populate token metadata
-  function estimateSwapUsdValue(priceEngine, trackedMeta, swap) {
+function estimateSwapUsdValue(priceEngine, trackedMeta, swap) {
   const baseUsd = priceEngine.estimateUsdFromTokenAmount(
     trackedMeta.address,
     swap.baseAmountRaw
   );
-
-  if (baseUsd != null && Number.isFinite(baseUsd) && baseUsd > 0) {
-    return baseUsd;
-  }
 
   const quoteUsd = priceEngine.estimateUsdFromTokenAmount(
     trackedMeta.quoteAddress,
     swap.quoteAmountRaw
   );
 
-  if (quoteUsd != null && Number.isFinite(quoteUsd) && quoteUsd > 0) {
-    return quoteUsd;
+  const validBase =
+    baseUsd != null && Number.isFinite(baseUsd) && baseUsd > 0
+      ? baseUsd
+      : null;
+
+  const validQuote =
+    quoteUsd != null && Number.isFinite(quoteUsd) && quoteUsd > 0
+      ? quoteUsd
+      : null;
+
+    console.log(
+  `[SwapListener][USD DEBUG] ${trackedMeta.symbol} baseUsd=${baseUsd} quoteUsd=${quoteUsd} quoteSymbol=${trackedMeta.quoteSymbol}`
+);
+
+  // For BUY alerts, prefer the paid side when available.
+  if (swap.side === "BUY" && validQuote != null) {
+    return validQuote;
   }
+
+  if (validBase != null) return validBase;
+  if (validQuote != null) return validQuote;
 
   return null;
 }
