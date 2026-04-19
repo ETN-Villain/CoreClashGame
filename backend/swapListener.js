@@ -420,6 +420,7 @@ for (const trackedMeta of poolMeta.trackedTokens) {
       quoteSymbol: trackedMeta.quoteSymbol,
       trader: buyerAddress,
       usdValue: usdValue ?? null,
+      tokenPriceUsd: trackedMeta.tokenPriceUsd,
       image: trackedMeta.image || null,
       animationUrl: trackedMeta.animationUrl || null,
       animationFileId: trackedMeta.animationFileId || null,
@@ -453,6 +454,8 @@ for (const aggregated of aggregatedBuys.values()) {
       );
     }
 
+    const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress);
+
 await sendSwapMessage({
   symbol: aggregated.symbol,
   side: "BUY",
@@ -462,8 +465,10 @@ await sendSwapMessage({
   trader: aggregated.trader,
   txHash: aggregated.txHash,
   usdValue: aggregated.usdValue ?? null,
+  tokenPriceUsd,
   image: aggregated.image || null,
   animationUrl: aggregated.animationUrl || null,
+  animationFileId: aggregated.animationFileId || null,
 });
 
     console.log(

@@ -338,6 +338,7 @@ export async function sendSwapMessage({
   trader,
   txHash,
   usdValue,
+  tokenPriceUsd,
   image,
   animationUrl,
   animationFileId,
@@ -354,9 +355,14 @@ export async function sendSwapMessage({
         ? `💵 $${formatUsd(usdValue)}`
         : null;
 
-const priceLine =
+const paidLine =
   usdValue != null
-    ? `💵 <b>Price:</b> $${formatUsd(usdValue)}`
+    ? `💲 $${formatUsd(usdValue)}`
+    : null;
+
+const priceLine =
+  tokenPriceUsd != null && Number.isFinite(tokenPriceUsd)
+    ? `💵 <b>Price:</b> $${formatUsd(tokenPriceUsd)}`
     : null;
 
 const text = [
@@ -371,7 +377,7 @@ const text = [
 ]
   .filter(Boolean)
   .join("\n");
-  
+
     const basePayload = {
       chat_id: CLUB_TELEGRAM_CHAT_ID,
       message_thread_id: Number(CLUB_TELEGRAM_MESSAGE_THREAD_ID),
