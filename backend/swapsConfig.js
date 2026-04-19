@@ -1,4 +1,4 @@
-// backend/swapConfig.js
+// backend/swapsConfig.js
 export const CLUB_TELEGRAM_MESSAGE_THREAD_ID = process.env.CLUB_TELEGRAM_MESSAGE_THREAD_ID;
 export const CLUB_TELEGRAM_CHAT_ID = process.env.CLUB_TELEGRAM_CHAT_ID;
 export const CLUB_TELEGRAM_BOT_TOKEN = process.env.CLUB_TELEGRAM_BOT_TOKEN;
@@ -14,6 +14,21 @@ export const TRACKED_TOKENS = [
       },
       {
         address: "0x2132e7c909C4c3338Eda5F0e165A3A43AaDC3FBe",
+        dex: "ELECTROV3", // confirm
+      },
+    ],
+  },
+
+    {
+    symbol: "BOLT",
+    address: process.env.BOLT_TOKEN_ADDRESS,
+    pools: [
+      {
+        address: "0x32ECfC060373e3379A86538A5017b4D89A5A75c1",
+        dex: "ELECTROV3", // confirm
+      },
+      {
+        address: "0x2Df6c494B5e96b781b5cB410C4889D4f079bad30",
         dex: "ELECTROV3", // confirm
       },
     ],
