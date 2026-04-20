@@ -439,7 +439,7 @@ for (const aggregated of aggregatedBuys.values()) {
     console.log(
   `[SwapListener][DEBUG] ${aggregated.symbol} tx=${aggregated.txHash} usdValue=${aggregated.usdValue}`
 );
-    if (aggregated.usdValue != null && aggregated.usdValue < 0.1) {
+    if (aggregated.usdValue != null && aggregated.usdValue < 10) {
       continue;
     }
 
