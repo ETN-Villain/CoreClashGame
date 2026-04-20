@@ -5,6 +5,7 @@ import React, {
   useState,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import { ethers } from "ethers";
 import { EthereumProvider } from "@walletconnect/ethereum-provider";
@@ -31,8 +32,10 @@ import { renderTokenImages } from "./renderTokenImages.jsx";
 
 import {
   CoreClashLogo, AppBackground, PlanetZephyrosAE, HowToPlay, GameInfo, ElectroSwap,
-  VerdantKinBanner, ElectroneumLogo, AetherScionsBanner, VerdantQueenBanner
+  VerdantKinBanner, ElectroneumLogo, AetherScionsBanner, VerdantQueenBanner, EtnClubLogo
 } from "./appMedia/media.js";
+
+import { FaTelegramPlane } from "react-icons/fa";
 
 import GameCard from "./gameCard.jsx";
 import EcosystemBlock from "./ecosystemBlock.jsx";
@@ -193,6 +196,25 @@ const handleEcosystemClick = async (linkKey, url) => {
 
 const [xpProfile, setXpProfile] = useState(null);
 const [xpLoading, setXpLoading] = useState(false);
+
+// To prevent multiple rewards from the same ad click in one session
+const rewardedSponsoredAdsRef = useRef(new Set());
+
+const handleSponsoredAdClick = async (rewardKey, url) => {
+  if (rewardedSponsoredAdsRef.current.has(rewardKey)) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  rewardedSponsoredAdsRef.current.add(rewardKey);
+
+  try {
+    await handleEcosystemClick(rewardKey, url);
+  } catch (err) {
+    rewardedSponsoredAdsRef.current.delete(rewardKey);
+    throw err;
+  }
+};
   
   /* ---------------- HANDLE GAMECREATED EVENT ---------------- */
   const [showDeviceWarning, setShowDeviceWarning] = useState(false);
@@ -2145,9 +2167,9 @@ const AdPlaceholder = () => (
       padding: "18px 16px",
       borderRadius: 16,
       background: "linear-gradient(145deg, #0a0a0a, #141414)",
-      border: "1px solid rgba(24,187,26,0.25)",
+      border: "1px solid #5ebdde",
       boxShadow:
-        "0 0 12px rgba(24,187,26,0.12), inset 0 0 20px rgba(0,0,0,0.6)",
+        "0 0 12px rgba(94,189,222,0.12), inset 0 0 20px rgba(0,0,0,0.6)",
       overflow: "hidden",
     }}
   >
@@ -2157,114 +2179,162 @@ const AdPlaceholder = () => (
         position: "absolute",
         inset: 0,
         background:
-          "radial-gradient(circle at 50% 0%, rgba(24,187,26,0.15), transparent 60%)",
+          "radial-gradient(circle at 50% 0%, #5ebdde, transparent 60%)",
         pointerEvents: "none",
       }}
     />
 
-{/* Sponsored tag */}
-<div
+    {/* Top Bar */}
+    <div
+      style={{
+        position: "absolute",
+        top: 8,
+        left: 10,
+        right: 10,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}
+    >
+      {/* Sponsored (left) */}
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: 1.2,
+          textTransform: "uppercase",
+          color: "#5ebdde",
+          opacity: 0.6,
+        }}
+      >
+        Sponsored
+      </div>
+
+{/* Advertise (right) */}
+<a
+  href="https://t.me/ETN_Villain"
+  target="_blank"
+  rel="noopener noreferrer"
   style={{
-    position: "absolute",
-    top: 8,
-    right: 10,
     fontSize: 10,
     fontWeight: 700,
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     textTransform: "uppercase",
     color: "#18bb1a",
-    opacity: 0.8,
+    background: "rgba(24,187,26,0.12)",
+    border: "1px solid #18bb1a",
+    padding: "4px 10px",
+    borderRadius: 999,
+    textDecoration: "none",
+    cursor: "pointer",
+    boxShadow: "0 0 6px rgba(24,187,26,0.35)",
+    transition: "all 0.2s ease",
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.background = "#18bb1a";
+    e.currentTarget.style.color = "#000";
+    e.currentTarget.style.boxShadow = "0 0 10px rgba(24,187,26,0.6)";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.background = "rgba(24,187,26,0.12)";
+    e.currentTarget.style.color = "#18bb1a";
+    e.currentTarget.style.boxShadow = "0 0 6px rgba(24,187,26,0.35)";
   }}
 >
-  Sponsored
-</div>
+  Advertise Here
+</a>
+    </div>
 
-{/* Ad Header */}
-<div
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 8,
-    marginBottom: 10,
-    textAlign: "center",
-  }}
->
-  <div
-    style={{
-      fontSize: 10,
-      fontWeight: 700,
-      letterSpacing: 1.4,
-      textTransform: "uppercase",
-      color: "#18bb1a",
-      opacity: 0.8,
-      marginBottom: 10,
-    }}
-  >
-    Sponsored Ad
-  </div>
+    {/* Main Content */}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        marginTop: 28,
+      }}
+    >
+      <img
+        src={EtnClubLogo}
+        alt="ETN CLUB"
+        style={{
+          display: "block",
+          width: isMobile ? 52 : 64,
+          height: "auto",
+          filter: "drop-shadow(0 0 8px #5ebdde)",
+          opacity: 0.95,
+          marginBottom: 10,
+        }}
+      />
 
-  <img
-    src={CoreClashLogo}
-    alt="Core Clash"
-    style={{
-      width: isMobile ? 52 : 64,
-      height: "auto",
-      filter: "drop-shadow(0 0 8px #18bb1a)",
-      opacity: 0.95,
-      marginBottom: 10,
-    }}
-  />
+      <div
+        style={{
+          fontSize: isMobile ? 16 : 18,
+          fontWeight: 800,
+          color: "#fff",
+          letterSpacing: 0.4,
+          marginBottom: 6,
+        }}
+      >
+        ETN Club Token
+      </div>
 
-  <div
-    style={{
-      fontSize: isMobile ? 16 : 18,
-      fontWeight: 800,
-      color: "#fff",
-      letterSpacing: 0.4,
-      marginBottom: 6,
-    }}
-  >
-    Promote Your Project
-  </div>
+      <div
+        style={{
+          fontSize: isMobile ? 12 : 13,
+          color: "#aaa",
+          lineHeight: 1.5,
+          maxWidth: 260,
+          marginBottom: 12,
+          textAlign: "center",
+        }}
+      >
+        Deflationary. Community-Owned. ETN Club.
+      </div>
 
-  <div
-    style={{
-      fontSize: isMobile ? 12 : 13,
-      color: "#aaa",
-      lineHeight: 1.5,
-      maxWidth: 260,
-      marginBottom: 12,
-    }}
-  >
-    Put your brand in front of Core Clash players with a featured sponsor slot.
-  </div>
+      <a
+        href="https://planetetn.org/profile/4-etn-club"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: "inline-flex",
+          justifyContent: "center",
+          fontSize: 12,
+          color: "#5ebdde",
+          textDecoration: "none",
+          marginBottom: 10,
+          textAlign: "center",
+        }}
+      >
+        Official Website
+      </a>
 
-  <div
-    onClick={() =>
-      handleEcosystemClick(
-        "sponsoredad1",
-        "https://t.me/ETN_Villain"
-      )
-    }
-    style={{
-      display: "inline-block",
-      padding: "7px 16px",
-      borderRadius: 999,
-      background: "rgba(24,187,26,0.12)",
-      border: "1px solid rgba(24,187,26,0.5)",
-      color: "#18bb1a",
-      fontWeight: 700,
-      fontSize: 13,
-      textDecoration: "none",
-      boxShadow: "0 0 8px rgba(24,187,26,0.25)",
-      cursor: "pointer",
-    }}
-  >
-    Contact → t.me/ETN_Villain
-  </div>
-</div>
+      <a
+        href="https://t.me/ETNclubs"
+        onClick={(e) => {
+          e.preventDefault();
+          handleSponsoredAdClick("sponsoredad1", "https://t.me/ETNclubs");
+        }}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6,
+          fontSize: 13,
+          fontWeight: 700,
+          color: "#fff",
+          background: "#5ebdde",
+          padding: "6px 12px",
+          borderRadius: 6,
+          textDecoration: "none",
+        }}
+      >
+        <FaTelegramPlane size={14} />
+        Join the CLUB
+      </a>
+    </div>
   </div>
 );
 
