@@ -1369,15 +1369,17 @@ const manualSettleGame = useCallback(
       await ensureCorrectNetwork(provider, wcProvider);
 
       // Step 1: Compute results on backend
-      const computeRes = await fetch(`${BACKEND_URL}/games/${gameId}/compute-results`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }).then(r => r.json());
+const computeHttpRes = await fetch(`${BACKEND_URL}/games/${gameId}/compute-results`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+});
 
-      if (!computeRes.success) {
-        alert(`Failed to compute results: ${computeRes.error || "Unknown error"}`);
-        return;
-      }
+const computeRes = await computeHttpRes.json();
+
+if (!computeHttpRes.ok || !computeRes.success) {
+  alert(`Failed to compute results: ${computeRes.error || "Unknown error"}`);
+  return;
+}
 
       console.log("Computed results:", computeRes);
 
@@ -1390,12 +1392,10 @@ const manualSettleGame = useCallback(
         headers: { "Content-Type": "application/json" },
       }).then(r => r.json());
 
-      if (!postWinnerRes.success || postWinnerRes.alreadyPosted) {
-        if (!postWinnerRes.success) {
-          alert(`Failed to post winner: ${postWinnerRes.error}`);
-          return;
-        }
-      }
+if (!postWinnerRes.success && !postWinnerRes.alreadyPosted) {
+  alert(`Failed to post winner: ${postWinnerRes.error || "Unknown error"}`);
+  return;
+}
 
       console.log("Winner posted:", postWinnerRes);
 
