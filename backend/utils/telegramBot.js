@@ -362,7 +362,7 @@ function formatUsd(value) {
 
 export async function sendSwapMessage({
   symbol,
-  side,
+  side,                    // "BUY" or "SELL"
   baseAmount,
   quoteAmount,
   quoteSymbol,
@@ -374,45 +374,39 @@ export async function sendSwapMessage({
   image,
   animationUrl,
   animationFileId,
-  extraHtml = "",        // ← NEW: Add this parameter
+  extraHtml = "",          // for multi-hop route info
   includeFooter = true,
 }) {
   try {
-    if (side !== "BUY") return;
-
     const txUrl = `${EXPLORER_BASE_URL}/tx/${txHash}`;
     const traderUrl = `${EXPLORER_BASE_URL}/address/${trader}`;
 
-    const usdLine =
-      usdValue != null
-        ? `💲 <b>Value:</b> $${formatUsd(usdValue)}`
-        : null;
+    const usdLine = usdValue != null
+      ? `💲 <b>Value:</b> $${formatUsd(usdValue)}`
+      : null;
 
-    const priceLine =
-      tokenPriceUsd != null && Number.isFinite(tokenPriceUsd)
-        ? `💵 <b>Price:</b> $${formatUsdPrice(tokenPriceUsd)}`
-        : null;
+    const priceLine = tokenPriceUsd != null && Number.isFinite(tokenPriceUsd)
+      ? `💵 <b>Price:</b> $${formatUsdPrice(tokenPriceUsd)}`
+      : null;
 
-    // Build main text
+    const emoji = side === "SELL" ? "🔴" : "🟢";
+    const action = side === "SELL" ? "SELL" : "BUY";
+
     let text = [
-      `🟢 <b>${escapeHtml(symbol)} BUY</b>`,
+      `${emoji} <b>${escapeHtml(symbol)} ${action}</b>`,
       priceLine,
       `🔢 <b>Amount:</b> ${escapeHtml(baseAmount)} ${escapeHtml(symbol)}`,
-      `💰 <b>Paid:</b> ${escapeHtml(quoteAmount)} ${escapeHtml(quoteSymbol)}`,
+      `💰 <b>${side === "SELL" ? "Received" : "Paid"}:</b> ${escapeHtml(quoteAmount)} ${escapeHtml(quoteSymbol)}`,
       usdLine,
       `👤 <b>Trader:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
       `🔗 <a href="${txUrl}">View Transaction</a>`,
       "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    ].filter(Boolean).join("\n");
 
-    // Append extraHtml (route breakdown) if present
     if (extraHtml) {
-      text += extraHtml;   // extraHtml already contains <b> tags etc.
+      text += extraHtml;
     }
 
-    // Add footer
     if (includeFooter) {
       text += buildClubFooter();
     }
@@ -424,44 +418,35 @@ export async function sendSwapMessage({
       disable_web_page_preview: true,
     };
 
-    // 1) Try animation first
+    // Animation / Photo / Text fallback (same as before)
     if (animationFileId || animationUrl) {
       try {
-        const animationEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendAnimation`;
-
-        await axios.post(animationEndpoint, {
+        await axios.post(`https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendAnimation`, {
           ...basePayload,
           animation: animationFileId || animationUrl,
           caption: text,
         });
-
         return;
       } catch (err) {
-        console.error("[Telegram] Animation failed, trying photo fallback:", err.message);
+        console.error("[Telegram] Animation failed:", err.message);
       }
     }
 
-    // 2) Fall back to photo
     if (imageFileId || image) {
       try {
-        const photoEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendPhoto`;
-
-        await axios.post(photoEndpoint, {
+        await axios.post(`https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendPhoto`, {
           ...basePayload,
           photo: imageFileId || image,
           caption: text,
         });
-
         return;
       } catch (err) {
-        console.error("[Telegram] Photo failed, trying text fallback:", err.message);
+        console.error("[Telegram] Photo failed:", err.message);
       }
     }
 
-    // 3) Final fallback: plain text message
-    const messageEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendMessage`;
-
-    await axios.post(messageEndpoint, {
+    // Plain text fallback
+    await axios.post(`https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendMessage`, {
       ...basePayload,
       text,
     });

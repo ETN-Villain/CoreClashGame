@@ -412,11 +412,6 @@ function estimateSwapUsdValue(priceEngine, trackedMeta, swap) {
   `[SwapListener][USD DEBUG] ${trackedMeta.symbol} baseUsd=${baseUsd} quoteUsd=${quoteUsd} quoteSymbol=${trackedMeta.quoteSymbol}`
 );
 
-  // For BUY alerts, prefer the paid side when available.
-  if (swap.side === "BUY" && validQuote != null) {
-    return validQuote;
-  }
-
   if (validBase != null) return validBase;
   if (validQuote != null) return validQuote;
 
@@ -491,6 +486,7 @@ for (const trackedMeta of poolMeta.trackedTokens) {
     addToAggregate(aggregatedBuys, aggregateKey, {
       txHash: log.transactionHash,
       symbol: trackedMeta.symbol,
+      side: swap.side,
       tokenAddress: trackedMeta.address,
       baseAmountRaw: swap.baseAmountRaw,
       baseDecimals: trackedMeta.decimals,
@@ -519,7 +515,7 @@ for (const aggregated of aggregatedBuys.values()) {
 
     const baseAmount = formatUnitsSafe(aggregated.baseAmountRaw, aggregated.baseDecimals);
 
-    // Final USD value with fallback
+    // Calculate final USD value
     let finalUsdValue = aggregated.usdValue ?? null;
     if ((finalUsdValue == null || finalUsdValue < 5) && aggregated.tokenAddress) {
       const tokenPrice = priceEngine.getTokenUsd(aggregated.tokenAddress);
@@ -528,8 +524,13 @@ for (const aggregated of aggregatedBuys.values()) {
       }
     }
 
-    if (finalUsdValue == null || finalUsdValue < 10) {
-      console.log(`[SwapListener][FILTER] Skipped ${aggregated.symbol} ~$${finalUsdValue?.toFixed(2) || 'N/A'}`);
+    if (finalUsdValue == null) continue;
+
+    const isSell = aggregated.side === "SELL";        // we'll set this in decode later
+    const minUsdThreshold = isSell ? 500 : 10;
+
+    if (finalUsdValue < minUsdThreshold) {
+      console.log(`[SwapListener][FILTER] Skipped ${aggregated.symbol} ${isSell ? 'SELL' : 'BUY'} ~$${finalUsdValue.toFixed(2)} (below $${minUsdThreshold})`);
       continue;
     }
 
@@ -542,29 +543,27 @@ for (const aggregated of aggregatedBuys.values()) {
 
     const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress) || null;
 
-    // === Route breakdown for multi-hop ===
+    // Multi-hop route breakdown (only for multi-hop cases)
     let routeInfo = "";
     if (aggregated.quoteSymbol === "MULTI") {
       try {
-        console.log(`[SwapListener] Fetching trace for multi-route tx ${shortAddr(aggregated.txHash)}`);
         const trace = await provider.send("debug_traceTransaction", [
           aggregated.txHash,
           { tracer: "callTracer" }
         ]);
-
         const routeDescription = buildRouteDescription(trace);
         routeInfo = `\n\n<b>Route Breakdown:</b>\n${routeDescription}`;
-      } catch (traceErr) {
-        console.error(`[SwapListener] Trace failed for ${aggregated.txHash}:`, traceErr.message);
+      } catch (e) {
+        console.error(`Trace failed for ${aggregated.txHash}:`, e.message);
         routeInfo = "\n\n<i>Multi-route swap (trace unavailable)</i>";
       }
     }
 
-    console.log(`[SwapListener] ${aggregated.symbol} BUY ${baseAmount} | $${finalUsdValue.toFixed(2)} ${routeInfo ? '(multi-route)' : ''}`);
+    console.log(`[SwapListener] ${aggregated.symbol} ${isSell ? 'SELL' : 'BUY'} ${baseAmount} | $${finalUsdValue.toFixed(2)}`);
 
     await sendSwapMessage({
       symbol: aggregated.symbol,
-      side: "BUY",
+      side: isSell ? "SELL" : "BUY",
       baseAmount,
       quoteAmount: quoteAmountStr,
       quoteSymbol: displayQuoteSymbol,
@@ -576,11 +575,11 @@ for (const aggregated of aggregatedBuys.values()) {
       image: aggregated.image || null,
       animationUrl: aggregated.animationUrl || null,
       animationFileId: aggregated.animationFileId || null,
-      extraHtml: routeInfo   // ← Make sure your sendSwapMessage can handle this (HTML supported)
+      extraHtml: routeInfo,
     });
 
   } catch (err) {
-    console.error("[SwapListener] Failed sending aggregated swap message:", err);
+    console.error("[SwapListener] Failed sending swap message:", err);
   }
 }
 
