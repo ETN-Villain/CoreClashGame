@@ -75,8 +75,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "DCNT",
     address: process.env.DCNT_TOKEN_ADDRESS,
-    imageFileId: "AgACAgQAAxkBAAMFaeU4UFhJVTHEr7IC5NwI-9hOqQADygxrG_2HKFOUi4Hl8IFWCAEAAwIAA3MAAzsE",
-    pools: [
+    imageFileId: "AgACAgQAAxkBAAMFaeU4UFhJVTHEr7IC5NwI-9hOqQADygxrG_2HKFOUi4Hl8IFWCAEAAwIAA3kAAzsE"    pools: [
       {
         address: "0x6cDF9e7c8177BFCEc940E3f195ACf5a9C04ae3CD",
         dex: "ELECTROV3", // confirm
@@ -129,8 +128,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "FUGAZI",
     address: process.env.FUGAZI_TOKEN_ADDRESS,
-    imageFileId: "AgACAgQAAxkBAAMHaeU4UaFtHkC3sazhaC0LtHq--y8AAssMaxv9hyhToYIPkNKbT0oBAAMCAANzAAM7BA",
-    pools: [
+    imageFileId: "AgACAgQAAxkBAAMHaeU4UaFtHkC3sazhaC0LtHq--y8AAssMaxv9hyhToYIPkNKbT0oBAAMCAAN5AAM7BA",    pools: [
       {
         address: "0x5F868b7E7345c0D6D4daD376521e6Ac4ac0CC836",
         dex: "UNIV2", // confirm

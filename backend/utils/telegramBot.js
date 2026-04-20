@@ -433,24 +433,26 @@ if (animationFileId || animationUrl) {
 }
 
     // 2) Fall back to photo
-    if (image) {
-      try {
-        const photoEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendPhoto`;
+if (imageFileId || image) {
+  try {
+    console.log(`[Telegram][DEBUG] Sending photo for ${symbol} with ${imageFileId || image}`);
 
-await axios.post(photoEndpoint, {
-  ...basePayload,
-  photo: imageFileId || image,
-  caption: text,
-});
+    const photoEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendPhoto`;
 
-        return;
-      } catch (err) {
-        console.error(
-          "[Telegram] sendPhoto fallback triggered:",
-          err.response?.data || err.message || err
-        );
-      }
-    }
+    await axios.post(photoEndpoint, {
+      ...basePayload,
+      photo: imageFileId || image,
+      caption: text,
+    });
+
+    return;
+  } catch (err) {
+    console.error(
+      "[Telegram] sendPhoto fallback triggered:",
+      err.response?.data || err.message || err
+    );
+  }
+}
 
     // 3) Final fallback: plain text
     const messageEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendMessage`;
