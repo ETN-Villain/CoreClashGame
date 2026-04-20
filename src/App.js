@@ -31,8 +31,10 @@ import { renderTokenImages } from "./renderTokenImages.jsx";
 
 import {
   CoreClashLogo, AppBackground, PlanetZephyrosAE, HowToPlay, GameInfo, ElectroSwap,
-  VerdantKinBanner, ElectroneumLogo, AetherScionsBanner, VerdantQueenBanner
+  VerdantKinBanner, ElectroneumLogo, AetherScionsBanner, VerdantQueenBanner, EtnClub
 } from "./appMedia/media.js";
+
+import { FaTelegramPlane } from "react-icons/fa";
 
 import GameCard from "./gameCard.jsx";
 import EcosystemBlock from "./ecosystemBlock.jsx";
@@ -2172,7 +2174,7 @@ const AdPlaceholder = () => (
     fontWeight: 700,
     letterSpacing: 1.5,
     textTransform: "uppercase",
-    color: "#18bb1a",
+    color: "#5ebdde",
     opacity: 0.8,
   }}
 >
@@ -2197,7 +2199,7 @@ const AdPlaceholder = () => (
       fontWeight: 700,
       letterSpacing: 1.4,
       textTransform: "uppercase",
-      color: "#18bb1a",
+      color: "#5ebdde",
       opacity: 0.8,
       marginBottom: 10,
     }}
@@ -2206,12 +2208,12 @@ const AdPlaceholder = () => (
   </div>
 
   <img
-    src={CoreClashLogo}
-    alt="Core Clash"
+    src={etnClubLogo}
+    alt="ETN CLUB"
     style={{
       width: isMobile ? 52 : 64,
       height: "auto",
-      filter: "drop-shadow(0 0 8px #18bb1a)",
+      filter: "drop-shadow(0 0 8px #5ebdde)",
       opacity: 0.95,
       marginBottom: 10,
     }}
@@ -2226,7 +2228,7 @@ const AdPlaceholder = () => (
       marginBottom: 6,
     }}
   >
-    Promote Your Project
+    ETN Club Token
   </div>
 
   <div
@@ -2238,34 +2240,71 @@ const AdPlaceholder = () => (
       marginBottom: 12,
     }}
   >
-    Put your brand in front of Core Clash players with a featured sponsor slot.
+    Deflationary. Community-Owned. ETN Club.
   </div>
 
-  <div
-    onClick={() =>
-      handleEcosystemClick(
-        "sponsoredad1",
-        "https://t.me/ETN_Villain"
-      )
-    }
+  <a
+    href="https://planetetn.org/profile/4-etn-club"
+    target="_blank"
+    rel="noopener noreferrer"
     style={{
-      display: "inline-block",
-      padding: "7px 16px",
-      borderRadius: 999,
-      background: "rgba(24,187,26,0.12)",
-      border: "1px solid rgba(24,187,26,0.5)",
-      color: "#18bb1a",
-      fontWeight: 700,
-      fontSize: 13,
+      fontSize: 12,
+      color: "#5ebdde",
       textDecoration: "none",
-      boxShadow: "0 0 8px rgba(24,187,26,0.25)",
-      cursor: "pointer",
+      marginBottom: 6,
     }}
   >
-    Contact → t.me/ETN_Villain
-  </div>
+    Learn More
+  </a>
+
+<a
+  href="https://t.me/ETNclubs"
+  target="_blank"
+  rel="noopener noreferrer"
+  style={{
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#fff",
+    background: "#5ebdde",
+    padding: "6px 12px",
+    borderRadius: 6,
+    textDecoration: "none",
+  }}
+>
+  <FaTelegramPlane size={14} />
+  Join the CLUB
+</a>
 </div>
-  </div>
+
+<div
+  onClick={() =>
+    handleAdClick(
+      "sponsoredad1",
+      "https://t.me/ETNclubs"
+    )
+  }
+  style={{
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "7px 16px",
+    borderRadius: 999,
+    background: "rgba(94,189,222,0.12)",
+    border: "1px solid rgba(94,189,222,0.5)",
+    color: "#5ebdde",
+    fontWeight: 700,
+    fontSize: 13,
+    textDecoration: "none",
+    boxShadow: "0 0 8px rgba(94,189,222,0.25)",
+    cursor: "pointer",
+  }}
+>
+  Join → t.me/ETNclubs
+</div>
+</div>
 );
 
 const renderGamesWithSingleAd = (games) => {
