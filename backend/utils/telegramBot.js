@@ -141,7 +141,7 @@ function buildClubFooter() {
     `💵 <a href="https://app.electroswap.io/explore/tokens/electroneum/0xc9fc4ab00911793d99b5c7bd01f01203c21d4131?inputCurrency=ETN"><b>Buy CLUB</b></a>\n\n` +
     `⚡ <a href="https://app.electroswap.io/explore/transactions">Live Transactions</a>\n` +
     `🌍 <a href="https://planetetn.org/profile/4-etn-club">CLUB PlanetETN Profile</a>\n\n` +
-    `📢 <i>Add your token — contact @cryptojays</i>\n\n` +
+    `📢 <i>Add your token — contact @JAYETNZ</i>\n\n` +
     `<i>🛠 Built by @ETN_Villain</i>`
   );
 }
