@@ -492,28 +492,36 @@ router.post("/:id/reveal", authWallet, async (req, res) => {
 
 broadcast("GameRevealed", gamesSnapshot);
 
+const revealedBy = walletLc;
+
+const currentGame = gamesSnapshot?.find((g) => g.id === gameId);
+const player1Revealed = !!currentGame?.player1Reveal;
+const player2Revealed = !!currentGame?.player2Reveal;
+
 try {
   await sendTelegramReveal({
     gameId,
-    revealedBy: account.toLowerCase(),
-    player1Revealed: game.player1Revealed,
-    player2Revealed: game.player2Revealed,
+    revealedBy,
+    player1Revealed,
+    player2Revealed,
   });
 } catch (tgErr) {
-  console.error("Telegram GameRevealed notification failed:", tgErr.message || tgErr);
+  console.error(
+    "Telegram GameRevealed notification failed:",
+    tgErr.message || tgErr
+  );
 }
 
-if (game.player1Revealed && game.player2Revealed) {
+if (player1Revealed && player2Revealed) {
   try {
     await sendTelegramBothRevealed({ gameId });
   } catch (tgErr) {
-    console.error("Telegram BothRevealed notification failed:", tgErr.message || tgErr);
+    console.error(
+      "Telegram BothRevealed notification failed:",
+      tgErr.message || tgErr
+    );
   }
 }
-
-    if (game.player1Revealed && game.player2Revealed) {
-      await sendTelegramBothRevealed({ gameId });
-    }
 
     // ---- Auto-resolve in background ----
     if (bothRevealed) {
