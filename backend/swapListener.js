@@ -395,7 +395,6 @@ for (const trackedMeta of poolMeta.trackedTokens) {
   try {
     const swap = decodeSwap(parsed, poolMeta, trackedMeta);
     if (!swap || swap.baseAmountRaw <= 0n) continue;
-    if (swap.side !== "BUY") continue;
 
     let tx;
     if (txCache.has(log.transactionHash)) {
@@ -434,49 +433,73 @@ for (const trackedMeta of poolMeta.trackedTokens) {
           }
         }
 
+// === AFTER the inner logs processing loop ===
 for (const aggregated of aggregatedBuys.values()) {
   try {
-    console.log(
-  `[SwapListener][DEBUG] ${aggregated.symbol} tx=${aggregated.txHash} usdValue=${aggregated.usdValue}`
-);
-    if (aggregated.usdValue != null && aggregated.usdValue < 10) {
-      continue;
-    }
+    // Skip if no meaningful buy volume
+    if (aggregated.baseAmountRaw <= 0n) continue;
 
     const baseAmount = formatUnitsSafe(
       aggregated.baseAmountRaw,
       aggregated.baseDecimals
     );
 
-    let quoteAmount = null;
-    if (aggregated.quoteSymbol !== "MULTI") {
-      quoteAmount = formatUnitsSafe(
+    // Calculate final USD value for the whole aggregated entry
+    let finalUsdValue = aggregated.usdValue ?? null;
+
+    // If we didn't get a good USD from estimateSwapUsdValue, try again with more tolerance
+    if (finalUsdValue == null || finalUsdValue < 1) {
+      const tokenPrice = priceEngine.getTokenUsd(aggregated.tokenAddress);
+      if (tokenPrice != null && Number.isFinite(tokenPrice)) {
+        const baseNum = Number(ethers.formatUnits(aggregated.baseAmountRaw, aggregated.baseDecimals));
+        finalUsdValue = baseNum * tokenPrice;
+      }
+    }
+
+    // === FILTER: only send if total buy >= $10 ===
+    if (finalUsdValue == null || finalUsdValue < 10) {
+      console.log(`[SwapListener][FILTER] Skipped ${aggregated.symbol} BUY ~$${finalUsdValue?.toFixed(2) || 'N/A'} (below $10 threshold)`);
+      continue;
+    }
+
+    // Format quote amount (or show multi-hop)
+    let quoteAmountStr = "-";
+    let displayQuoteSymbol = aggregated.quoteSymbol;
+
+    if (aggregated.quoteSymbol === "MULTI") {
+      displayQuoteSymbol = "multi-hop";
+    } else if (aggregated.quoteAmountRaw > 0n) {
+      quoteAmountStr = formatUnitsSafe(
         aggregated.quoteAmountRaw,
         aggregated.quoteDecimals
       );
     }
 
-    const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress);
-
-await sendSwapMessage({
-  symbol: aggregated.symbol,
-  side: "BUY",
-  baseAmount,
-  quoteAmount: quoteAmount || "-",
-  quoteSymbol: aggregated.quoteSymbol === "MULTI" ? "multi-hop" : aggregated.quoteSymbol,
-  trader: aggregated.trader,
-  txHash: aggregated.txHash,
-  usdValue: aggregated.usdValue ?? null,
-  tokenPriceUsd,
-  imageFileId: aggregated.imageFileId || null,
-  image: aggregated.image || null,
-  animationUrl: aggregated.animationUrl || null,
-  animationFileId: aggregated.animationFileId || null,
-});
+    const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress) || null;
 
     console.log(
-      `[SwapListener] ${aggregated.symbol} BUY ${baseAmount} in tx ${aggregated.txHash}`
+      `[SwapListener][AGGREGATED] ${aggregated.symbol} BUY ${baseAmount} ` +
+      `(${aggregated.quoteSymbol !== "MULTI" ? quoteAmountStr + " " + aggregated.quoteSymbol : "multi-hop"}) ` +
+      `| USD: $${finalUsdValue.toFixed(2)} | tx: ${aggregated.txHash}`
     );
+
+    // Send the Telegram notification
+    await sendSwapMessage({
+      symbol: aggregated.symbol,
+      side: "BUY",
+      baseAmount,
+      quoteAmount: quoteAmountStr,
+      quoteSymbol: displayQuoteSymbol,
+      trader: aggregated.trader,
+      txHash: aggregated.txHash,
+      usdValue: finalUsdValue,
+      tokenPriceUsd,
+      imageFileId: aggregated.imageFileId || null,
+      image: aggregated.image || null,
+      animationUrl: aggregated.animationUrl || null,
+      animationFileId: aggregated.animationFileId || null,
+    });
+
   } catch (err) {
     console.error("[SwapListener] Failed sending aggregated swap message:", err);
   }

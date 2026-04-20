@@ -724,13 +724,34 @@ router.post("/:id/compute-results", async (req, res) => {
     }
 
     // Compute outside the lock so we do not block other writers longer than needed
-    const resolved = await resolveGame(initialGame);
+const resolved = await resolveGame(initialGame);
 
-    const resolvedRounds = resolved?.roundResults || resolved?.rounds || [];
+console.log(
+  `resolveGame(${gameId}) returned:`,
+  JSON.stringify(resolved, null, 2)
+);
 
-    if (!resolved || !Array.isArray(resolvedRounds) || resolvedRounds.length === 0) {
-      return res.status(500).json({ error: "Failed to compute game results" });
-    }
+const resolvedRounds = resolved?.roundResults || resolved?.rounds || [];
+
+if (!resolved) {
+  return res.status(500).json({
+    error: "resolveGame returned null/undefined",
+  });
+}
+
+if (!Array.isArray(resolvedRounds)) {
+  return res.status(500).json({
+    error: "resolveGame did not return roundResults/rounds array",
+    resolved,
+  });
+}
+
+if (resolvedRounds.length === 0) {
+  return res.status(500).json({
+    error: "resolveGame returned empty rounds",
+    resolved,
+  });
+}
 
     let responsePayload = null;
 
