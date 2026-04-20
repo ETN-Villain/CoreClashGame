@@ -1,11 +1,10 @@
 // backend/swapListener.js
 import { ethers } from "ethers";
 import { RPC_URL } from "./config.js";
-import { TRACKED_TOKENS } from "./swapsConfig.js";
+import { TRACKED_TOKENS, TOKEN_SYMBOL_MAP, ROUTER_ADDRESS } from "./swapsConfig.js";
 import { loadLastBlockLocked, saveLastBlockLocked } from "./utils/blockState.js";
 import { sendSwapMessage } from "./utils/telegramBot.js";
 import { buildPriceEngine } from "./utils/priceEngine.js";
-
 const POLL_INTERVAL_MS = 60000;
 const MAX_BLOCK_RANGE = 500;
 const REORG_BUFFER_BLOCKS = 2;
@@ -42,6 +41,53 @@ function formatUnitsSafe(value, decimals) {
   } catch {
     return value.toString();
   }
+}
+
+// Get nice symbol or short address
+function getTokenSymbol(address) {
+  if (!address) return "Unknown";
+  const lower = address.toLowerCase();
+  return TOKEN_SYMBOL_MAP[lower] || shortAddr(address);
+}
+
+// Build clean parent / child route description from trace
+function buildRouteDescription(trace) {
+  if (!trace?.calls) return "Multi-hop route";
+
+  const lines = [];
+  let routeCount = 0;
+
+  for (const topCall of trace.calls) {
+    if (!topCall.calls || topCall.to.toLowerCase() !== ROUTER_ADDRESS.toLowerCase()) continue;
+
+    for (const subCall of topCall.calls) {
+      // Detect swap commands (0x128acb08 is very common in this router for V3-style swaps)
+      if (subCall.input && subCall.input.startsWith("0x128acb08")) {
+        routeCount++;
+        const tokensInPath = new Set();
+
+        // Walk sub-calls to find pool/token interactions
+        if (subCall.calls) {
+          for (const inner of subCall.calls) {
+            if (inner.to) {
+              tokensInPath.add(getTokenSymbol(inner.to));
+            }
+          }
+        }
+
+        const pathArray = Array.from(tokensInPath);
+        if (pathArray.length < 2) pathArray.push("BOLT"); // fallback
+
+        const routeLabel = routeCount === 1 
+          ? "<b>Parent Route:</b>" 
+          : `<b>Child Route ${routeCount - 1}:</b>`;
+
+        lines.push(`${routeLabel} ${pathArray.join(" → ")}`);
+      }
+    }
+  }
+
+  return lines.length > 0 ? lines.join("\n") : "Multi-hop (complex route)";
 }
 
 async function safeRead(contract, method, fallback) {
@@ -85,6 +131,39 @@ function addToAggregate(map, key, fragment) {
   if (existing.quoteSymbol !== fragment.quoteSymbol) {
     existing.quoteSymbol = "MULTI";
   }
+}
+
+// Helper to get a short readable call summary
+function summarizeCall(call, depth = 0) {
+  const indent = '  '.repeat(depth);
+  const to = shortAddr(call.to);
+  let summary = `${indent}→ ${call.type} ${to}`;
+
+  if (call.value && BigInt(call.value) > 0n) {
+    summary += ` (value: ${ethers.formatEther(call.value)} ETH)`;
+  }
+  if (call.input && call.input.length > 10) {
+    summary += ` [input starts with ${call.input.slice(0, 10)}...]`;
+  }
+  return summary;
+}
+
+// Recursively collect all calls with depth info
+function collectCallsWithDepth(trace, depth = 0, result = []) {
+  if (!trace) return result;
+
+  result.push({
+    depth,
+    ...trace,
+    summary: summarizeCall(trace, depth)
+  });
+
+  if (trace.calls && Array.isArray(trace.calls)) {
+    for (const child of trace.calls) {
+      collectCallsWithDepth(child, depth + 1, result);
+    }
+  }
+  return result;
 }
 
 async function buildRuntimePoolMap(provider) {
@@ -436,54 +515,53 @@ for (const trackedMeta of poolMeta.trackedTokens) {
 // === AFTER the inner logs processing loop ===
 for (const aggregated of aggregatedBuys.values()) {
   try {
-    // Skip if no meaningful buy volume
     if (aggregated.baseAmountRaw <= 0n) continue;
 
-    const baseAmount = formatUnitsSafe(
-      aggregated.baseAmountRaw,
-      aggregated.baseDecimals
-    );
+    const baseAmount = formatUnitsSafe(aggregated.baseAmountRaw, aggregated.baseDecimals);
 
-    // Calculate final USD value for the whole aggregated entry
+    // Final USD value with fallback
     let finalUsdValue = aggregated.usdValue ?? null;
-
-    // If we didn't get a good USD from estimateSwapUsdValue, try again with more tolerance
-    if (finalUsdValue == null || finalUsdValue < 1) {
+    if ((finalUsdValue == null || finalUsdValue < 5) && aggregated.tokenAddress) {
       const tokenPrice = priceEngine.getTokenUsd(aggregated.tokenAddress);
       if (tokenPrice != null && Number.isFinite(tokenPrice)) {
-        const baseNum = Number(ethers.formatUnits(aggregated.baseAmountRaw, aggregated.baseDecimals));
-        finalUsdValue = baseNum * tokenPrice;
+        finalUsdValue = Number(ethers.formatUnits(aggregated.baseAmountRaw, aggregated.baseDecimals)) * tokenPrice;
       }
     }
 
-    // === FILTER: only send if total buy >= $10 ===
     if (finalUsdValue == null || finalUsdValue < 10) {
-      console.log(`[SwapListener][FILTER] Skipped ${aggregated.symbol} BUY ~$${finalUsdValue?.toFixed(2) || 'N/A'} (below $10 threshold)`);
+      console.log(`[SwapListener][FILTER] Skipped ${aggregated.symbol} ~$${finalUsdValue?.toFixed(2) || 'N/A'}`);
       continue;
     }
 
-    // Format quote amount (or show multi-hop)
     let quoteAmountStr = "-";
-    let displayQuoteSymbol = aggregated.quoteSymbol;
+    let displayQuoteSymbol = aggregated.quoteSymbol === "MULTI" ? "multi-hop" : aggregated.quoteSymbol;
 
-    if (aggregated.quoteSymbol === "MULTI") {
-      displayQuoteSymbol = "multi-hop";
-    } else if (aggregated.quoteAmountRaw > 0n) {
-      quoteAmountStr = formatUnitsSafe(
-        aggregated.quoteAmountRaw,
-        aggregated.quoteDecimals
-      );
+    if (aggregated.quoteSymbol !== "MULTI" && aggregated.quoteAmountRaw > 0n) {
+      quoteAmountStr = formatUnitsSafe(aggregated.quoteAmountRaw, aggregated.quoteDecimals);
     }
 
     const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress) || null;
 
-    console.log(
-      `[SwapListener][AGGREGATED] ${aggregated.symbol} BUY ${baseAmount} ` +
-      `(${aggregated.quoteSymbol !== "MULTI" ? quoteAmountStr + " " + aggregated.quoteSymbol : "multi-hop"}) ` +
-      `| USD: $${finalUsdValue.toFixed(2)} | tx: ${aggregated.txHash}`
-    );
+    // === Route breakdown for multi-hop ===
+    let routeInfo = "";
+    if (aggregated.quoteSymbol === "MULTI") {
+      try {
+        console.log(`[SwapListener] Fetching trace for multi-route tx ${shortAddr(aggregated.txHash)}`);
+        const trace = await provider.send("debug_traceTransaction", [
+          aggregated.txHash,
+          { tracer: "callTracer" }
+        ]);
 
-    // Send the Telegram notification
+        const routeDescription = buildRouteDescription(trace);
+        routeInfo = `\n\n<b>Route Breakdown:</b>\n${routeDescription}`;
+      } catch (traceErr) {
+        console.error(`[SwapListener] Trace failed for ${aggregated.txHash}:`, traceErr.message);
+        routeInfo = "\n\n<i>Multi-route swap (trace unavailable)</i>";
+      }
+    }
+
+    console.log(`[SwapListener] ${aggregated.symbol} BUY ${baseAmount} | $${finalUsdValue.toFixed(2)} ${routeInfo ? '(multi-route)' : ''}`);
+
     await sendSwapMessage({
       symbol: aggregated.symbol,
       side: "BUY",
@@ -498,6 +576,7 @@ for (const aggregated of aggregatedBuys.values()) {
       image: aggregated.image || null,
       animationUrl: aggregated.animationUrl || null,
       animationFileId: aggregated.animationFileId || null,
+      extraHtml: routeInfo   // ← Make sure your sendSwapMessage can handle this (HTML supported)
     });
 
   } catch (err) {
