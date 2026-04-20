@@ -129,7 +129,8 @@ export const TRACKED_TOKENS = [
   {
     symbol: "FUGAZI",
     address: process.env.FUGAZI_TOKEN_ADDRESS,
-    imageFileId: "AgACAgQAAxkBAAMHaeU4UaFtHkC3sazhaC0LtHq--y8AAssMaxv9hyhToYIPkNKbT0oBAAMCAAN5AAM7BA",    pools: [
+    imageFileId: "AgACAgQAAxkBAAMHaeU4UaFtHkC3sazhaC0LtHq--y8AAssMaxv9hyhToYIPkNKbT0oBAAMCAAN5AAM7BA",    
+    pools: [
       {
         address: "0x5F868b7E7345c0D6D4daD376521e6Ac4ac0CC836",
         dex: "UNIV2", // confirm
@@ -148,3 +149,26 @@ export const PRICING_POOLS = [
     dex: "ELECTROV3",
   },
 ];
+
+// backend/swapsConfig.js  ← add this at the end
+
+export const TOKEN_SYMBOL_MAP = {
+  // WETN / native wrapped token (common input)
+  "0x138dafbda0ccb3d8e39c19edb0510fc31b7c1c77": "WETN",
+
+  // Your tracked tokens + common intermediates
+  [process.env.CLUB_TOKEN_ADDRESS?.toLowerCase()]: "CLUB",
+  [process.env.BOLT_TOKEN_ADDRESS?.toLowerCase()]: "BOLT",
+  [process.env.DYNO_TOKEN_ADDRESS?.toLowerCase()]: "DYNO",
+  [process.env.CORE_TOKEN_ADDRESS?.toLowerCase()]: "CORE",
+  [process.env.USDT_TOKEN_ADDRESS?.toLowerCase()]: "USDT",
+  [process.env.USDC_TOKEN_ADDRESS?.toLowerCase()]: "USDC",
+  [process.env.DCNT_TOKEN_ADDRESS?.toLowerCase()]: "DCNT",
+  [process.env.PDY_TOKEN_ADDRESS?.toLowerCase()]: "PDY",
+  [process.env.MEGA_TOKEN_ADDRESS?.toLowerCase()]: "MEGA",
+  [process.env.FUGAZI_TOKEN_ADDRESS?.toLowerCase()]: "FUGAZI",
+
+  // Add any other common tokens here if they appear in routes
+};
+
+export const ROUTER_ADDRESS = "0x2c12c8f15637b7a182dec202816148a5e767dcec"; // the Universal Router you see in traces

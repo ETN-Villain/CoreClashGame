@@ -374,7 +374,8 @@ export async function sendSwapMessage({
   image,
   animationUrl,
   animationFileId,
-  includeFooter = true, // default
+  extraHtml = "",        // ← NEW: Add this parameter
+  includeFooter = true,
 }) {
   try {
     if (side !== "BUY") return;
@@ -382,29 +383,39 @@ export async function sendSwapMessage({
     const txUrl = `${EXPLORER_BASE_URL}/tx/${txHash}`;
     const traderUrl = `${EXPLORER_BASE_URL}/address/${trader}`;
 
-const usdLine =
-  usdValue != null
-    ? `💲 <b>Value:</b> $${formatUsd(usdValue)}`
-    : null;
+    const usdLine =
+      usdValue != null
+        ? `💲 <b>Value:</b> $${formatUsd(usdValue)}`
+        : null;
 
-const priceLine =
-  tokenPriceUsd != null && Number.isFinite(tokenPriceUsd)
-    ? `💵 <b>Price:</b> $${formatUsdPrice(tokenPriceUsd)}`
-    : null;
+    const priceLine =
+      tokenPriceUsd != null && Number.isFinite(tokenPriceUsd)
+        ? `💵 <b>Price:</b> $${formatUsdPrice(tokenPriceUsd)}`
+        : null;
 
-const text = [
-  `🟢 <b>${escapeHtml(symbol)} BUY</b>`,
-  priceLine, 
-  `🔢 <b>Amount:</b> ${escapeHtml(baseAmount)} ${escapeHtml(symbol)}`,
-  `💰 <b>Paid:</b> ${escapeHtml(quoteAmount)} ${escapeHtml(quoteSymbol)}`,
-  usdLine,
-  `👤 <b>Trader:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
-  `🔗 <a href="${txUrl}">View Transaction</a>`,
-  "",
-  buildClubFooter(),
-]
-  .filter(Boolean)
-  .join("\n");
+    // Build main text
+    let text = [
+      `🟢 <b>${escapeHtml(symbol)} BUY</b>`,
+      priceLine,
+      `🔢 <b>Amount:</b> ${escapeHtml(baseAmount)} ${escapeHtml(symbol)}`,
+      `💰 <b>Paid:</b> ${escapeHtml(quoteAmount)} ${escapeHtml(quoteSymbol)}`,
+      usdLine,
+      `👤 <b>Trader:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
+      `🔗 <a href="${txUrl}">View Transaction</a>`,
+      "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    // Append extraHtml (route breakdown) if present
+    if (extraHtml) {
+      text += extraHtml;   // extraHtml already contains <b> tags etc.
+    }
+
+    // Add footer
+    if (includeFooter) {
+      text += buildClubFooter();
+    }
 
     const basePayload = {
       chat_id: CLUB_TELEGRAM_CHAT_ID,
@@ -414,59 +425,49 @@ const text = [
     };
 
     // 1) Try animation first
-if (animationFileId || animationUrl) {
-  try {
-    const animationEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendAnimation`;
+    if (animationFileId || animationUrl) {
+      try {
+        const animationEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendAnimation`;
 
-    await axios.post(animationEndpoint, {
-      ...basePayload,
-      animation: animationFileId || animationUrl,
-      caption: text,
-    });
+        await axios.post(animationEndpoint, {
+          ...basePayload,
+          animation: animationFileId || animationUrl,
+          caption: text,
+        });
 
-    return;
-  } catch (err) {
-    console.error(
-      "[Telegram] sendAnimation fallback triggered:",
-      err.response?.data || err.message || err
-    );
-  }
-}
+        return;
+      } catch (err) {
+        console.error("[Telegram] Animation failed, trying photo fallback:", err.message);
+      }
+    }
 
     // 2) Fall back to photo
-if (imageFileId || image) {
-  try {
-    console.log(`[Telegram][DEBUG] Sending photo for ${symbol} with ${imageFileId || image}`);
+    if (imageFileId || image) {
+      try {
+        const photoEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendPhoto`;
 
-    const photoEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendPhoto`;
+        await axios.post(photoEndpoint, {
+          ...basePayload,
+          photo: imageFileId || image,
+          caption: text,
+        });
 
-    await axios.post(photoEndpoint, {
-      ...basePayload,
-      photo: imageFileId || image,
-      caption: text,
-    });
+        return;
+      } catch (err) {
+        console.error("[Telegram] Photo failed, trying text fallback:", err.message);
+      }
+    }
 
-    return;
-  } catch (err) {
-    console.error(
-      "[Telegram] sendPhoto fallback triggered:",
-      err.response?.data || err.message || err
-    );
-  }
-}
-
-    // 3) Final fallback: plain text
+    // 3) Final fallback: plain text message
     const messageEndpoint = `https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendMessage`;
 
     await axios.post(messageEndpoint, {
       ...basePayload,
       text,
     });
+
   } catch (err) {
-    console.error(
-      "[Telegram] sendSwapMessage error:",
-      err.response?.data || err.message || err
-    );
+    console.error("[Telegram] sendSwapMessage error:", err.response?.data || err.message || err);
   }
 }
 
