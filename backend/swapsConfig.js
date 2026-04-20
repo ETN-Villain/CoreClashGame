@@ -140,14 +140,54 @@ export const TRACKED_TOKENS = [
 ];
 
 export const PRICING_POOLS = [
+  // Stables (keep these as $1 anchors)
   {
-    address: "0x0CC625331C9b22D94fEF29d462aB1c9B26dFF196",
+    address: "0x0CC625331C9b22D94fEF29d462aB1c9B26dFF196", // USDT pool
     dex: "ELECTROV3",
   },
   {
-    address: "0x2cB2Af7aef7AB4cc3228F9c55EE8542Cb323Ad8A",
+    address: "0x2cB2Af7aef7AB4cc3228F9c55EE8542Cb323Ad8A", // USDC pool
     dex: "ELECTROV3",
   },
+
+  // === HIGH PRIORITY: Direct WETN pairs (most reliable) ===
+  {
+    address: "0x2Df6c494B5e96b781b5cB410C4889D4f079bad30", // BOLT / WETN
+    dex: "ELECTROV3",
+  },
+  {
+    address: "0x806559d60869359CD4Eb4FfD94Ad8F9b668D919C", // DYNO / WETN
+    dex: "ELECTROV3",
+  },
+  {
+    address: "0x86566c3c78424e3c3c2aDb274FAB551B7262E0ca", // CLUB / WETN (one of the V3 pools)
+    dex: "ELECTROV3",
+  },
+
+  // Optional but helpful for better connectivity
+  {
+    address: "0x32ECfC060373e3379A86538A5017b4D89A5A75c1", // DYNO / BOLT (very liquid)
+    dex: "ELECTROV3",
+  },
+  {
+    address: "0x2132e7c909C4c3338Eda5F0e165A3A43AaDC3FBe", // CLUB / DYNO or another CLUB pool
+    dex: "ELECTROV3",
+  },
+
+  {
+     address: "0xc3FE6f98765493aB62AD87C9B5022Ff2FAA2e98D", // CORE / WETN
+     dex: "UNIV2",
+   },
+
+  {
+    address: "0x0d138f0bf5C7Bb25A078F791E5802776656e82D3", // PDY / WETN
+    dex: "UNIV2",
+  },
+
+  {
+    address: "0x1c229497104c5DAb8933E0945e9d1E2a2a1cE824", // MEGA / WETN
+    dex: "ELECTROV3",
+  }
 ];
 
 // backend/swapsConfig.js  ← add this at the end
