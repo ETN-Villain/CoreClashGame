@@ -370,6 +370,7 @@ export async function sendSwapMessage({
   usdValue,
   tokenPriceUsd,
   imageFileId,
+  image,
   animationUrl,
   animationFileId,
   includeFooter = true, // default

@@ -162,6 +162,7 @@ const quoteTokenAddress = baseTokenAddress === token0 ? token1 : token0;
         quoteDecimals: Number(quoteDecimals),
         trackedIsToken0: baseTokenAddress.toLowerCase() === token0.toLowerCase(),
         imageFileId: tracked.imageFileId || null,
+        image: tracked.image || null,
         animationUrl: tracked.animationUrl || null,
         animationFileId: tracked.animationFileId || null,
       });
@@ -422,6 +423,7 @@ for (const trackedMeta of poolMeta.trackedTokens) {
       usdValue: usdValue ?? null,
       tokenPriceUsd: trackedMeta.tokenPriceUsd,
       imageFileId: trackedMeta.imageFileId || null,
+      image: trackedMeta.image || null,
       animationUrl: trackedMeta.animationUrl || null,
       animationFileId: trackedMeta.animationFileId || null,
     });
@@ -467,6 +469,7 @@ await sendSwapMessage({
   usdValue: aggregated.usdValue ?? null,
   tokenPriceUsd,
   imageFileId: aggregated.imageFileId || null,
+  image: aggregated.image || null,
   animationUrl: aggregated.animationUrl || null,
   animationFileId: aggregated.animationFileId || null,
 });
