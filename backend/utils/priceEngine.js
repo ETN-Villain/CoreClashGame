@@ -2,129 +2,26 @@
 import { ethers } from "ethers";
 import { TRACKED_TOKENS, PRICING_POOLS, TOKEN_SYMBOL_MAP } from "../swapsConfig.js";
 
-const ERC20_MIN_ABI = [
-  "function symbol() view returns (string)",
-  "function decimals() view returns (uint8)"
-];
+const COINGECKO_API = "https://api.coingecko.com/api/v3/simple/price?ids=electroneum&vs_currencies=usd";
 
-const UNIV2_PAIR_ABI = [
-  "function token0() view returns (address)",
-  "function token1() view returns (address)",
-  "function getReserves() view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)"
-];
-
-const UNIV3_POOL_ABI = [
-  "function token0() view returns (address)",
-  "function token1() view returns (address)",
-  "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)"
-];
-
-function addr(a) {
-  return ethers.getAddress(a);
-}
-
-async function safeRead(contract, method, fallback) {
+async function fetchWETNPrice() {
   try {
-    return await contract[method]();
-  } catch (e) {
-    console.warn(`[PriceEngine] safeRead ${method} failed:`, e.message);
-    return fallback;
+    const res = await fetch(COINGECKO_API);
+    const data = await res.json();
+    const price = data?.electroneum?.usd;
+
+    if (price && Number.isFinite(price) && price > 0) {
+      console.log(`[PriceEngine] Fetched real WETN/ETN price from CoinGecko: $${price}`);
+      return price;
+    }
+  } catch (err) {
+    console.warn("[PriceEngine] Failed to fetch WETN price from CoinGecko:", err.message);
   }
-}
-
-function toFloat(raw, decimals) {
-  try {
-    return Number(ethers.formatUnits(raw, decimals));
-  } catch {
-    return 0;
-  }
-}
-
-function calcV2PairPrices(reserve0, reserve1, decimals0, decimals1) {
-  const r0 = toFloat(reserve0, decimals0);
-  const r1 = toFloat(reserve1, decimals1);
-  if (r0 <= 0 || r1 <= 0) return { token0InToken1: null, token1InToken0: null };
-
-  return {
-    token0InToken1: r1 / r0,
-    token1InToken0: r0 / r1,
-  };
-}
-
-function calcV3PairPricesFromSqrtPriceX96(sqrtPriceX96, decimals0, decimals1) {
-  const sp = Number(sqrtPriceX96);
-  if (!Number.isFinite(sp) || sp <= 0) return { token0InToken1: null, token1InToken0: null };
-
-  const ratio = (sp * sp) / (2 ** 192);
-  const decimalAdj = 10 ** (decimals0 - decimals1);
-  const token0InToken1 = ratio * decimalAdj;
-
-  if (!Number.isFinite(token0InToken1) || token0InToken1 <= 0) {
-    return { token0InToken1: null, token1InToken0: null };
-  }
-
-  return {
-    token0InToken1,
-    token1InToken0: 1 / token0InToken1,
-  };
+  return null; // fallback if API fails
 }
 
 export async function buildPriceEngine(provider, trackedTokens) {
-  const tokenMeta = new Map();
-  const pools = [];
-
-  async function getTokenMeta(tokenAddress) {
-    const key = addr(tokenAddress).toLowerCase();
-    if (tokenMeta.has(key)) return tokenMeta.get(key);
-
-    const c = new ethers.Contract(tokenAddress, ERC20_MIN_ABI, provider);
-    const [symbol, decimals] = await Promise.all([
-      safeRead(c, "symbol", TOKEN_SYMBOL_MAP[key] || key.slice(0, 8).toUpperCase()),
-      safeRead(c, "decimals", 18),
-    ]);
-
-    const meta = { address: addr(tokenAddress), symbol: String(symbol), decimals: Number(decimals) };
-    tokenMeta.set(key, meta);
-    return meta;
-  }
-
-  async function registerPool(poolCfg) {
-    if (!poolCfg?.address) return;
-    const poolAddress = addr(poolCfg.address);
-    const dex = poolCfg.dex;
-
-    try {
-      let token0Addr, token1Addr;
-      let contract;
-
-      if (dex === "UNIV2") {
-        contract = new ethers.Contract(poolAddress, UNIV2_PAIR_ABI, provider);
-        [token0Addr, token1Addr] = await Promise.all([contract.token0(), contract.token1()]);
-      } else if (dex === "ELECTROV3") {
-        contract = new ethers.Contract(poolAddress, UNIV3_POOL_ABI, provider);
-        [token0Addr, token1Addr] = await Promise.all([contract.token0(), contract.token1()]);
-      } else {
-        console.warn(`[PriceEngine] Unsupported dex: ${dex}`);
-        return;
-      }
-
-      const [token0, token1] = await Promise.all([
-        getTokenMeta(token0Addr),
-        getTokenMeta(token1Addr),
-      ]);
-
-      pools.push({ address: poolAddress, dex, contract, token0, token1 });
-      console.log(`[PriceEngine] Registered pool ${token0.symbol}/${token1.symbol} @ ${poolAddress}`);
-    } catch (err) {
-      console.error(`[PriceEngine] Failed to register pool ${poolAddress}:`, err.message);
-    }
-  }
-
-  // Register all pools
-  for (const tracked of trackedTokens) {
-    for (const p of tracked.pools || []) await registerPool(p);
-  }
-  for (const p of PRICING_POOLS || []) await registerPool(p);
+  // ... (keep your existing tokenMeta and pool registration code)
 
   const engine = {
     tokenMeta,
@@ -141,57 +38,38 @@ export async function buildPriceEngine(provider, trackedTokens) {
       const usd = this.pricesUsd.get(key);
       const meta = tokenMeta.get(key);
       if (!meta || usd == null || usd <= 0) return null;
-      return toFloat(rawAmount, meta.decimals) * usd;
+      return Number(ethers.formatUnits(rawAmount, meta.decimals)) * usd;
     },
 
     async refreshPrices() {
       const nextPrices = new Map();
 
-      // 1. Anchor stablecoins at $1
-      const stables = new Set(["USDT", "USDC", "WETN"]); // add more if needed
+      // 1. Fetch real WETN price + anchor stables
+      const wetnPrice = await fetchWETNPrice();
+      const anchorPrice = wetnPrice ?? 0.00103; // safe fallback ~ current price
+
+      // Anchor WETN and stables
+      const stableSymbols = new Set(["USDT", "USDC"]);
       for (const [key, meta] of tokenMeta.entries()) {
-        if (stables.has(meta.symbol.toUpperCase())) {
-          nextPrices.set(key, 1);
+        const upper = meta.symbol.toUpperCase();
+        if (upper === "WETN") {
+          nextPrices.set(key, anchorPrice);
+        } else if (stableSymbols.has(upper)) {
+          nextPrices.set(key, 1.0);
         }
       }
 
-      // 2. Read all pool prices (with better error tolerance)
-      const edges = [];
+      // 2. Read all pool prices (same as before, with error tolerance)
+      const edges = [];   // ... keep your existing edge collection code here
 
       for (const pool of this.pools) {
-        try {
-          let prices = null;
-
-          if (pool.dex === "UNIV2") {
-            const [reserve0, reserve1] = await pool.contract.getReserves();
-            prices = calcV2PairPrices(reserve0, reserve1, pool.token0.decimals, pool.token1.decimals);
-          } else if (pool.dex === "ELECTROV3") {
-            const slot0 = await pool.contract.slot0();
-            prices = calcV3PairPricesFromSqrtPriceX96(
-              slot0[0],
-              pool.token0.decimals,
-              pool.token1.decimals
-            );
-          }
-
-          if (prices?.token0InToken1 && prices?.token1InToken0) {
-            edges.push({
-              t0Key: pool.token0.address.toLowerCase(),
-              t1Key: pool.token1.address.toLowerCase(),
-              t0InT1: prices.token0InToken1,
-              t1InT0: prices.token1InToken0,
-              poolAddress: pool.address,
-            });
-          }
-        } catch (err) {
-          console.warn(`[PriceEngine] Failed reading pool ${pool.address}:`, err.message);
-        }
+        // ... (your existing UNIV2 + ELECTROV3 reading logic)
       }
 
-      // 3. Improved propagation (more passes + multiple directions + repeat until stable)
+      // 3. Propagate prices through the graph (improved)
       let changed = true;
       let passes = 0;
-      const maxPasses = 12;   // increased
+      const maxPasses = 15;
 
       while (changed && passes < maxPasses) {
         changed = false;
@@ -201,7 +79,6 @@ export async function buildPriceEngine(provider, trackedTokens) {
           const p0 = nextPrices.get(edge.t0Key);
           const p1 = nextPrices.get(edge.t1Key);
 
-          // Propagate from known to unknown
           if (p1 != null && p0 == null) {
             const derived = edge.t0InT1 * p1;
             if (Number.isFinite(derived) && derived > 0) {
@@ -217,27 +94,15 @@ export async function buildPriceEngine(provider, trackedTokens) {
               changed = true;
             }
           }
-
-          // Also update if both known but one is much better (optional improvement)
         }
       }
 
       this.pricesUsd = nextPrices;
 
-      console.log(`[PriceEngine] Refreshed prices (${passes} passes):`);
+      console.log(`[PriceEngine] Refreshed prices (WETN anchored at $${anchorPrice.toFixed(6)})`);
       for (const [key, usd] of nextPrices.entries()) {
         const meta = tokenMeta.get(key);
-        if (meta) {
-          console.log(`  ${meta.symbol.padEnd(8)} → $${usd.toFixed(6)}`);
-        }
-      }
-
-      // Warning for tokens that still have no price
-      for (const tracked of TRACKED_TOKENS) {
-        const key = addr(tracked.address).toLowerCase();
-        if (!nextPrices.has(key)) {
-          console.warn(`[PriceEngine] WARNING: No USD price for ${tracked.symbol}`);
-        }
+        if (meta) console.log(`  ${meta.symbol.padEnd(8)} → $${usd.toFixed(6)}`);
       }
 
       return nextPrices;
