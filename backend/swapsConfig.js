@@ -51,7 +51,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "USDT",
     address: process.env.USDT_TOKEN_ADDRESS,
-    animationFileId: "AAMCBAADGQEAAwlp5ThUEtA1SrPGO1Pytrh_5S9OlwACfh4AAv2HKFPjcVuJ1W28fgEAB20AAzsE",
+    animationFileId: "CgACAgQAAxkBAAMJaeU4VBLQNUqzxjtT8ra4f-UvTpcAAn4eAAL9hyhT43FbidVtvH47BA",
     pools: [
       {
         address: "0x0CC625331C9b22D94fEF29d462aB1c9B26dFF196",
@@ -63,7 +63,7 @@ export const TRACKED_TOKENS = [
   {
     symbol: "USDC",
     address: process.env.USDC_TOKEN_ADDRESS,
-    animationFileId: "AAMCBAADGQEAAwhp5ThS5PLQ-kGuy8Aj4yfIHafgQQACfR4AAv2HKFO7vpyV59M3hwEAB20AAzsE",
+    animationFileId: "CgACAgQAAxkBAAMIaeU4UuTy0PpBrsvAI-MnyB2n4EEAAn0eAAL9hyhTu76clefTN4c7BA",
     pools: [
       {
         address: "0x2cB2Af7aef7AB4cc3228F9c55EE8542Cb323Ad8A",

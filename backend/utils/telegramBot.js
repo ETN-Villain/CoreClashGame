@@ -369,7 +369,7 @@ export async function sendSwapMessage({
   txHash,
   usdValue,
   tokenPriceUsd,
-  image,
+  imageFileId,
   animationUrl,
   animationFileId,
   includeFooter = true, // default
@@ -438,7 +438,7 @@ if (animationFileId || animationUrl) {
 
 await axios.post(photoEndpoint, {
   ...basePayload,
-  photo: image,
+  photo: imageFileId || image,
   caption: text,
 });
 
