@@ -75,7 +75,8 @@ export const TRACKED_TOKENS = [
   {
     symbol: "DCNT",
     address: process.env.DCNT_TOKEN_ADDRESS,
-    imageFileId: "AgACAgQAAxkBAAMFaeU4UFhJVTHEr7IC5NwI-9hOqQADygxrG_2HKFOUi4Hl8IFWCAEAAwIAA3kAAzsE"    pools: [
+    imageFileId: "AgACAgQAAxkBAAMFaeU4UFhJVTHEr7IC5NwI-9hOqQADygxrG_2HKFOUi4Hl8IFWCAEAAwIAA3kAAzsE",    
+    pools: [
       {
         address: "0x6cDF9e7c8177BFCEc940E3f195ACf5a9C04ae3CD",
         dex: "ELECTROV3", // confirm
