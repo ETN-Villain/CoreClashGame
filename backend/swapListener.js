@@ -1,8 +1,9 @@
 // backend/swapListener.js
 import { ethers } from "ethers";
+import fs from "fs";
+import path from "path";
 import { RPC_URL } from "./config.js";
 import { TRACKED_TOKENS } from "./swapsConfig.js";
-import { loadLastBlockLocked, saveLastBlockLocked } from "./utils/blockState.js";
 import { sendSwapMessage } from "./utils/telegramBot.js";
 import { buildPriceEngine } from "./utils/priceEngine.js";
 const POLL_INTERVAL_MS = 60000;
@@ -305,6 +306,50 @@ function decodeSwap(parsed, poolMeta, trackedMeta) {
 
 let started = false;
 
+const STATE_DIR = fs.existsSync("/backend/data")
+  ? "/backend/data/state"
+  : path.join(process.cwd(), "state");
+
+const SWAP_STATE_FILE = path.join(STATE_DIR, "lastSwapBlock.json");
+
+function ensureStateDir() {
+  if (!fs.existsSync(STATE_DIR)) {
+    fs.mkdirSync(STATE_DIR, { recursive: true });
+  }
+}
+
+function loadLastSwapBlock() {
+  try {
+    if (!fs.existsSync(SWAP_STATE_FILE)) return null;
+
+    const raw = fs.readFileSync(SWAP_STATE_FILE, "utf8");
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    return parsed?.lastBlock ?? null;
+  } catch (err) {
+    console.error("[SwapListener] loadLastSwapBlock error:", err);
+    return null;
+  }
+}
+
+function saveLastSwapBlock(block) {
+  try {
+    ensureStateDir();
+
+    const tempFile = `${SWAP_STATE_FILE}.tmp`;
+    fs.writeFileSync(
+      tempFile,
+      JSON.stringify({ lastBlock: block }, null, 2),
+      "utf8"
+    );
+    fs.renameSync(tempFile, SWAP_STATE_FILE);
+  } catch (err) {
+    console.error("[SwapListener] saveLastSwapBlock error:", err);
+    throw err;
+  }
+}
+
 export async function startSwapListener() {
   if (started) return;
   started = true;
@@ -344,11 +389,11 @@ try {
   throw err;
 }
 
-  let lastBlock = await loadLastBlockLocked();
-  if (lastBlock == null) {
-    lastBlock = Math.max(0, chainTip - MAX_BLOCK_RANGE);
-    await saveLastBlockLocked(lastBlock);
-  }
+let lastBlock = loadLastSwapBlock();
+if (lastBlock == null) {
+  lastBlock = Math.max(0, chainTip - MAX_BLOCK_RANGE);
+  saveLastSwapBlock(lastBlock);
+}
 
   console.log(
     `[SwapListener] Watching ${watchedPoolAddresses.length} unique pools from block ${lastBlock}`
@@ -404,186 +449,240 @@ async function getBlockNumberWithRetry(provider, retries = 3, delayMs = 10000) {
 }
 
 // Polling Loop
-  setInterval(async () => {
+const v2PoolAddresses = [];
+const v3PoolAddresses = [];
+
+for (const addr of watchedPoolAddresses) {
+  const meta = poolMap.get(addr.toLowerCase());
+  if (!meta) continue;
+
+  if (meta.dex === "UNIV2") v2PoolAddresses.push(addr);
+  if (meta.dex === "ELECTROV3") v3PoolAddresses.push(addr);
+}
+
+const v2SwapTopic = new ethers.Interface(UNIV2_PAIR_ABI).getEvent("Swap").topicHash;
+const v3SwapTopic = new ethers.Interface(UNIV3_POOL_ABI).getEvent("Swap").topicHash;
+
+async function getLogsWithRetry(provider, filter, label, retries = 3, delayMs = 10000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const currentBlock = await provider.getBlockNumber();
-      const safeBlock = Math.max(0, currentBlock - REORG_BUFFER_BLOCKS);
+      return await provider.getLogs(filter);
+    } catch (err) {
+      const msg = err?.info?.error?.message || err?.message || "";
+      const isRateLimit =
+        msg.includes("Too many requests") ||
+        msg.includes("rate limit") ||
+        msg.includes("-32090");
 
-      if (safeBlock <= lastBlock) return;
+      if (!isRateLimit || attempt === retries) throw err;
 
-      let fromBlock = lastBlock + 1;
-
-      while (fromBlock <= safeBlock) {
-        const toBlock = Math.min(fromBlock + MAX_BLOCK_RANGE - 1, safeBlock);
-
-        console.log(`[SwapListener] Fetching logs ${fromBlock} -> ${toBlock}`);
-
-const aggregatedSwaps = new Map();
-const txCache = new Map();
-
-for (const poolAddress of watchedPoolAddresses) {
-  const poolMeta = poolMap.get(poolAddress.toLowerCase());
-  if (!poolMeta) continue;
-
-  let logs = [];
-  try {
-    const swapTopic = poolMeta.iface.getEvent("Swap").topicHash;
-
-    logs = await provider.getLogs({
-      address: poolAddress,
-      fromBlock,
-      toBlock,
-      topics: [swapTopic],
-    });
-  } catch (err) {
-    console.error(`[SwapListener] getLogs failed for pool ${poolAddress}:`, err.message || err);
-    continue;
-  }
-
-          for (const log of logs) {
-            let parsed;
-            try {
-              parsed = poolMeta.iface.parseLog(log);
-              if (!parsed) continue;
-            } catch (err) {
-              console.error("[SwapListener] Failed to parse log:", err);
-              continue;
-            }
-
-for (const trackedMeta of poolMeta.trackedTokens) {
-  try {
-    const swap = decodeSwap(parsed, poolMeta, trackedMeta);
-    if (!swap || swap.baseAmountRaw <= 0n) continue;
-
-    let tx;
-    if (txCache.has(log.transactionHash)) {
-      tx = txCache.get(log.transactionHash);
-    } else {
-      tx = await provider.getTransaction(log.transactionHash);
-      txCache.set(log.transactionHash, tx);
+      console.warn(
+        `[SwapListener] ${label} rate-limited, retrying in ${delayMs / 1000}s (attempt ${attempt}/${retries})`
+      );
+      await new Promise((r) => setTimeout(r, delayMs));
     }
-
-    const buyerAddress = tx?.from || swap.trader;
-    const usdValue = estimateSwapUsdValue(priceEngine, trackedMeta, swap);
-
-const aggregateKey = getAggregateKey(log.transactionHash, trackedMeta.address, swap.side);
-
-    addToAggregate(aggregatedSwaps, aggregateKey, {
-      txHash: log.transactionHash,
-      symbol: trackedMeta.symbol,
-      side: swap.side,
-      tokenAddress: trackedMeta.address,
-      baseAmountRaw: swap.baseAmountRaw,
-      baseDecimals: trackedMeta.decimals,
-      quoteAmountRaw: swap.quoteAmountRaw,
-      quoteDecimals: trackedMeta.quoteDecimals,
-      quoteSymbol: trackedMeta.quoteSymbol,
-      trader: buyerAddress,
-      usdValue: usdValue ?? null,
-      imageFileId: trackedMeta.imageFileId || null,
-      image: trackedMeta.image || null,
-      animationUrl: trackedMeta.animationUrl || null,
-      animationFileId: trackedMeta.animationFileId || null,
-    });
-  } catch (err) {
-    console.error("[SwapListener] Failed processing tracked token swap:", err);
   }
 }
-          }
+
+setInterval(async () => {
+  try {
+    const currentBlock = await getBlockNumberWithRetry(provider);
+    const safeBlock = Math.max(0, currentBlock - REORG_BUFFER_BLOCKS);
+
+    if (safeBlock <= lastBlock) return;
+
+    let fromBlock = lastBlock + 1;
+
+    while (fromBlock <= safeBlock) {
+      const toBlock = Math.min(fromBlock + MAX_BLOCK_RANGE - 1, safeBlock);
+
+      console.log(`[SwapListener] Fetching logs ${fromBlock} -> ${toBlock}`);
+
+      const aggregatedSwaps = new Map();
+      const txCache = new Map();
+      const groupedLogs = [];
+
+      if (v2PoolAddresses.length) {
+        const logs = await getLogsWithRetry(
+          provider,
+          {
+            address: v2PoolAddresses,
+            fromBlock,
+            toBlock,
+            topics: [v2SwapTopic],
+          },
+          "UNIV2 getLogs"
+        );
+        groupedLogs.push(...logs);
+      }
+
+      if (v3PoolAddresses.length) {
+        const logs = await getLogsWithRetry(
+          provider,
+          {
+            address: v3PoolAddresses,
+            fromBlock,
+            toBlock,
+            topics: [v3SwapTopic],
+          },
+          "ELECTROV3 getLogs"
+        );
+        groupedLogs.push(...logs);
+      }
+
+      for (const log of groupedLogs) {
+        const poolMeta = poolMap.get(log.address.toLowerCase());
+        if (!poolMeta) continue;
+
+        let parsed;
+        try {
+          parsed = poolMeta.iface.parseLog(log);
+          if (!parsed) continue;
+        } catch (err) {
+          console.error("[SwapListener] Failed to parse log:", err);
+          continue;
         }
 
-// === AFTER the inner logs processing loop ===
-for (const aggregated of aggregatedSwaps.values()) {
-  try {
-    if (aggregated.baseAmountRaw <= 0n) continue;
+        for (const trackedMeta of poolMeta.trackedTokens) {
+          try {
+            const swap = decodeSwap(parsed, poolMeta, trackedMeta);
+            if (!swap || swap.baseAmountRaw <= 0n) continue;
 
-    const baseAmount = formatUnitsSafe(aggregated.baseAmountRaw, aggregated.baseDecimals);
+            let tx;
+            if (txCache.has(log.transactionHash)) {
+              tx = txCache.get(log.transactionHash);
+            } else {
+              tx = await provider.getTransaction(log.transactionHash);
+              txCache.set(log.transactionHash, tx);
+            }
 
-    // Calculate final USD value
-    let finalUsdValue = aggregated.usdValue ?? null;
-    if ((finalUsdValue == null || finalUsdValue < 8) && aggregated.tokenAddress) {
-      const tokenPrice = priceEngine.getTokenUsd(aggregated.tokenAddress);
-      if (tokenPrice != null && Number.isFinite(tokenPrice)) {
-        finalUsdValue = Number(ethers.formatUnits(aggregated.baseAmountRaw, aggregated.baseDecimals)) * tokenPrice;
+            const buyerAddress = tx?.from || swap.trader;
+            const usdValue = estimateSwapUsdValue(priceEngine, trackedMeta, swap);
+
+            const aggregateKey = getAggregateKey(
+              log.transactionHash,
+              trackedMeta.address,
+              swap.side
+            );
+
+            addToAggregate(aggregatedSwaps, aggregateKey, {
+              txHash: log.transactionHash,
+              symbol: trackedMeta.symbol,
+              side: swap.side,
+              tokenAddress: trackedMeta.address,
+              baseAmountRaw: swap.baseAmountRaw,
+              baseDecimals: trackedMeta.decimals,
+              quoteAmountRaw: swap.quoteAmountRaw,
+              quoteDecimals: trackedMeta.quoteDecimals,
+              quoteSymbol: trackedMeta.quoteSymbol,
+              trader: buyerAddress,
+              usdValue: usdValue ?? null,
+              imageFileId: trackedMeta.imageFileId || null,
+              image: trackedMeta.image || null,
+              animationUrl: trackedMeta.animationUrl || null,
+              animationFileId: trackedMeta.animationFileId || null,
+            });
+          } catch (err) {
+            console.error("[SwapListener] Failed processing tracked token swap:", err);
+          }
+        }
       }
+
+      for (const aggregated of aggregatedSwaps.values()) {
+        try {
+          if (aggregated.baseAmountRaw <= 0n) continue;
+
+          const baseAmount = formatUnitsSafe(
+            aggregated.baseAmountRaw,
+            aggregated.baseDecimals
+          );
+
+          let finalUsdValue = aggregated.usdValue ?? null;
+          if ((finalUsdValue == null || finalUsdValue < 8) && aggregated.tokenAddress) {
+            const tokenPrice = priceEngine.getTokenUsd(aggregated.tokenAddress);
+            if (tokenPrice != null && Number.isFinite(tokenPrice)) {
+              finalUsdValue =
+                Number(ethers.formatUnits(aggregated.baseAmountRaw, aggregated.baseDecimals)) *
+                tokenPrice;
+            }
+          }
+
+          if (finalUsdValue == null) continue;
+
+          const isSell = aggregated.side === "SELL";
+          const minUsdThreshold = isSell ? 500 : 10;
+
+          if (finalUsdValue < minUsdThreshold) {
+            console.log(
+              `[SwapListener][FILTER] Skipped ${aggregated.symbol} ${isSell ? "SELL" : "BUY"} ~$${finalUsdValue.toFixed(2)} (below $${minUsdThreshold})`
+            );
+            continue;
+          }
+
+          let quoteAmountStr = "-";
+          let displayQuoteSymbol =
+            aggregated.quoteSymbol === "MULTI" ? "multi-hop" : aggregated.quoteSymbol;
+
+          if (
+            aggregated.preferredQuoteSymbol &&
+            aggregated.preferredQuoteAmountRaw > 0n
+          ) {
+            quoteAmountStr = formatUnitsSafe(
+              aggregated.preferredQuoteAmountRaw,
+              aggregated.preferredQuoteDecimals
+            );
+            displayQuoteSymbol = aggregated.preferredQuoteSymbol;
+          } else if (aggregated.quoteAmountRaw > 0n) {
+            quoteAmountStr = formatUnitsSafe(
+              aggregated.quoteAmountRaw,
+              aggregated.quoteDecimals
+            );
+          }
+
+          const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress) || null;
+
+          console.log(
+            `[SwapListener] ${aggregated.symbol} ${isSell ? "SELL" : "BUY"} ${baseAmount} | $${finalUsdValue.toFixed(2)}`
+          );
+
+          await sendSwapMessage({
+            symbol: aggregated.symbol,
+            side: isSell ? "SELL" : "BUY",
+            baseAmount,
+            quoteAmount: quoteAmountStr,
+            quoteSymbol: displayQuoteSymbol,
+            trader: aggregated.trader,
+            txHash: aggregated.txHash,
+            usdValue: finalUsdValue,
+            tokenPriceUsd,
+            imageFileId: aggregated.imageFileId || null,
+            image: aggregated.image || null,
+            animationUrl: aggregated.animationUrl || null,
+            animationFileId: aggregated.animationFileId || null,
+          });
+        } catch (err) {
+          console.error("[SwapListener] Failed sending swap message:", err);
+        }
+      }
+
+      lastBlock = toBlock;
+        saveLastSwapBlock(lastBlock);
+      fromBlock = toBlock + 1;
+
+      await new Promise((resolve) => setTimeout(resolve, 150));
     }
-
-    if (finalUsdValue == null) continue;
-
-const isSell = aggregated.side === "SELL";
-const minUsdThreshold = isSell ? 500 : 10;
-
-if (finalUsdValue == null || finalUsdValue < minUsdThreshold) {
-  console.log(
-    `[SwapListener][FILTER] Skipped ${aggregated.symbol} ${isSell ? "SELL" : "BUY"} ~$${finalUsdValue?.toFixed?.(2) ?? "unknown"} (below $${minUsdThreshold})`
-  );
-  continue;
-}
-
-let quoteAmountStr = "-";
-let displayQuoteSymbol = aggregated.quoteSymbol === "MULTI" ? "multi-hop" : aggregated.quoteSymbol;
-
-// Prefer a meaningful payment token for multi-hop routes
-if (
-  aggregated.preferredQuoteSymbol &&
-  aggregated.preferredQuoteAmountRaw > 0n
-) {
-  quoteAmountStr = formatUnitsSafe(
-    aggregated.preferredQuoteAmountRaw,
-    aggregated.preferredQuoteDecimals
-  );
-  displayQuoteSymbol = aggregated.preferredQuoteSymbol;
-} else if (aggregated.quoteAmountRaw > 0n) {
-  quoteAmountStr = formatUnitsSafe(
-    aggregated.quoteAmountRaw,
-    aggregated.quoteDecimals
-  );
-}
-
-    const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress) || null;
-
-    console.log(`[SwapListener] ${aggregated.symbol} ${isSell ? 'SELL' : 'BUY'} ${baseAmount} | $${finalUsdValue.toFixed(2)}`);
-
-    await sendSwapMessage({
-      symbol: aggregated.symbol,
-      side: isSell ? "SELL" : "BUY",
-      baseAmount,
-      quoteAmount: quoteAmountStr,
-      quoteSymbol: displayQuoteSymbol,
-      trader: aggregated.trader,
-      txHash: aggregated.txHash,
-      usdValue: finalUsdValue,
-      tokenPriceUsd,
-      imageFileId: aggregated.imageFileId || null,
-      image: aggregated.image || null,
-      animationUrl: aggregated.animationUrl || null,
-      animationFileId: aggregated.animationFileId || null,
-    });
-
   } catch (err) {
-    console.error("[SwapListener] Failed sending swap message:", err);
+    console.error("[SwapListener] poll error:", err.message || err);
   }
-}
 
-        lastBlock = toBlock;
-        await saveLastBlockLocked(lastBlock);
-        fromBlock = toBlock + 1;
-
-        await new Promise((resolve) => setTimeout(resolve, 150));
-      }
+  const now = Date.now();
+  if (now - lastPriceRefreshMs > PRICE_REFRESH_MS) {
+    try {
+      await priceEngine.refreshPrices();
+      lastPriceRefreshMs = now;
     } catch (err) {
-      console.error("[SwapListener] poll error:", err.message || err);
+      console.error("[SwapListener] Price refresh failed:", err.message || err);
     }
-
-    // Periodically refresh price engine to keep token metadata up to date
-    const now = Date.now();
-if (now - lastPriceRefreshMs > PRICE_REFRESH_MS) {
-  try {
-    await priceEngine.refreshPrices();
-    lastPriceRefreshMs = now;
-  } catch (err) {
-    console.error("[SwapListener] Price refresh failed:", err.message || err);
   }
-}
-  }, POLL_INTERVAL_MS);
+}, POLL_INTERVAL_MS);
 }
