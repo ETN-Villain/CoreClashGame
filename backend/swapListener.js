@@ -69,7 +69,12 @@ function addToAggregate(map, key, fragment) {
   const existing = map.get(key);
 
   if (!existing) {
-    map.set(key, { ...fragment });
+    map.set(key, {
+      ...fragment,
+      preferredQuoteSymbol: fragment.quoteSymbol,
+      preferredQuoteAmountRaw: fragment.quoteAmountRaw,
+      preferredQuoteDecimals: fragment.quoteDecimals,
+    });
     return;
   }
 
@@ -80,10 +85,35 @@ function addToAggregate(map, key, fragment) {
     existing.usdValue = (existing.usdValue || 0) + fragment.usdValue;
   }
 
-  // If quote symbols differ across fragments, mark as multi-hop
+  // Preserve overall knowledge that this was multi-hop / mixed quote path
   if (existing.quoteSymbol !== fragment.quoteSymbol) {
     existing.quoteSymbol = "MULTI";
   }
+
+  // Prefer ETN/WETN/stables for the displayed "Paid" line
+  const existingPriority = getQuotePriority(existing.preferredQuoteSymbol);
+  const fragmentPriority = getQuotePriority(fragment.quoteSymbol);
+
+  if (fragmentPriority > existingPriority) {
+    existing.preferredQuoteSymbol = fragment.quoteSymbol;
+    existing.preferredQuoteAmountRaw = fragment.quoteAmountRaw;
+    existing.preferredQuoteDecimals = fragment.quoteDecimals;
+  } else if (
+    fragmentPriority === existingPriority &&
+    fragment.quoteSymbol === existing.preferredQuoteSymbol
+  ) {
+    existing.preferredQuoteAmountRaw += fragment.quoteAmountRaw;
+  }
+}
+
+function getQuotePriority(symbol) {
+  const s = String(symbol || "").toUpperCase();
+
+  if (s === "ETN") return 4;
+  if (s === "WETN") return 3;
+  if (s === "USDT" || s === "USDC") return 2;
+
+  return 1;
 }
 
 async function buildRuntimePoolMap(provider) {
@@ -451,12 +481,25 @@ if (finalUsdValue == null || finalUsdValue < minUsdThreshold) {
   continue;
 }
 
-    let quoteAmountStr = "-";
-    let displayQuoteSymbol = aggregated.quoteSymbol === "MULTI" ? "multi-hop" : aggregated.quoteSymbol;
+let quoteAmountStr = "-";
+let displayQuoteSymbol = aggregated.quoteSymbol === "MULTI" ? "multi-hop" : aggregated.quoteSymbol;
 
-    if (aggregated.quoteSymbol !== "MULTI" && aggregated.quoteAmountRaw > 0n) {
-      quoteAmountStr = formatUnitsSafe(aggregated.quoteAmountRaw, aggregated.quoteDecimals);
-    }
+// Prefer a meaningful payment token for multi-hop routes
+if (
+  aggregated.preferredQuoteSymbol &&
+  aggregated.preferredQuoteAmountRaw > 0n
+) {
+  quoteAmountStr = formatUnitsSafe(
+    aggregated.preferredQuoteAmountRaw,
+    aggregated.preferredQuoteDecimals
+  );
+  displayQuoteSymbol = aggregated.preferredQuoteSymbol;
+} else if (aggregated.quoteAmountRaw > 0n) {
+  quoteAmountStr = formatUnitsSafe(
+    aggregated.quoteAmountRaw,
+    aggregated.quoteDecimals
+  );
+}
 
     const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress) || null;
 

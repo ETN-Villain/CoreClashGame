@@ -141,7 +141,7 @@ function buildClubFooter() {
     `💵 <a href="https://app.electroswap.io/explore/tokens/electroneum/0xc9fc4ab00911793d99b5c7bd01f01203c21d4131?inputCurrency=ETN"><b>Buy CLUB</b></a>\n\n` +
     `⚡ <a href="https://app.electroswap.io/explore/transactions">Live Transactions</a>\n` +
     `🌍 <a href="https://planetetn.org/profile/4-etn-club">CLUB PlanetETN Profile</a>\n\n` +
-    `📢 <i>Add your token — contact @JAYETNZ</i>\n\n` +
+    `📢 <i>Add your token: @JAYETNZ</i>\n\n` +
     `<i>🛠 Built by @ETN_Villain</i>`
   );
 }
@@ -377,39 +377,37 @@ export async function sendSwapMessage({
   extraHtml = "",          // for multi-hop route info
   includeFooter = true,
 }) {
-  try {
-    const txUrl = `${EXPLORER_BASE_URL}/tx/${txHash}`;
-    const traderUrl = `${EXPLORER_BASE_URL}/address/${trader}`;
+try {
+  const txUrl = `${EXPLORER_BASE_URL}/tx/${txHash}`;
+  const traderUrl = `${EXPLORER_BASE_URL}/address/${trader}`;
 
-    const usdLine = usdValue != null
-      ? `💲 <b>Value:</b> $${formatUsd(usdValue)}`
+  const emoji = side === "SELL" ? "🔴" : "🟢";
+  const action = side === "SELL" ? "SELL" : "BUY";
+
+  const titleLine =
+    usdValue != null
+      ? `${emoji} <b>${escapeHtml(symbol)} ${action}</b> (💲${formatUsd(usdValue)})`
+      : `${emoji} <b>${escapeHtml(symbol)} ${action}</b>`;
+
+  const priceLine =
+    tokenPriceUsd != null && Number.isFinite(tokenPriceUsd)
+      ? `💵 <b>${escapeHtml(symbol)} Price:</b> $${formatUsdPrice(tokenPriceUsd)}`
       : null;
 
-    const priceLine = tokenPriceUsd != null && Number.isFinite(tokenPriceUsd)
-      ? `💵 <b>Price:</b> $${formatUsdPrice(tokenPriceUsd)}`
-      : null;
+  let text = [
+    titleLine,
+    `💰 <b>${side === "SELL" ? "Received" : "Paid"}:</b> ${escapeHtml(quoteAmount)} ${escapeHtml(quoteSymbol)}`,
+    `🔢 <b>Amount:</b> ${escapeHtml(baseAmount)} ${escapeHtml(symbol)}`,
+    priceLine,
+    "",
+    `👤 <b>Trader:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
+    `🔗 <a href="${txUrl}">View Transaction</a>`,
+    "",
+  ].filter(Boolean).join("\n");
 
-    const emoji = side === "SELL" ? "🔴" : "🟢";
-    const action = side === "SELL" ? "SELL" : "BUY";
-
-    let text = [
-      `${emoji} <b>${escapeHtml(symbol)} ${action}</b>`,
-      priceLine,
-      `🔢 <b>Amount:</b> ${escapeHtml(baseAmount)} ${escapeHtml(symbol)}`,
-      `💰 <b>${side === "SELL" ? "Received" : "Paid"}:</b> ${escapeHtml(quoteAmount)} ${escapeHtml(quoteSymbol)}`,
-      usdLine,
-      `👤 <b>Trader:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
-      `🔗 <a href="${txUrl}">View Transaction</a>`,
-      "",
-    ].filter(Boolean).join("\n");
-
-    if (extraHtml) {
-      text += extraHtml;
-    }
-
-    if (includeFooter) {
-      text += buildClubFooter();
-    }
+  if (includeFooter) {
+    text += buildClubFooter();
+  }
 
     const basePayload = {
       chat_id: CLUB_TELEGRAM_CHAT_ID,
