@@ -85,35 +85,14 @@ function addToAggregate(map, key, fragment) {
     existing.usdValue = (existing.usdValue || 0) + fragment.usdValue;
   }
 
-  // Preserve overall knowledge that this was multi-hop / mixed quote path
   if (existing.quoteSymbol !== fragment.quoteSymbol) {
     existing.quoteSymbol = "MULTI";
   }
 
-  // Prefer ETN/WETN/stables for the displayed "Paid" line
-  const existingPriority = getQuotePriority(existing.preferredQuoteSymbol);
-  const fragmentPriority = getQuotePriority(fragment.quoteSymbol);
-
-  if (fragmentPriority > existingPriority) {
-    existing.preferredQuoteSymbol = fragment.quoteSymbol;
-    existing.preferredQuoteAmountRaw = fragment.quoteAmountRaw;
-    existing.preferredQuoteDecimals = fragment.quoteDecimals;
-  } else if (
-    fragmentPriority === existingPriority &&
-    fragment.quoteSymbol === existing.preferredQuoteSymbol
-  ) {
+  // Keep the first observed quote token instead of overriding with WETN/ETN
+  if (fragment.quoteSymbol === existing.preferredQuoteSymbol) {
     existing.preferredQuoteAmountRaw += fragment.quoteAmountRaw;
   }
-}
-
-function getQuotePriority(symbol) {
-  const s = String(symbol || "").toUpperCase();
-
-  if (s === "ETN") return 4;
-  if (s === "WETN") return 3;
-  if (s === "USDT" || s === "USDC") return 2;
-
-  return 1;
 }
 
 async function callWithRetry(fn, label, retries = 3, delayMs = 10000) {
@@ -563,11 +542,6 @@ if (
 
     const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress) || null;
 
-        const routeInfo =
-      aggregated.quoteSymbol === "MULTI"
-        ? "\n\n<i>Multi-hop swap</i>"
-        : "";
-
     console.log(`[SwapListener] ${aggregated.symbol} ${isSell ? 'SELL' : 'BUY'} ${baseAmount} | $${finalUsdValue.toFixed(2)}`);
 
     await sendSwapMessage({
@@ -584,7 +558,6 @@ if (
       image: aggregated.image || null,
       animationUrl: aggregated.animationUrl || null,
       animationFileId: aggregated.animationFileId || null,
-      extraHtml: routeInfo,
     });
 
   } catch (err) {
