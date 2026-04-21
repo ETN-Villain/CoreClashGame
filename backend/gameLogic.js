@@ -127,21 +127,26 @@ function applyXpBoostToTraits(traitsArr, bonuses) {
 }
 
 /// ----------- fetch NFT metadata with local JSON files (no external calls) -----------
-export const fetchNFT = async (collection, tokenId) => {
+export const fetchNFT = async (collection, tokenId, tokenURI = null) => {
   try {
-    const collectionMap = tokenMapping[collection];
-    if (!collectionMap) {
-      throw new Error(`No mapping for collection ${collection}`);
+    let jsonFile = tokenURI;
+
+    if (!jsonFile) {
+      const collectionMap = tokenMapping[collection];
+      if (!collectionMap) {
+        throw new Error(`No mapping for collection ${collection}`);
+      }
+
+      const mapped = collectionMap[String(tokenId)];
+      if (!mapped || !mapped.token_uri) {
+        throw new Error(
+          `No token_uri mapping for ${collection} tokenId ${tokenId}`
+        );
+      }
+
+      jsonFile = mapped.token_uri;
     }
 
-    const mapped = collectionMap[String(tokenId)];
-    if (!mapped || !mapped.token_uri) {
-      throw new Error(
-        `No token_uri mapping for ${collection} tokenId ${tokenId}`
-      );
-    }
-
-    const jsonFile = mapped.token_uri;
     const filePath = path.join(METADATA_JSON_DIR, collection, jsonFile);
 
     console.log(`Loading metadata: ${filePath}`);
@@ -157,6 +162,7 @@ export const fetchNFT = async (collection, tokenId) => {
       "Failed to fetch NFT metadata:",
       collection,
       tokenId,
+      tokenURI,
       err.message
     );
     return null;
@@ -324,18 +330,16 @@ export async function resolveGame(game) {
     const collection = getCollectionFromContract(contractAddr);
 
     if (!collection) {
-      console.error("Unknown P1 contract address", contractAddr);
-      return null;
+      throw new Error(`Unknown P1 contract address: ${contractAddr}`);
     }
 
     console.log(`P1 token ${i}: ${collection} ${tokenId}`);
 
-    const nftData = await fetchNFT(collection, tokenId);
+const tokenURI = p1Uris[i] || null;
+const nftData = await fetchNFT(collection, tokenId, tokenURI);
 
     if (!nftData) {
-      console.error("Missing metadata for P1 token", tokenId);
-      return null;
-    }
+throw new Error(`Missing metadata for P1 token ${tokenId} (${p1Uris[i]}) in ${collection}`);    }
 
     traits1.push(extractTraits(nftData));
   }
@@ -347,17 +351,16 @@ export async function resolveGame(game) {
     const collection = getCollectionFromContract(contractAddr);
 
     if (!collection) {
-      console.error("Unknown P2 contract address", contractAddr);
-      return null;
+      throw new Error(`Unknown P2 contract address: ${contractAddr}`);
     }
 
     console.log(`P2 token ${i}: ${collection} ${tokenId}`);
 
-    const nftData = await fetchNFT(collection, tokenId);
+const tokenURI = p2Uris[i] || null;
+const nftData = await fetchNFT(collection, tokenId, tokenURI);
 
     if (!nftData) {
-      console.error("Missing metadata for P2 token", tokenId);
-      return null;
+throw new Error(`Missing metadata for P2 token ${tokenId} (${p2Uris[i]}) in ${collection}`);
     }
 
     traits2.push(extractTraits(nftData));
