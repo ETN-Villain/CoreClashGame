@@ -932,14 +932,6 @@ router.post("/:id/settle-game", async (req, res) => {
         return;
       }
 
-      const p1 = game.player1?.toLowerCase();
-      const p2 = game.player2?.toLowerCase();
-
-      if (settledByLc !== p1 && settledByLc !== p2) {
-        res.status(403).json({ error: "Only a game participant can receive settle XP" });
-        return;
-      }
-
       if (game.settled) {
         res.json({ success: true, alreadySettled: true, gameId });
         return;
@@ -1077,6 +1069,21 @@ router.post("/:id/settle-game", async (req, res) => {
         game.settleTxHash = txSettle.hash;
         game.settledAt = finalSettledAt;
         game.settlementState = "settled";
+        if (!game.settleXpAwarded) {
+          const p1 = String(game.player1 || "").toLowerCase();
+          const p2 = String(game.player2 || "").toLowerCase();
+          const zero = ethers.ZeroAddress.toLowerCase();
+
+        if (p1 && p1 !== zero) {
+          await awardXp(p1, XP_REWARDS.SETTLE);
+        }
+
+        if (p2 && p2 !== zero) {
+          await awardXp(p2, XP_REWARDS.SETTLE);
+        }
+        game.settleXpAwarded = true;
+        game.settleXpAwardedAt = new Date().toISOString();
+        }
         writeGames(games);
         newlySettled = true;
       } else {
@@ -1086,28 +1093,14 @@ router.post("/:id/settle-game", async (req, res) => {
 
     if (res.headersSent) return;
 
-    if (newlySettled) {
-      try {
-        const updatedPlayer = await awardXp(settledByLc, XP_REWARDS.SETTLE);
-        console.log(
-          `XP awarded: SETTLE +${XP_REWARDS.SETTLE} → ${settledByLc}, total XP: ${updatedPlayer.xp}`
-        );
-      } catch (xpErr) {
-        console.error(
-          `Failed to award SETTLE XP for ${settledByLc}:`,
-          xpErr.message || xpErr
-        );
-      }
-    }
-
 await rebuildWeeklyLeaderboardForDate(finalSettledAt);
 
 try {
-  await sendTelegramGameSettled({
-    gameId,
-    winner: game.winner,
-    tie: game.tie,
-  });
+await sendTelegramGameSettled({
+  gameId,
+  winner: gameSnapshot?.winner,
+  tie: gameSnapshot?.tie,
+});
 } catch (tgErr) {
   console.error("Telegram GameSettled notification failed:", tgErr.message || tgErr);
 }
