@@ -1,7 +1,7 @@
 // backend/swapListener.js
 import { ethers } from "ethers";
 import { RPC_URL } from "./config.js";
-import { TRACKED_TOKENS, TOKEN_SYMBOL_MAP, ROUTER_ADDRESS } from "./swapsConfig.js";
+import { TRACKED_TOKENS } from "./swapsConfig.js";
 import { loadLastBlockLocked, saveLastBlockLocked } from "./utils/blockState.js";
 import { sendSwapMessage } from "./utils/telegramBot.js";
 import { buildPriceEngine } from "./utils/priceEngine.js";
@@ -43,53 +43,6 @@ function formatUnitsSafe(value, decimals) {
   }
 }
 
-// Get nice symbol or short address
-function getTokenSymbol(address) {
-  if (!address) return "Unknown";
-  const lower = address.toLowerCase();
-  return TOKEN_SYMBOL_MAP[lower] || shortAddr(address);
-}
-
-// Build clean parent / child route description from trace
-function buildRouteDescription(trace) {
-  if (!trace?.calls) return "Multi-hop route";
-
-  const lines = [];
-  let routeCount = 0;
-
-  for (const topCall of trace.calls) {
-    if (!topCall.calls || topCall.to.toLowerCase() !== ROUTER_ADDRESS.toLowerCase()) continue;
-
-    for (const subCall of topCall.calls) {
-      // Detect swap commands (0x128acb08 is very common in this router for V3-style swaps)
-      if (subCall.input && subCall.input.startsWith("0x128acb08")) {
-        routeCount++;
-        const tokensInPath = new Set();
-
-        // Walk sub-calls to find pool/token interactions
-        if (subCall.calls) {
-          for (const inner of subCall.calls) {
-            if (inner.to) {
-              tokensInPath.add(getTokenSymbol(inner.to));
-            }
-          }
-        }
-
-        const pathArray = Array.from(tokensInPath);
-        if (pathArray.length < 2) pathArray.push("BOLT"); // fallback
-
-        const routeLabel = routeCount === 1 
-          ? "<b>Parent Route:</b>" 
-          : `<b>Child Route ${routeCount - 1}:</b>`;
-
-        lines.push(`${routeLabel} ${pathArray.join(" → ")}`);
-      }
-    }
-  }
-
-  return lines.length > 0 ? lines.join("\n") : "Multi-hop (complex route)";
-}
-
 async function safeRead(contract, method, fallback) {
   try {
     return await contract[method]();
@@ -108,8 +61,8 @@ function getPoolInterface(dex) {
   return new ethers.Interface(getPoolAbi(dex));
 }
 
-function getAggregateKey(txHash, tokenAddress) {
-  return `${txHash}:${tokenAddress.toLowerCase()}`;
+function getAggregateKey(txHash, tokenAddress, side) {
+  return `${txHash}:${tokenAddress.toLowerCase()}:${side}`;
 }
 
 function addToAggregate(map, key, fragment) {
@@ -131,39 +84,6 @@ function addToAggregate(map, key, fragment) {
   if (existing.quoteSymbol !== fragment.quoteSymbol) {
     existing.quoteSymbol = "MULTI";
   }
-}
-
-// Helper to get a short readable call summary
-function summarizeCall(call, depth = 0) {
-  const indent = '  '.repeat(depth);
-  const to = shortAddr(call.to);
-  let summary = `${indent}→ ${call.type} ${to}`;
-
-  if (call.value && BigInt(call.value) > 0n) {
-    summary += ` (value: ${ethers.formatEther(call.value)} ETH)`;
-  }
-  if (call.input && call.input.length > 10) {
-    summary += ` [input starts with ${call.input.slice(0, 10)}...]`;
-  }
-  return summary;
-}
-
-// Recursively collect all calls with depth info
-function collectCallsWithDepth(trace, depth = 0, result = []) {
-  if (!trace) return result;
-
-  result.push({
-    depth,
-    ...trace,
-    summary: summarizeCall(trace, depth)
-  });
-
-  if (trace.calls && Array.isArray(trace.calls)) {
-    for (const child of trace.calls) {
-      collectCallsWithDepth(child, depth + 1, result);
-    }
-  }
-  return result;
 }
 
 async function buildRuntimePoolMap(provider) {
@@ -408,12 +328,8 @@ function estimateSwapUsdValue(priceEngine, trackedMeta, swap) {
       ? quoteUsd
       : null;
 
-    console.log(
-  `[SwapListener][USD DEBUG] ${trackedMeta.symbol} baseUsd=${baseUsd} quoteUsd=${quoteUsd} quoteSymbol=${trackedMeta.quoteSymbol}`
-);
-
-  if (validBase != null) return validBase;
   if (validQuote != null) return validQuote;
+  if (validBase != null) return validBase;
 
   return null;
 }
@@ -433,7 +349,7 @@ function estimateSwapUsdValue(priceEngine, trackedMeta, swap) {
 
         console.log(`[SwapListener] Fetching logs ${fromBlock} -> ${toBlock}`);
 
-const aggregatedBuys = new Map();
+const aggregatedSwaps = new Map();
 const txCache = new Map();
 
 for (const poolAddress of watchedPoolAddresses) {
@@ -481,9 +397,9 @@ for (const trackedMeta of poolMeta.trackedTokens) {
     const buyerAddress = tx?.from || swap.trader;
     const usdValue = estimateSwapUsdValue(priceEngine, trackedMeta, swap);
 
-    const aggregateKey = getAggregateKey(log.transactionHash, trackedMeta.address);
+const aggregateKey = getAggregateKey(log.transactionHash, trackedMeta.address, swap.side);
 
-    addToAggregate(aggregatedBuys, aggregateKey, {
+    addToAggregate(aggregatedSwaps, aggregateKey, {
       txHash: log.transactionHash,
       symbol: trackedMeta.symbol,
       side: swap.side,
@@ -495,7 +411,6 @@ for (const trackedMeta of poolMeta.trackedTokens) {
       quoteSymbol: trackedMeta.quoteSymbol,
       trader: buyerAddress,
       usdValue: usdValue ?? null,
-      tokenPriceUsd: trackedMeta.tokenPriceUsd,
       imageFileId: trackedMeta.imageFileId || null,
       image: trackedMeta.image || null,
       animationUrl: trackedMeta.animationUrl || null,
@@ -509,7 +424,7 @@ for (const trackedMeta of poolMeta.trackedTokens) {
         }
 
 // === AFTER the inner logs processing loop ===
-for (const aggregated of aggregatedBuys.values()) {
+for (const aggregated of aggregatedSwaps.values()) {
   try {
     if (aggregated.baseAmountRaw <= 0n) continue;
 
@@ -517,7 +432,7 @@ for (const aggregated of aggregatedBuys.values()) {
 
     // Calculate final USD value
     let finalUsdValue = aggregated.usdValue ?? null;
-    if ((finalUsdValue == null || finalUsdValue < 5) && aggregated.tokenAddress) {
+    if ((finalUsdValue == null || finalUsdValue < 8) && aggregated.tokenAddress) {
       const tokenPrice = priceEngine.getTokenUsd(aggregated.tokenAddress);
       if (tokenPrice != null && Number.isFinite(tokenPrice)) {
         finalUsdValue = Number(ethers.formatUnits(aggregated.baseAmountRaw, aggregated.baseDecimals)) * tokenPrice;
@@ -526,13 +441,15 @@ for (const aggregated of aggregatedBuys.values()) {
 
     if (finalUsdValue == null) continue;
 
-    const isSell = aggregated.side === "SELL";        // we'll set this in decode later
-    const minUsdThreshold = isSell ? 500 : 10;
+const isSell = aggregated.side === "SELL";
+const minUsdThreshold = isSell ? 500 : 10;
 
-    if (finalUsdValue < minUsdThreshold) {
-      console.log(`[SwapListener][FILTER] Skipped ${aggregated.symbol} ${isSell ? 'SELL' : 'BUY'} ~$${finalUsdValue.toFixed(2)} (below $${minUsdThreshold})`);
-      continue;
-    }
+if (finalUsdValue == null || finalUsdValue < minUsdThreshold) {
+  console.log(
+    `[SwapListener][FILTER] Skipped ${aggregated.symbol} ${isSell ? "SELL" : "BUY"} ~$${finalUsdValue?.toFixed?.(2) ?? "unknown"} (below $${minUsdThreshold})`
+  );
+  continue;
+}
 
     let quoteAmountStr = "-";
     let displayQuoteSymbol = aggregated.quoteSymbol === "MULTI" ? "multi-hop" : aggregated.quoteSymbol;
@@ -543,21 +460,10 @@ for (const aggregated of aggregatedBuys.values()) {
 
     const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress) || null;
 
-    // Multi-hop route breakdown (only for multi-hop cases)
-    let routeInfo = "";
-    if (aggregated.quoteSymbol === "MULTI") {
-      try {
-        const trace = await provider.send("debug_traceTransaction", [
-          aggregated.txHash,
-          { tracer: "callTracer" }
-        ]);
-        const routeDescription = buildRouteDescription(trace);
-        routeInfo = `\n\n<b>Route Breakdown:</b>\n${routeDescription}`;
-      } catch (e) {
-        console.error(`Trace failed for ${aggregated.txHash}:`, e.message);
-        routeInfo = "\n\n<i>Multi-route swap (trace unavailable)</i>";
-      }
-    }
+        const routeInfo =
+      aggregated.quoteSymbol === "MULTI"
+        ? "\n\n<i>Multi-hop swap</i>"
+        : "";
 
     console.log(`[SwapListener] ${aggregated.symbol} ${isSell ? 'SELL' : 'BUY'} ${baseAmount} | $${finalUsdValue.toFixed(2)}`);
 
