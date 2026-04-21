@@ -116,6 +116,30 @@ function getQuotePriority(symbol) {
   return 1;
 }
 
+async function callWithRetry(fn, label, retries = 3, delayMs = 10000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const msg = err?.info?.error?.message || err?.message || "";
+      const isRateLimit =
+        msg.includes("Too many requests") ||
+        msg.includes("rate limit") ||
+        msg.includes("-32090");
+
+      if (!isRateLimit || attempt === retries) {
+        throw err;
+      }
+
+      console.warn(
+        `[SwapListener] ${label} rate-limited, retrying in ${delayMs / 1000}s (attempt ${attempt}/${retries})`
+      );
+
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+}
+
 async function buildRuntimePoolMap(provider) {
   const poolMap = new Map();
   const allWatchedPoolAddresses = new Set();
@@ -144,11 +168,26 @@ async function buildRuntimePoolMap(provider) {
       let token1;
 
       try {
-        [token0, token1] = await Promise.all([pool.token0(), pool.token1()]);
+[token0, token1] = await Promise.all([
+  callWithRetry(() => pool.token0(), `token0() for ${poolAddress}`),
+  callWithRetry(() => pool.token1(), `token1() for ${poolAddress}`),
+]);
         token0 = ethers.getAddress(token0);
         token1 = ethers.getAddress(token1);
       } catch (err) {
-        console.error(`[SwapListener] Failed loading token0/token1 for pool ${poolAddress}:`, err);
+        const msg = err?.info?.error?.message || err?.message || "";
+
+        if (msg.includes("Too many requests") || msg.includes("rate limit")) {
+          console.warn(
+            `[SwapListener] Rate-limited while loading token0/token1 for pool ${poolAddress}.`
+          );
+        } else {
+          console.error(
+            `[SwapListener] Failed loading token0/token1 for pool ${poolAddress}:`,
+            err
+          );
+        }
+
         continue;
       }
 
@@ -318,13 +357,13 @@ try {
     return;
   }
 
-  let chainTip;
-  try {
-    chainTip = await provider.getBlockNumber();
-  } catch (err) {
-    console.error("[SwapListener] Failed to fetch chain tip:", err);
-    return;
-  }
+let chainTip;
+try {
+  chainTip = await getBlockNumberWithRetry(provider);
+} catch (err) {
+  console.error("[SwapListener] Failed to fetch chain tip:", err);
+  throw err;
+}
 
   let lastBlock = await loadLastBlockLocked();
   if (lastBlock == null) {
@@ -362,6 +401,27 @@ function estimateSwapUsdValue(priceEngine, trackedMeta, swap) {
   if (validBase != null) return validBase;
 
   return null;
+}
+
+async function getBlockNumberWithRetry(provider, retries = 3, delayMs = 10000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await provider.getBlockNumber();
+    } catch (err) {
+      const msg = err?.message || "";
+      const isRateLimit =
+        msg.includes("Too many requests") ||
+        msg.includes("rate limit") ||
+        msg.includes("-32090");
+
+      if (!isRateLimit || attempt === retries) {
+        throw err;
+      }
+
+      console.warn(`[SwapListener] getBlockNumber rate-limited, retrying in ${delayMs / 1000}s (attempt ${attempt}/${retries})`);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
 }
 
 // Polling Loop
