@@ -137,15 +137,13 @@ function buildFooter() {
 
 function buildClubFooter() {
   return (
-    `\n\n━━━━━━━━━━━━━━\n` +
-    `💵 <a href="https://app.electroswap.io/explore/tokens/electroneum/0xc9fc4ab00911793d99b5c7bd01f01203c21d4131?inputCurrency=ETN"><b>Buy CLUB</b></a>\n\n` +
-    `⚡ <a href="https://app.electroswap.io/explore/transactions">Live Transactions</a>\n` +
-    `🌍 <a href="https://planetetn.org/profile/4-etn-club">CLUB PlanetETN Profile</a>\n\n` +
-    `📢 <i>Add your token: @JAYETNZ</i>\n\n` +
-    `<i>🛠 Built by @ETN_Villain</i>`
+    `\n\n━━━━━━━━━━━━━━\n\n` +
+    `💵 <a href="https://app.electroswap.io/explore/tokens/electroneum/0xc9fc4ab00911793d99b5c7bd01f01203c21d4131?inputCurrency=ETN">Buy CLUB</a> | ` +
+    `⚡️ <a href="https://app.electroswap.io/explore/transactions">Live Transactions</a>\n` +
+    `🌍 <a href="https://planetetn.org/profile/4-etn-club">PlanetETN: CLUB Website</a>\n\n` +
+    `📢 Add your token: @JAYETNZ`
   );
 }
-
 export async function sendTelegramGroupMessage(text, options = {}) {
   if (!isTelegramConfigured()) {
     console.warn("Telegram bot not configured; skipping group message:", text);
@@ -384,11 +382,11 @@ try {
   const emoji = side === "SELL" ? "🔴" : "🟢";
   const action = side === "SELL" ? "SELL" : "BUY";
 
-  const titleLine =
-    usdValue != null
-      ? `${emoji} <b>${escapeHtml(symbol)} ${action}</b> (💲${formatUsd(usdValue)})`
-      : `${emoji} <b>${escapeHtml(symbol)} ${action}</b>`;
-
+const titleLine =
+  usdValue != null
+    ? `${emoji} <b>${escapeHtml(symbol)} ${action}</b> ($${formatUsd(usdValue)})\n`
+    : `${emoji} <b>${escapeHtml(symbol)} ${action}</b>\n`;
+    
   const priceLine =
     tokenPriceUsd != null && Number.isFinite(tokenPriceUsd)
       ? `💵 <b>${escapeHtml(symbol)} Price:</b> $${formatUsdPrice(tokenPriceUsd)}`
@@ -400,7 +398,7 @@ try {
     `🔢 <b>Amount:</b> ${escapeHtml(baseAmount)} ${escapeHtml(symbol)}`,
     priceLine,
     "",
-    `👤 <b>Trader:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
+    `👤 <b>Buyer:</b> <a href="${traderUrl}">${escapeHtml(shortAddr(trader))}</a>`,
     `🔗 <a href="${txUrl}">View Transaction</a>`,
     "",
   ].filter(Boolean).join("\n");
