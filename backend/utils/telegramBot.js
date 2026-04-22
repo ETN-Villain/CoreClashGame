@@ -21,6 +21,7 @@ import { ethers } from "ethers";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ZEPHYROS_TELEGRAM_BOT_TOKEN = process.env.ZEPHYROS_TELEGRAM_BOT_TOKEN;
 const TELEGRAM_GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
+const NFT_TELEGRAM_TOPIC_ID = 782;
 
 // Default topic for Core Clash bot messages
 const TELEGRAM_MESSAGE_THREAD_ID = process.env.TELEGRAM_MESSAGE_THREAD_ID
@@ -661,6 +662,104 @@ export async function sendTelegramRevealDeadlinePassed({
     `This game can now be settled.`;
 
   return sendTelegramGroupMessage(text);
+}
+
+// New function to send messages to the Zephyros Telegram topic, which is separate from the main group thread and can be used for more general announcements that aren't tied to specific games
+export async function sendZephyrosNftMessage(text) {
+  if (!isZephyrosTelegramConfigured()) {
+    console.warn("Zephyros Telegram bot not configured; skipping NFT message:", text);
+    return null;
+  }
+
+  const payload = {
+    chat_id: TELEGRAM_GROUP_CHAT_ID,
+    text: text + buildFooter(),
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+    message_thread_id: ZEPHYROS_NFT_MESSAGE_THREAD_ID,
+  };
+
+  try {
+    return await telegramRequest(
+      ZEPHYROS_TELEGRAM_API_BASE,
+      "sendMessage",
+      payload
+    );
+  } catch (err) {
+    console.error("sendZephyrosNftMessage failed:", err.message);
+    throw err;
+  }
+}
+
+function tokenUrl(contractAddress, tokenId) {
+  return `${EXPLORER_BASE_URL}/token/${contractAddress}?a=${tokenId}`;
+}
+
+function txUrl(txHash) {
+  return `${EXPLORER_BASE_URL}/tx/${txHash}`;
+}
+
+function addrUrl(address) {
+  return `${EXPLORER_BASE_URL}/address/${address}`;
+}
+
+export async function sendTelegramNftMint({
+  collectionName,
+  contractAddress,
+  tokenId,
+  buyer,
+  txHash,
+}) {
+  const text =
+    `🧬 <b>${escapeHtml(collectionName)} Mint</b>\n\n` +
+    `Token: <b>#${escapeHtml(tokenId)}</b>\n` +
+    `Collector: <a href="${addrUrl(buyer)}">${escapeHtml(shortWallet(buyer))}</a>\n` +
+    `NFT: <a href="${tokenUrl(contractAddress, tokenId)}">View NFT</a>\n` +
+    `Tx: <a href="${txUrl(txHash)}">View Transaction</a>`;
+
+  return sendZephyrosNftMessage(text);
+}
+
+export async function sendTelegramNftListing({
+  collectionName,
+  contractAddress,
+  tokenId,
+  seller,
+  price,
+  currencySymbol = "ETN",
+  txHash,
+}) {
+  const text =
+    `🏷️ <b>${escapeHtml(collectionName)} Listed</b>\n\n` +
+    `Token: <b>#${escapeHtml(tokenId)}</b>\n` +
+    `Seller: <a href="${addrUrl(seller)}">${escapeHtml(shortWallet(seller))}</a>\n` +
+    `Price: <b>${escapeHtml(price)} ${escapeHtml(currencySymbol)}</b>\n` +
+    `NFT: <a href="${tokenUrl(contractAddress, tokenId)}">View NFT</a>\n` +
+    `Tx: <a href="${txUrl(txHash)}">View Transaction</a>`;
+
+  return sendZephyrosNftMessage(text);
+}
+
+export async function sendTelegramNftSale({
+  collectionName,
+  contractAddress,
+  tokenId,
+  seller,
+  buyer,
+  price,
+  currencySymbol = "ETN",
+  txHash,
+}) {
+  const text =
+    `💰 <b>${escapeHtml(collectionName)} Sale</b>\n\n` +
+    `Token: <b>#${escapeHtml(tokenId)}</b>\n` +
+    `Seller: <a href="${addrUrl(seller)}">${escapeHtml(shortWallet(seller))}</a>\n` +
+    `Buyer: <a href="${addrUrl(buyer)}">${escapeHtml(shortWallet(buyer))}</a>\n` +
+    `Price: <b>${escapeHtml(price)} ${escapeHtml(currencySymbol)}</b>\n` +
+    `NFT: <a href="${tokenUrl(contractAddress, tokenId)}">View NFT</a>\n` +
+    `Tx: <a href="${txUrl(txHash)}">View Transaction</a>`;
+
+  return sendZephyrosNftMessage(text);
 }
 
 export {
