@@ -22,6 +22,7 @@ import testTelegramRoutes from "./routes/testTelegram.js";
 import { startCoreBurnListener } from "./burnListener.js";
 import { startSwapListener } from "./swapListener.js";
 import { sendTelegramWeeklyLeaderboard, sendTelegramFinalWeeklyLeaderboard, sendTelegramAllTimeLeaderboard } from "./utils/telegramBot.js";
+import { processRevealDeadlineNotifications } from "./jobs/revealDeadlineNotifier.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -313,6 +314,27 @@ cron.schedule(
     timezone: "UTC",
   }
 );  
+
+  // reveal deadline notification scan every 10 minutes
+  cron.schedule(
+    "*/10 * * * *",
+    async () => {
+      console.log("[SCHEDULER] reveal deadline notifier started");
+
+      try {
+        const result = await processRevealDeadlineNotifications();
+        console.log(
+          `[SCHEDULER] reveal deadline notifier finished, sent ${result.sent} message(s)`
+        );
+      } catch (err) {
+        console.error("[SCHEDULER] reveal deadline notifier failed:", err);
+      }
+    },
+    {
+      timezone: "UTC",
+    }
+  );
+  
 // ---------------- START SWAP LISTENER ----------------
 async function bootstrap() {
   try {
