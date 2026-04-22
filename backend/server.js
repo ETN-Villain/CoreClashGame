@@ -21,7 +21,7 @@ import xpRouter from "./routes/xp.js";
 import testTelegramRoutes from "./routes/testTelegram.js";
 import { startCoreBurnListener } from "./burnListener.js";
 import { startSwapListener } from "./swapListener.js";
-import { sendTelegramWeeklyLeaderboard } from "./utils/telegramBot.js";
+import { sendTelegramWeeklyLeaderboard, sendTelegramFinalWeeklyLeaderboard } from "./utils/telegramBot.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -373,6 +373,24 @@ function startScheduledJobs() {
         console.log("[SCHEDULER] daily weekly leaderboard finished");
       } catch (err) {
         console.error("[SCHEDULER] daily weekly leaderboard failed:", err);
+      }
+    },
+    {
+      timezone: "UTC",
+    }
+  );
+
+  // final weekly leaderboard every Sunday at 23:59:59 UTC
+  cron.schedule(
+    "59 59 23 * * 0",
+    async () => {
+      console.log("[SCHEDULER] final weekly leaderboard started");
+
+      try {
+        await sendTelegramFinalWeeklyLeaderboard();
+        console.log("[SCHEDULER] final weekly leaderboard finished");
+      } catch (err) {
+        console.error("[SCHEDULER] final weekly leaderboard failed:", err);
       }
     },
     {

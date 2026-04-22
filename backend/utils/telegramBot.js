@@ -398,6 +398,43 @@ function buildWeeklyLeaderboardText(weekKey, top3 = []) {
   return text.trim();
 }
 
+// New function to send the final weekly leaderboard message to Telegram, which rebuilds the leaderboard for the week that just ended and locks it in
+export async function sendTelegramFinalWeeklyLeaderboard() {
+  const now = new Date();
+
+  // Rebuild the leaderboard for the week that is just ending
+  const { weekKey } = await rebuildWeeklyLeaderboardForDate(now);
+  const sorted = await getWeeklyLeaderboardsSorted();
+  const top3 = sorted[weekKey] || [];
+
+  const weekLabel = formatWeekRangeFromKey(weekKey);
+
+  let text =
+    `🏁 <b>Final Weekly Leaderboard</b>\n` +
+    `Week: <b>${escapeHtml(weekLabel)}</b>\n\n`;
+
+  if (!Array.isArray(top3) || top3.length === 0) {
+    text += `No settled games were recorded for this week.`;
+    text += buildFooter();
+    return sendTelegramGroupMessage(text);
+  }
+
+  const medals = ["🥇", "🥈", "🥉"];
+
+  top3.forEach((entry, i) => {
+    text +=
+      `${medals[i] || "🏅"} <code>${escapeHtml(shortWallet(entry.address))}</code>\n` +
+      `Played: <b>${escapeHtml(entry.played)}</b>\n` +
+      `Wins: <b>${escapeHtml(entry.wins)}</b>\n` +
+      `Win Rate: <b>${escapeHtml(entry.winRate)}%</b>\n\n`;
+  });
+
+  text += `🎉 <b>This week is now locked in.</b>`;
+  text += buildFooter();
+
+  return sendTelegramGroupMessage(text);
+}
+
 // Helper to format USD values with appropriate decimal places and commas
 function formatUsd(value) {
   if (value == null || !Number.isFinite(value)) return null;
