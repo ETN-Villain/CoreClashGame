@@ -8,9 +8,7 @@ import "dotenv/config";
 import { generateMapping } from "./utils/generateMapping.js";
 import { checkFrontendMapping } from "../src/checkFrontendMapping.js";
 import { initAdminWallet } from "./admin.js";
-import { loadMapping, METADATA_JSON_DIR, METADATA_IMAGES_DIR, ensureDataPaths, FRONTEND_MAPPING_FILE,
-         WEEKLY_LEADERBOARD_FILE, } from "./paths.js";
-import { readGames } from "./store/gamesStore.js";
+import { loadMapping, METADATA_JSON_DIR, METADATA_IMAGES_DIR, ensureDataPaths, FRONTEND_MAPPING_FILE, } from "./paths.js";
 import { readBurnTotal } from "./store/burnStore.js";
 import gamesRouter from "./routes/games.js";
 import sseRouter from "./routes/sse.js";
@@ -23,6 +21,7 @@ import xpRouter from "./routes/xp.js";
 import testTelegramRoutes from "./routes/testTelegram.js";
 import { startCoreBurnListener } from "./burnListener.js";
 import { startSwapListener } from "./swapListener.js";
+import { sendTelegramWeeklyLeaderboard } from "./utils/telegramBot.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -280,15 +279,6 @@ try {
   process.exit(1);
 }
 
-// ---------------- WEEKLY LEADERBOARD BACKFILL ----------------
-try {
-  const allGames = readGames();
-  backfillWeeklyLeaderboard(allGames);
-  console.log("[SERVER] Weekly leaderboard backfill complete");
-} catch (err) {
-  console.error("[SERVER] Weekly leaderboard backfill failed", err);
-}
-
 // ---------------- DEBUG ROUTE LOGGING ----------------
 setTimeout(() => {
   try {
@@ -371,6 +361,24 @@ function startScheduledJobs() {
   } catch (err) {
     console.error("Failed to start CORE burn listener:", err);
   }
+
+  // send weekly leaderboard every day at 18:00 UTC
+  cron.schedule(
+    "0 18 * * *",
+    async () => {
+      console.log("[SCHEDULER] daily weekly leaderboard started");
+
+      try {
+        await sendTelegramWeeklyLeaderboard();
+        console.log("[SCHEDULER] daily weekly leaderboard finished");
+      } catch (err) {
+        console.error("[SCHEDULER] daily weekly leaderboard failed:", err);
+      }
+    },
+    {
+      timezone: "UTC",
+    }
+  );
 
 // ---------------- START SWAP LISTENER ----------------
 async function bootstrap() {
