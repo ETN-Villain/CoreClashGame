@@ -625,6 +625,44 @@ export async function sendTelegramAllTimeLeaderboard() {
   return sendTelegramGroupMessage(text);
 }
 
+export async function sendTelegramRevealDeadlineSoon({
+  gameId,
+  player1,
+  player2,
+  deadlineAt,
+}) {
+  const deadlineLabel = new Date(deadlineAt).toUTCString();
+
+  const text =
+    `⏳ <b>Reveal deadline approaching</b>\n` +
+    `Game: <b>#${escapeHtml(gameId)}</b>\n` +
+    `P1: <code>${escapeHtml(shortWallet(player1))}</code>\n` +
+    `P2: <code>${escapeHtml(shortWallet(player2))}</code>\n` +
+    `Deadline: <b>${escapeHtml(deadlineLabel)}</b>\n\n` +
+    `Only 1 day remains to reveal.`;
+
+  return sendTelegramGroupMessage(text);
+}
+
+export async function sendTelegramRevealDeadlinePassed({
+  gameId,
+  player1,
+  player2,
+  deadlineAt,
+}) {
+  const deadlineLabel = new Date(deadlineAt).toUTCString();
+
+  const text =
+    `⏱ <b>Reveal deadline expired</b>\n` +
+    `Game: <b>#${escapeHtml(gameId)}</b>\n` +
+    `P1: <code>${escapeHtml(shortWallet(player1))}</code>\n` +
+    `P2: <code>${escapeHtml(shortWallet(player2))}</code>\n` +
+    `Deadline: <b>${escapeHtml(deadlineLabel)}</b>\n\n` +
+    `This game can now be settled.`;
+
+  return sendTelegramGroupMessage(text);
+}
+
 export {
   isTelegramConfigured,
   isZephyrosTelegramConfigured,
