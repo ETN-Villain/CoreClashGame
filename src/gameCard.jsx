@@ -397,39 +397,41 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
   } else if (input && typeof input === "object") {
     const { nftContracts = [], tokenIds = [], tokenURIs = [] } = input;
 
-    tokens = tokenIds.map((id, idx) => {
-const rawAddr = nftContracts[idx];
-const addr = String(rawAddr || "").trim().toLowerCase();
+tokens = tokenIds.map((id, idx) => {
+  const rawAddr = nftContracts[idx];
+  const addr = String(rawAddr || "").trim().toLowerCase();
 
-const collection =
-  addressToCollection[addr] ||
-  (addr.includes("8cfbb04c")
-    ? "VQLE"
-    : addr.includes("ac620b1a3de23f4eb0a69663613babf73f6c535d")
-    ? "SCIONS"
-    : "VKIN");
-    
-      // SCIONS uses VKIN-style token mapping, but its own image folder
-let imageFile = `${id}.png`;
+  const collection =
+    addressToCollection[addr] ||
+    (addr.includes("8cfbb04c")
+      ? "VQLE"
+      : addr.includes("ac620b1a3de23f4eb0a69663613babf73f6c535d")
+      ? "SCIONS"
+      : "VKIN");
 
-// For revealed game data, tokenURI is the source of truth
-if (tokenURIs[idx]) {
-  imageFile = tokenURIs[idx].replace(/\.json$/i, ".png").toLowerCase();
-} else {
+  let imageFile = `${id}.png`;
   const mappedEntry = mapping[collection]?.[String(id)];
 
-  if (mappedEntry) {
-    if (mappedEntry.image_file) {
+  if (collection === "SCIONS") {
+    if (tokenURIs[idx]) {
+      imageFile = tokenURIs[idx].replace(/\.json$/i, ".png").toLowerCase();
+    } else if (mappedEntry?.image_file) {
       imageFile = mappedEntry.image_file;
-    } else if (mappedEntry.token_uri) {
+    } else if (mappedEntry?.token_uri) {
       imageFile = mappedEntry.token_uri.replace(/\.json$/i, ".png").toLowerCase();
     }
+  } else {
+    if (mappedEntry?.image_file) {
+      imageFile = mappedEntry.image_file;
+    } else if (mappedEntry?.token_uri) {
+      imageFile = mappedEntry.token_uri.replace(/\.json$/i, ".png").toLowerCase();
+    } else if (tokenURIs[idx]) {
+      imageFile = tokenURIs[idx].replace(/\.json$/i, ".png").toLowerCase();
+    }
   }
-}
 
-      return { collection, tokenId: id, imageFile };
-    });
-  }
+  return { collection, tokenId: id, imageFile };
+});
 
   if (!tokens.length) return null;
 
