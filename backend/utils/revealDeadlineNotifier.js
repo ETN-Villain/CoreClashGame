@@ -9,7 +9,13 @@ const REVEAL_WINDOW_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 function getRevealDeadline(game) {
-  const base = game.joinedAt || game.updatedAt || game.createdAt || game.date;
+  const base =
+    game.player2JoinedAt ||
+    game.joinedAt ||
+    game.updatedAt ||
+    game.createdAt ||
+    game.date;
+
   if (!base) return null;
 
   const t = new Date(base).getTime();
