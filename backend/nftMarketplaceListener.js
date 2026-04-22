@@ -2,10 +2,7 @@ import { ethers } from "ethers";
 import { RPC_URL } from "./config.js";
 import { NFT_COLLECTION_MAP } from "./nftConfig.js";
 import { loadLastBlockLocked, saveLastBlockLocked } from "./utils/blockState.js";
-import {
-  sendTelegramNftListing,
-  sendTelegramNftSale,
-} from "./utils/telegramBot.js";
+import { sendTelegramNftSale } from "./utils/telegramBot.js";
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 
@@ -16,14 +13,10 @@ const MAX_BLOCK_RANGE = 500;
 const REORG_BUFFER_BLOCKS = 2;
 
 const SEAPORT_ABI = [
-  "event OrderValidated(bytes32 orderHash, tuple(address offerer,address zone,tuple(uint8 itemType,address token,uint256 identifierOrCriteria,uint256 startAmount,uint256 endAmount)[] offer,tuple(uint8 itemType,address token,uint256 identifierOrCriteria,uint256 startAmount,uint256 endAmount,address recipient)[] consideration,uint8 orderType,uint256 startTime,uint256 endTime,bytes32 zoneHash,uint256 salt,bytes32 conduitKey,uint256 totalOriginalConsiderationItems) orderParameters)",
   "event OrderFulfilled(bytes32 orderHash, address indexed offerer, address indexed zone, address recipient, tuple(uint8 itemType,address token,uint256 identifier,uint256 amount)[] offer, tuple(uint8 itemType,address token,uint256 identifier,uint256 amount,address recipient)[] consideration)"
 ];
 
 const iface = new ethers.Interface(SEAPORT_ABI);
-const ORDER_VALIDATED_TOPIC = ethers.id(
-  "OrderValidated(bytes32,(address,address,(uint8,address,uint256,uint256,uint256)[],(uint8,address,uint256,uint256,uint256,address)[],uint8,uint256,uint256,bytes32,uint256,bytes32,uint256))"
-);
 const ORDER_FULFILLED_TOPIC = ethers.id(
   "OrderFulfilled(bytes32,address,address,address,(uint8,address,uint256,uint256)[],(uint8,address,uint256,uint256,address)[])"
 );
@@ -87,33 +80,6 @@ export async function startNftMarketplaceListener() {
         try {
           const topic0 = log.topics?.[0];
           if (!topic0) continue;
-
-          // LISTINGS
-          if (topic0 === ORDER_VALIDATED_TOPIC) {
-            const parsed = iface.parseLog(log);
-            const order = parsed.args.orderParameters;
-            const seller = String(order.offerer).toLowerCase();
-
-            const nftItem = findTrackedErc721OfferItem(order.offer);
-            if (!nftItem) continue;
-
-            const contractAddress = String(nftItem.token).toLowerCase();
-            const collection = NFT_COLLECTION_MAP[contractAddress];
-            if (!collection) continue;
-
-            const tokenId = String(nftItem.identifierOrCriteria);
-            const { amountRaw, symbol } = sumNativeOrErc20Consideration(order.consideration);
-
-            await sendTelegramNftListing({
-              collectionName: collection.name,
-              contractAddress,
-              tokenId,
-              seller,
-              price: ethers.formatEther(amountRaw),
-              currencySymbol: symbol,
-              txHash: log.transactionHash,
-            });
-          }
 
           // SALES
           if (topic0 === ORDER_FULFILLED_TOPIC) {

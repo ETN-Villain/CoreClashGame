@@ -178,11 +178,13 @@ function buildAllTimeTop10() {
     .slice(0, 10);
 }
 
+const REVEAL_WINDOW_MS = 5 * 24 * 60 * 60 * 1000;
+
 function buildFooter() {
   return (
     `\n\n━━━━━━━━━━━━━━\n` +
     `🎮 <a href="https://coreclash.planetzephyros.xyz">Play Core Clash</a>\n` +
-    `🌍 <a href="https://planetetn.org/zephyros">PlanetETN: Planet Zephyros Website</a>`
+    `🌍 <a href="https://planetetn.org/zephyros">PlanetETN: Planet Zephyros</a>`
   );
 }
 
@@ -714,26 +716,6 @@ export async function sendTelegramNftMint({
     `🧬 <b>${escapeHtml(collectionName)} Mint</b>\n\n` +
     `Token: <b>#${escapeHtml(tokenId)}</b>\n` +
     `Collector: <a href="${addrUrl(buyer)}">${escapeHtml(shortWallet(buyer))}</a>\n` +
-    `NFT: <a href="${tokenUrl(contractAddress, tokenId)}">View NFT</a>\n` +
-    `Tx: <a href="${txUrl(txHash)}">View Transaction</a>`;
-
-  return sendZephyrosNftMessage(text);
-}
-
-export async function sendTelegramNftListing({
-  collectionName,
-  contractAddress,
-  tokenId,
-  seller,
-  price,
-  currencySymbol = "ETN",
-  txHash,
-}) {
-  const text =
-    `🏷️ <b>${escapeHtml(collectionName)} Listed</b>\n\n` +
-    `Token: <b>#${escapeHtml(tokenId)}</b>\n` +
-    `Seller: <a href="${addrUrl(seller)}">${escapeHtml(shortWallet(seller))}</a>\n` +
-    `Price: <b>${escapeHtml(price)} ${escapeHtml(currencySymbol)}</b>\n` +
     `NFT: <a href="${tokenUrl(contractAddress, tokenId)}">View NFT</a>\n` +
     `Tx: <a href="${txUrl(txHash)}">View Transaction</a>`;
 
