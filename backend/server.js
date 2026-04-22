@@ -171,7 +171,6 @@ try {
   }
 
   ensureDataPaths();
-  ensureWeeklyLeaderboardFile();
   initAdminWallet();
 } catch (err) {
   console.error("❌ Failed to initialize backend:", err.message);
