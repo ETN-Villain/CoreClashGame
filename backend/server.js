@@ -22,7 +22,9 @@ import testTelegramRoutes from "./routes/testTelegram.js";
 import { startCoreBurnListener } from "./burnListener.js";
 import { startSwapListener } from "./swapListener.js";
 import { sendTelegramWeeklyLeaderboard, sendTelegramFinalWeeklyLeaderboard, sendTelegramAllTimeLeaderboard } from "./utils/telegramBot.js";
-import { processRevealDeadlineNotifications } from "./jobs/revealDeadlineNotifier.js";
+import { processRevealDeadlineNotifications } from "./utils/revealDeadlineNotifier.js";
+import { startNftMintListener } from "./nftMintListener.js";
+import { startNftMarketplaceListener } from "./nftMarketplaceListener.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -176,6 +178,21 @@ try {
 } catch (err) {
   console.error("❌ Failed to initialize backend:", err.message);
   process.exit(1);
+}
+
+// ---------------- SCHEDULED JOBS ----------------
+try {
+  await startNftMintListener();
+  console.log("[SERVER] NFT mint listener started");
+} catch (err) {
+  console.error("Failed to start NFT mint listener:", err);
+}
+
+try {
+  await startNftMarketplaceListener();
+  console.log("[SERVER] NFT marketplace listener started");
+} catch (err) {
+  console.error("Failed to start NFT marketplace listener:", err);
 }
 
 // ---------------- DEBUG ROUTE LOGGING ----------------
@@ -334,7 +351,7 @@ cron.schedule(
       timezone: "UTC",
     }
   );
-  
+
 // ---------------- START SWAP LISTENER ----------------
 async function bootstrap() {
   try {
@@ -342,6 +359,20 @@ async function bootstrap() {
     console.log("Swap listener started");
   } catch (err) {
     console.error("Failed to start swap listener:", err);
+  }
+
+  try {
+    await startNftMintListener();
+    console.log("NFT mint listener started");
+  } catch (err) {
+    console.error("Failed to start NFT mint listener:", err);
+  }
+
+  try {
+    await startNftMarketplaceListener();
+    console.log("NFT marketplace listener started");
+  } catch (err) {
+    console.error("Failed to start NFT marketplace listener:", err);
   }
 }
 

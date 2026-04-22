@@ -1,0 +1,75 @@
+import { ethers } from "ethers";
+import { RPC_URL } from "./config.js";
+import { NFT_COLLECTIONS, NFT_COLLECTION_MAP } from "./nftConfig.js";
+import { loadLastBlockLocked, saveLastBlockLocked } from "./utils/blockState.js";
+import { sendTelegramNftMint } from "./utils/telegramBot.js";
+
+const provider = new ethers.JsonRpcProvider(RPC_URL);
+
+const POLL_INTERVAL_MS = 60000;
+const MAX_BLOCK_RANGE = 500;
+const REORG_BUFFER_BLOCKS = 2;
+
+const ERC721_ABI = [
+  "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
+];
+
+const iface = new ethers.Interface(ERC721_ABI);
+const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
+
+export async function startNftMintListener() {
+  async function poll() {
+    try {
+      const latest = await provider.getBlockNumber();
+      let fromBlock = await loadLastBlockLocked("nft_mints");
+
+      if (!fromBlock || fromBlock <= 0) {
+        fromBlock = Math.max(0, latest - 100);
+      }
+
+      fromBlock = Math.max(0, fromBlock - REORG_BUFFER_BLOCKS);
+      const toBlock = Math.min(fromBlock + MAX_BLOCK_RANGE, latest);
+
+      if (toBlock < fromBlock) return;
+
+      const logs = await provider.getLogs({
+        address: NFT_COLLECTIONS.map((c) => c.address),
+        topics: [TRANSFER_TOPIC],
+        fromBlock,
+        toBlock,
+      });
+
+      for (const log of logs) {
+        try {
+          const parsed = iface.parseLog(log);
+          const from = String(parsed.args.from).toLowerCase();
+          const to = String(parsed.args.to).toLowerCase();
+          const tokenId = String(parsed.args.tokenId);
+          const contractAddress = String(log.address).toLowerCase();
+
+          if (from !== ethers.ZeroAddress.toLowerCase()) continue;
+
+          const collection = NFT_COLLECTION_MAP[contractAddress];
+          if (!collection) continue;
+
+          await sendTelegramNftMint({
+            collectionName: collection.name,
+            contractAddress,
+            tokenId,
+            buyer: to,
+            txHash: log.transactionHash,
+          });
+        } catch (err) {
+          console.error("[NFT MINT] Failed to process log:", err);
+        }
+      }
+
+      await saveLastBlockLocked("nft_mints", toBlock + 1);
+    } catch (err) {
+      console.error("[NFT MINT] Poll failed:", err);
+    }
+  }
+
+  await poll();
+  setInterval(poll, POLL_INTERVAL_MS);
+}
