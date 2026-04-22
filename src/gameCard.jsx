@@ -398,18 +398,17 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
     const { nftContracts = [], tokenIds = [], tokenURIs = [] } = input;
 
     tokens = tokenIds.map((id, idx) => {
-      const rawAddr = nftContracts[idx];
-      let addr = (rawAddr || "")
-        .toString()
-        .trim()
-        .replace(/[^0-9a-fA-F]/gi, "")
-        .toLowerCase();
+const rawAddr = nftContracts[idx];
+const addr = String(rawAddr || "").trim().toLowerCase();
 
-      if (addr && !addr.startsWith("0x")) addr = "0x" + addr;
-
-      const collection =
-        addressToCollection[addr] || (addr.includes("8cfbb04c") ? "VQLE" : "VKIN");
-
+const collection =
+  addressToCollection[addr] ||
+  (addr.includes("8cfbb04c")
+    ? "VQLE"
+    : addr.includes("ac620b1a3de23f4eb0a69663613babf73f6c535d")
+    ? "SCIONS"
+    : "VKIN");
+    
       // SCIONS uses VKIN-style token mapping, but its own image folder
 let imageFile = `${id}.png`;
 
