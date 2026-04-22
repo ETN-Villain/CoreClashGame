@@ -15,6 +15,9 @@ import {
   getWeeklyLeaderboardsSorted,
 } from "../store/weeklyLeaderboardStore.js";
 
+import { readGames } from "../store/gamesStore.js";
+import { ethers } from "ethers";
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ZEPHYROS_TELEGRAM_BOT_TOKEN = process.env.ZEPHYROS_TELEGRAM_BOT_TOKEN;
 const TELEGRAM_GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
@@ -130,6 +133,48 @@ async function telegramRequest(apiBase, method, payload) {
   }
 
   return data.result;
+}
+
+function buildAllTimeTop10() {
+  const games = readGames();
+  const stats = {};
+
+  games
+    .filter((g) => g.settled && !g.cancelled)
+    .forEach((g) => {
+      const p1 = g.player1?.toLowerCase();
+      const p2 = g.player2?.toLowerCase();
+      const winner = g.winner?.toLowerCase();
+      const isTie = g.tie;
+
+      [p1, p2].forEach((player) => {
+        if (!player || player === ethers.ZeroAddress.toLowerCase()) return;
+
+        if (!stats[player]) stats[player] = { wins: 0, played: 0 };
+        stats[player].played += 1;
+      });
+
+      if (!isTie && winner && winner !== ethers.ZeroAddress.toLowerCase()) {
+        if (!stats[winner]) stats[winner] = { wins: 0, played: 0 };
+        stats[winner].wins += 1;
+      }
+    });
+
+  return Object.entries(stats)
+    .map(([address, data]) => ({
+      address,
+      wins: data.wins,
+      played: data.played,
+      winRate:
+        data.played > 0
+          ? Math.round((data.wins / data.played) * 100)
+          : 0,
+    }))
+    .sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return b.winRate - a.winRate;
+    })
+    .slice(0, 10);
 }
 
 function buildFooter() {
@@ -547,6 +592,36 @@ export async function sendTelegramWeeklyLeaderboard() {
   const top3 = sorted[weekKey] || [];
 
   const text = buildWeeklyLeaderboardText(weekKey, top3);
+  return sendTelegramGroupMessage(text);
+}
+
+// New function to send the all-time leaderboard message to Telegram
+export async function sendTelegramAllTimeLeaderboard() {
+  const top10 = buildAllTimeTop10();
+
+  let text =
+    `🏆 <b>All-Time Leaderboard</b>\n\n`;
+
+  if (!top10.length) {
+    text += `No games have been settled yet.`;
+    text += buildFooter();
+    return sendTelegramGroupMessage(text);
+  }
+
+  const medals = ["🥇", "🥈", "🥉"];
+
+  top10.forEach((entry, i) => {
+    const rank = i + 1;
+
+    text +=
+      `${medals[i] || `#${rank}`} <code>${escapeHtml(shortWallet(entry.address))}</code>\n` +
+      `Played: <b>${escapeHtml(entry.played)}</b> | ` +
+      `Wins: <b>${escapeHtml(entry.wins)}</b> | ` +
+      `Win Rate: <b>${escapeHtml(entry.winRate)}%</b>\n\n`;
+  });
+
+  text += buildFooter();
+
   return sendTelegramGroupMessage(text);
 }
 
