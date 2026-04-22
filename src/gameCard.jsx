@@ -411,23 +411,22 @@ const renderTokenImages = (input = [], isWinningTeam = false) => {
         addressToCollection[addr] || (addr.includes("8cfbb04c") ? "VQLE" : "VKIN");
 
       // SCIONS uses VKIN-style token mapping, but its own image folder
-      const mappingKey =
-        collection === "SCIONS" || collection === "VKIN" ? "VKIN" : "VQLE";
+let imageFile = `${id}.png`;
 
-      let imageFile = `${id}.png`;
-      const mappedEntry = mapping[mappingKey]?.[String(id)];
+// For revealed game data, tokenURI is the source of truth
+if (tokenURIs[idx]) {
+  imageFile = tokenURIs[idx].replace(/\.json$/i, ".png").toLowerCase();
+} else {
+  const mappedEntry = mapping[collection]?.[String(id)];
 
-      if (mappedEntry) {
-        if (mappedEntry.image_file) {
-          imageFile = mappedEntry.image_file;
-        } else if (mappedEntry.token_uri) {
-          imageFile = mappedEntry.token_uri
-            .replace(/\.json$/i, ".png")
-            .toLowerCase();
-        }
-      } else if (tokenURIs[idx]) {
-        imageFile = tokenURIs[idx].replace(/\.json$/i, ".png").toLowerCase();
-      }
+  if (mappedEntry) {
+    if (mappedEntry.image_file) {
+      imageFile = mappedEntry.image_file;
+    } else if (mappedEntry.token_uri) {
+      imageFile = mappedEntry.token_uri.replace(/\.json$/i, ".png").toLowerCase();
+    }
+  }
+}
 
       return { collection, tokenId: id, imageFile };
     });
