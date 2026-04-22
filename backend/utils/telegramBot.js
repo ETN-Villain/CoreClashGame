@@ -10,6 +10,11 @@ import {
   CLUB_TELEGRAM_MESSAGE_THREAD_ID,
 } from "../swapsConfig.js";
 
+import {
+  rebuildWeeklyLeaderboardForDate,
+  getWeeklyLeaderboardsSorted,
+} from "../store/weeklyLeaderboardStore.js";
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ZEPHYROS_TELEGRAM_BOT_TOKEN = process.env.ZEPHYROS_TELEGRAM_BOT_TOKEN;
 const TELEGRAM_GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
@@ -144,6 +149,7 @@ function buildClubFooter() {
     `📢 Add your token: @JAYETNZ`
   );
 }
+
 export async function sendTelegramGroupMessage(text, options = {}) {
   if (!isTelegramConfigured()) {
     console.warn("Telegram bot not configured; skipping group message:", text);
@@ -349,6 +355,50 @@ export async function getTelegramUpdates(offset) {
   }
 }
 
+// Helper function to format the week range for a given weekKey (e.g. "2024-W30")
+function formatWeekRangeFromKey(weekKey) {
+  const start = new Date(`${weekKey}T00:00:00.000Z`);
+  const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
+
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+
+  return `${fmt.format(start)} - ${fmt.format(end)}`;
+}
+
+function buildWeeklyLeaderboardText(weekKey, top3 = []) {
+  const weekLabel = formatWeekRangeFromKey(weekKey);
+
+  let text =
+    `📊 <b>Core Clash Weekly Leaderboard</b>\n` +
+    `🗓️ <b>${escapeHtml(weekLabel)}</b>\n\n`;
+
+  if (!Array.isArray(top3) || top3.length === 0) {
+    text += `No settled games recorded for this week yet.`;
+    text += buildFooter();
+    return text;
+  }
+
+  const medals = ["🥇", "🥈", "🥉"];
+
+  top3.forEach((entry, i) => {
+    text +=
+      `${medals[i]} <code>${escapeHtml(shortWallet(entry.address))}</code>\n` +
+      `   Played: <b>${escapeHtml(entry.played)}</b>\n` +
+      `   Wins: <b>${escapeHtml(entry.wins)}</b>\n` +
+      `   Win Rate: <b>${escapeHtml(entry.winRate)}%</b>\n\n`;
+  });
+
+  text += buildFooter();
+
+  return text.trim();
+}
+
+// Helper to format USD values with appropriate decimal places and commas
 function formatUsd(value) {
   if (value == null || !Number.isFinite(value)) return null;
 
@@ -358,6 +408,7 @@ function formatUsd(value) {
   });
 }
 
+// Main function to send swap messages to Telegram with rich formatting and media support
 export async function sendSwapMessage({
   symbol,
   side,                    // "BUY" or "SELL"
@@ -450,6 +501,16 @@ const titleLine =
   } catch (err) {
     console.error("[Telegram] sendSwapMessage error:", err.response?.data || err.message || err);
   }
+}
+
+// New function to send the weekly leaderboard message to Telegram
+export async function sendTelegramWeeklyLeaderboard() {
+  const { weekKey } = await rebuildWeeklyLeaderboardForDate(new Date());
+  const sorted = await getWeeklyLeaderboardsSorted();
+  const top3 = sorted[weekKey] || [];
+
+  const text = buildWeeklyLeaderboardText(weekKey, top3);
+  return sendTelegramGroupMessage(text);
 }
 
 export {
