@@ -370,16 +370,16 @@ function formatWeekRangeFromKey(weekKey) {
   return `${fmt.format(start)} - ${fmt.format(end)}`;
 }
 
-// Helper function to build the weekly leaderboard message text based on the top 3 players
 function buildWeeklyLeaderboardText(weekKey, top3 = []) {
   const weekLabel = formatWeekRangeFromKey(weekKey);
 
   let text =
-    `📊 <b>Weekly Leaderboard</b>\n` +
-    `Week: <b>${escapeHtml(weekLabel)}</b>\n\n`;
+    `📊 <b>Core Clash Weekly Leaderboard</b>\n` +
+    `🗓️ <b>${escapeHtml(weekLabel)}</b>\n\n`;
 
   if (!Array.isArray(top3) || top3.length === 0) {
     text += `No settled games recorded for this week yet.`;
+    text += buildFooter();
     return text;
   }
 
@@ -387,12 +387,13 @@ function buildWeeklyLeaderboardText(weekKey, top3 = []) {
 
   top3.forEach((entry, i) => {
     text +=
-      `${medals[i] || "🏅"} <code>${escapeHtml(shortWallet(entry.address))}</code>\n` +
-      `Wins: <b>${escapeHtml(entry.wins)}</b> | ` +
-      `Played: <b>${escapeHtml(entry.played)}</b> | ` +
-      `Win rate: <b>${escapeHtml(entry.winRate)}%</b>\n\n`+
-      buildFooter();
+      `${medals[i]} <code>${escapeHtml(shortWallet(entry.address))}</code>\n` +
+      `   Played: <b>${escapeHtml(entry.played)}</b>\n` +
+      `   Wins: <b>${escapeHtml(entry.wins)}</b>\n` +
+      `   Win Rate: <b>${escapeHtml(entry.winRate)}%</b>\n\n`;
   });
+
+  text += buildFooter();
 
   return text.trim();
 }
