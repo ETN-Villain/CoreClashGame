@@ -29,8 +29,6 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3001;
 
-const weeklyFilePath = WEEKLY_LEADERBOARD_FILE;
-
 // ---------------- MIDDLEWARE ----------------
 app.use(cors({
   origin: [
