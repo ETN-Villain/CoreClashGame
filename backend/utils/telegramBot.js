@@ -181,7 +181,7 @@ function buildFooter() {
   return (
     `\n\n━━━━━━━━━━━━━━\n` +
     `🎮 <a href="https://coreclash.planetzephyros.xyz">Play Core Clash</a>\n` +
-    `🌍 <a href="https://planetetn.org/zephyros">Explore PlanetETN</a>`
+    `🌍 <a href="https://planetetn.org/zephyros">PlanetETN: Planet Zephyros Website</a>`
   );
 }
 
@@ -420,27 +420,27 @@ function buildWeeklyLeaderboardText(weekKey, top3 = []) {
 
   let text =
     `📊 <b>Core Clash Weekly Leaderboard</b>\n` +
-    `🗓️ <b>${escapeHtml(weekLabel)}</b>\n\n`;
+    `🗓️ <b>${escapeHtml(weekLabel)}</b>\n`;
 
   if (!Array.isArray(top3) || top3.length === 0) {
-    text += `No settled games recorded for this week yet.`;
-    text += buildFooter();
-    return text;
+    return (
+      text +
+      `\nNo settled games recorded for this week yet.`
+    );
   }
 
   const medals = ["🥇", "🥈", "🥉"];
 
-  top3.forEach((entry, i) => {
-    text +=
-      `${medals[i]} <code>${escapeHtml(shortWallet(entry.address))}</code>\n` +
-      `   Played: <b>${escapeHtml(entry.played)}</b>\n` +
-      `   Wins: <b>${escapeHtml(entry.wins)}</b>\n` +
-      `   Win Rate: <b>${escapeHtml(entry.winRate)}%</b>\n\n`;
+  const rows = top3.map((entry, i) => {
+    return (
+      `${medals[i] || "🏅"} <code>${escapeHtml(shortWallet(entry.address))}</code>\n` +
+      `Played: <b>${escapeHtml(entry.played)}</b> • ` +
+      `Wins: <b>${escapeHtml(entry.wins)}</b> • ` +
+      `Win Rate: <b>${escapeHtml(entry.winRate)}%</b>`
+    );
   });
 
-  text += buildFooter();
-
-  return text.trim();
+  return `${text}\n${rows.join("\n\n")}`;
 }
 
 // New function to send the final weekly leaderboard message to Telegram, which rebuilds the leaderboard for the week that just ended and locks it in
