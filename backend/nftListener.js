@@ -17,16 +17,23 @@ export async function startNftMintListener() {
 
   async function poll() {
     try {
-      const latest = await provider.getBlockNumber();
-      let fromBlock = await loadLastBlockLocked("nft_mints");
+const latest = await provider.getBlockNumber();
+let fromBlockRaw = await loadLastBlockLocked("nft_market");
+let fromBlock = Number(fromBlockRaw);
 
-      if (!fromBlock || fromBlock <= 0) {
-        fromBlock = latest - 50;
-      }
+if (!Number.isFinite(fromBlock) || fromBlock <= 0) {
+  fromBlock = Math.max(0, latest - 100);
+}
 
-      fromBlock = Math.max(0, fromBlock - REORG_BUFFER_BLOCKS);
-      let toBlock = Math.min(fromBlock + MAX_BLOCK_RANGE, latest);
+fromBlock = Math.max(0, fromBlock - REORG_BUFFER_BLOCKS);
 
+const toBlock = Math.min(fromBlock + MAX_BLOCK_RANGE, latest);
+
+if (!Number.isFinite(fromBlock) || !Number.isFinite(toBlock)) {
+  throw new Error(
+    `[NFT MARKET] Invalid block range: fromBlock=${fromBlock} toBlock=${toBlock} raw=${fromBlockRaw}`
+  );
+}
       if (toBlock < fromBlock) return;
 
       const addresses = NFT_COLLECTIONS.map((c) => c.address);
@@ -65,7 +72,11 @@ export async function startNftMintListener() {
         }
       }
 
-      await saveLastBlockLocked("nft_mints", toBlock + 1);
+const nextBlock = Number(toBlock + 1);
+if (!Number.isFinite(nextBlock)) {
+  throw new Error(`[NFT MARKET] Refusing to save invalid next block: ${nextBlock}`);
+}
+await saveLastBlockLocked("nft_market", nextBlock);
     } catch (err) {
       console.error("[NFT MINT LISTENER] poll failed:", err);
     }
