@@ -138,8 +138,8 @@ function buildFooter() {
 function buildClubFooter() {
   return (
     `\n\n━━━━━━━━━━━━━━\n\n` +
-    `💵 <a href="https://app.electroswap.io/explore/tokens/electroneum/0xc9fc4ab00911793d99b5c7bd01f01203c21d4131?inputCurrency=ETN">Buy CLUB</a> | ` +
-    `⚡️ <a href="https://app.electroswap.io/explore/transactions">Live Transactions</a>\n` +
+    `💵 <a href="https://app.electroswap.io/explore/tokens/electroneum/0xc9fc4ab00911793d99b5c7bd01f01203c21d4131?inputCurrency=ETN">Buy CLUB</a> |` +
+    `⚡️ <a href="https://app.electroswap.io/explore/transactions">Live Txs</a>\n` +
     `🌍 <a href="https://planetetn.org/profile/4-etn-club">PlanetETN: CLUB Website</a>\n\n` +
     `📢 Add your token: @JAYETNZ`
   );
