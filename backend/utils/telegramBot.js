@@ -237,7 +237,7 @@ const caption =
     
   return sendZephyrosAnimationMessage({
     caption,
-    animationUrl: "AAMCBAADGQEAAwJp5TrAMkFtkLPuS0IZ2XJCRz-UVAACnCkAArK0KVPcgJNOS8ZCpQEAB20AAzsE",
+    animationUrl: "CgACAgQAAxkBAAMDaeiG7E_J1y18lV9NePlhqQRIv5cAAjgiAAJ5zkBT47yvPwTBxsA7BA",
     messageThreadId,
   });
 }
