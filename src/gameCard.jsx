@@ -432,6 +432,7 @@ tokens = tokenIds.map((id, idx) => {
 
   return { collection, tokenId: id, imageFile };
 });
+  }
 
   if (!tokens.length) return null;
 
