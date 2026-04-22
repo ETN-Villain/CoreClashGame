@@ -15,47 +15,58 @@ function ensureStateDir() {
   }
 }
 
-export function loadLastBlock() {
+function loadStateFile() {
   try {
-    if (!fs.existsSync(STATE_FILE)) return null;
+    if (!fs.existsSync(STATE_FILE)) return {};
 
     const raw = fs.readFileSync(STATE_FILE, "utf8");
-    if (!raw) return null;
+    if (!raw) return {};
 
     const parsed = JSON.parse(raw);
-    return parsed?.lastBlock ?? null;
+    return parsed && typeof parsed === "object" ? parsed : {};
   } catch (err) {
-    console.error("loadLastBlock error:", err);
-    return null;
+    console.error("loadStateFile error:", err);
+    return {};
   }
 }
 
-export function saveLastBlock(block) {
+function saveStateFile(state) {
   try {
     ensureStateDir();
 
     const tempFile = `${STATE_FILE}.tmp`;
     fs.writeFileSync(
       tempFile,
-      JSON.stringify({ lastBlock: block }, null, 2),
+      JSON.stringify(state, null, 2),
       "utf8"
     );
     fs.renameSync(tempFile, STATE_FILE);
   } catch (err) {
-    console.error("saveLastBlock error:", err);
+    console.error("saveStateFile error:", err);
     throw err;
   }
 }
 
-export async function loadLastBlockLocked() {
+export function loadLastBlock(key = "lastBlock") {
+  const state = loadStateFile();
+  return state[key] ?? null;
+}
+
+export function saveLastBlock(key = "lastBlock", block) {
+  const state = loadStateFile();
+  state[key] = block;
+  saveStateFile(state);
+}
+
+export async function loadLastBlockLocked(key = "lastBlock") {
   return withLock(async () => {
-    return loadLastBlock();
+    return loadLastBlock(key);
   });
 }
 
-export async function saveLastBlockLocked(block) {
+export async function saveLastBlockLocked(key = "lastBlock", block) {
   return withLock(async () => {
-    saveLastBlock(block);
+    saveLastBlock(key, block);
     return block;
   });
 }
