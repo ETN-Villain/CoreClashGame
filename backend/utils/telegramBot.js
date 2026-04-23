@@ -1,7 +1,6 @@
 // backend/utils/telegramBot.js
 import axios from "axios";
-import {
-  EXPLORER_BASE_URL,
+import { EXPLORER_BASE_URL, ELECTROSWAP_BASE_URL,
 } from "../config.js";
 
 import {
@@ -776,7 +775,7 @@ export async function sendZephyrosNftMessage(text) {
 }
 
 function tokenUrl(contractAddress, tokenId) {
-  return `${EXPLORER_BASE_URL}/token/${contractAddress}?a=${tokenId}`;
+  return `${ELECTROSWAP_BASE_URL}/nfts/asset/${contractAddress}/${tokenId}`;
 }
 
 function txUrl(txHash) {

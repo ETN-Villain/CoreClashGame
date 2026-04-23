@@ -3,6 +3,7 @@ import { RPC_URL } from "./config.js";
 import { NFT_COLLECTION_MAP } from "./nftConfig.js";
 import { loadLastBlockLocked, saveLastBlockLocked } from "./utils/blockState.js";
 import { sendTelegramNftSale } from "./utils/telegramBot.js";
+import { hasSeenNftEvent, markSeenNftEvent } from "./utils/nftEventState.js";
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 
@@ -154,59 +155,75 @@ export async function startNftMarketplaceListener() {
           const nftInOffer = findTrackedErc721OfferItem(parsed.args.offer);
           const nftInConsideration = findTrackedErc721ConsiderationItem(parsed.args.consideration);
 
-          // Case 1: standard listing fill
-          if (nftInOffer) {
-            const contractAddress = nftInOffer.contractAddress;
-            const collection = NFT_COLLECTION_MAP[contractAddress];
-            if (!collection) continue;
+// Case 1: standard listing fill
+if (nftInOffer) {
+  const eventKey = `sale:${log.transactionHash}:${log.index ?? log.logIndex ?? 0}`;
 
-            const payment = sumFungibleItems(parsed.args.consideration);
-            if (payment.amountRaw <= 0n) continue;
+  if (await hasSeenNftEvent(eventKey)) {
+    continue;
+  }
 
-            const { symbol, decimals } = await resolveCurrencyMeta(
-              payment.paymentToken,
-              payment.paymentItemType
-            );
+  const contractAddress = nftInOffer.contractAddress;
+  const collection = NFT_COLLECTION_MAP[contractAddress];
+  if (!collection) continue;
 
-            await sendTelegramNftSale({
-              collectionName: collection.name,
-              contractAddress,
-              tokenId: nftInOffer.tokenId,
-              seller: offerer,
-              buyer: recipient,
-              price: ethers.formatUnits(payment.amountRaw, decimals),
-              currencySymbol: symbol,
-              txHash: log.transactionHash,
-            });
+  const payment = sumFungibleItems(parsed.args.consideration);
+  if (payment.amountRaw <= 0n) continue;
 
-            continue;
-          }
+  const { symbol, decimals } = await resolveCurrencyMeta(
+    payment.paymentToken,
+    payment.paymentItemType
+  );
 
-          // Case 2: accepted bid
-          if (nftInConsideration) {
-            const contractAddress = nftInConsideration.contractAddress;
-            const collection = NFT_COLLECTION_MAP[contractAddress];
-            if (!collection) continue;
+  await sendTelegramNftSale({
+    collectionName: collection.name,
+    contractAddress,
+    tokenId: nftInOffer.tokenId,
+    seller: offerer,
+    buyer: recipient,
+    price: ethers.formatUnits(payment.amountRaw, decimals),
+    currencySymbol: symbol,
+    txHash: log.transactionHash,
+  });
 
-            const payment = sumFungibleItems(parsed.args.offer);
-            if (payment.amountRaw <= 0n) continue;
+  await markSeenNftEvent(eventKey);
+  continue;
+}
 
-            const { symbol, decimals } = await resolveCurrencyMeta(
-              payment.paymentToken,
-              payment.paymentItemType
-            );
+// Case 2: accepted bid
+if (nftInConsideration) {
+  const eventKey = `sale:${log.transactionHash}:${log.index ?? log.logIndex ?? 0}`;
 
-            await sendTelegramNftSale({
-              collectionName: collection.name,
-              contractAddress,
-              tokenId: nftInConsideration.tokenId,
-              seller: recipient,
-              buyer: offerer,
-              price: ethers.formatUnits(payment.amountRaw, decimals),
-              currencySymbol: symbol,
-              txHash: log.transactionHash,
-            });
-          }
+  if (await hasSeenNftEvent(eventKey)) {
+    continue;
+  }
+
+  const contractAddress = nftInConsideration.contractAddress;
+  const collection = NFT_COLLECTION_MAP[contractAddress];
+  if (!collection) continue;
+
+  const payment = sumFungibleItems(parsed.args.offer);
+  if (payment.amountRaw <= 0n) continue;
+
+  const { symbol, decimals } = await resolveCurrencyMeta(
+    payment.paymentToken,
+    payment.paymentItemType
+  );
+
+  await sendTelegramNftSale({
+    collectionName: collection.name,
+    contractAddress,
+    tokenId: nftInConsideration.tokenId,
+    seller: recipient,
+    buyer: offerer,
+    price: ethers.formatUnits(payment.amountRaw, decimals),
+    currencySymbol: symbol,
+    txHash: log.transactionHash,
+  });
+
+  await markSeenNftEvent(eventKey);
+  continue;
+}
         } catch (err) {
           console.error("[NFT MARKET] Failed processing log:", err);
         }
