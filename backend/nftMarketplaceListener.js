@@ -21,6 +21,11 @@ const ORDER_FULFILLED_TOPIC = ethers.id(
   "OrderFulfilled(bytes32,address,address,address,(uint8,address,uint256,uint256)[],(uint8,address,uint256,uint256,address)[])"
 );
 
+const ERC20_MIN_ABI = [
+  "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)"
+];
+
 const ITEM_TYPE_NATIVE = 0;
 const ITEM_TYPE_ERC20 = 1;
 const ITEM_TYPE_ERC721 = 2;
@@ -31,42 +36,101 @@ function findTrackedErc721OfferItem(items) {
 
     const token = String(item.token).toLowerCase();
     if (NFT_COLLECTION_MAP[token]) {
-      return item;
+      return {
+        contractAddress: token,
+        tokenId: String(item.identifier),
+      };
     }
   }
   return null;
 }
 
-function sumNativeOrErc20Consideration(consideration) {
-  let total = 0n;
-  let symbol = "ETN";
+function findTrackedErc721ConsiderationItem(items) {
+  for (const item of items || []) {
+    if (Number(item.itemType) !== ITEM_TYPE_ERC721) continue;
 
-  for (const item of consideration || []) {
+    const token = String(item.token).toLowerCase();
+    if (NFT_COLLECTION_MAP[token]) {
+      return {
+        contractAddress: token,
+        tokenId: String(item.identifier),
+        recipient: String(item.recipient).toLowerCase(),
+      };
+    }
+  }
+  return null;
+}
+
+function sumFungibleItems(items) {
+  let total = 0n;
+  let paymentToken = null;
+  let paymentItemType = null;
+
+  for (const item of items || []) {
     const itemType = Number(item.itemType);
 
-    if (itemType === ITEM_TYPE_NATIVE || itemType === ITEM_TYPE_ERC20) {
-      total += BigInt(item.amount);
+    if (itemType !== ITEM_TYPE_NATIVE && itemType !== ITEM_TYPE_ERC20) continue;
+
+    total += BigInt(item.amount);
+
+    if (paymentToken == null) {
+      paymentToken = String(item.token || "").toLowerCase();
+      paymentItemType = itemType;
     }
   }
 
   return {
     amountRaw: total,
-    symbol,
+    paymentToken,
+    paymentItemType,
   };
+}
+
+async function resolveCurrencyMeta(paymentToken, paymentItemType) {
+  if (paymentItemType === ITEM_TYPE_NATIVE) {
+    return { symbol: "ETN", decimals: 18 };
+  }
+
+  if (!paymentToken || paymentToken === ethers.ZeroAddress.toLowerCase()) {
+    return { symbol: "TOKEN", decimals: 18 };
+  }
+
+  try {
+    const token = new ethers.Contract(paymentToken, ERC20_MIN_ABI, provider);
+    const [symbol, decimals] = await Promise.all([
+      token.symbol(),
+      token.decimals(),
+    ]);
+
+    return {
+      symbol: String(symbol),
+      decimals: Number(decimals),
+    };
+  } catch (err) {
+    console.error("[NFT MARKET] Failed to resolve token metadata:", err.message || err);
+    return { symbol: "TOKEN", decimals: 18 };
+  }
 }
 
 export async function startNftMarketplaceListener() {
   async function poll() {
     try {
       const latest = await provider.getBlockNumber();
-      let fromBlock = await loadLastBlockLocked("nft_market");
+      let fromBlockRaw = await loadLastBlockLocked("nft_market");
+      let fromBlock = Number(fromBlockRaw);
 
-      if (!fromBlock || fromBlock <= 0) {
+      if (!Number.isFinite(fromBlock) || fromBlock <= 0) {
         fromBlock = Math.max(0, latest - 100);
       }
 
       fromBlock = Math.max(0, fromBlock - REORG_BUFFER_BLOCKS);
       const toBlock = Math.min(fromBlock + MAX_BLOCK_RANGE, latest);
+
+      if (!Number.isFinite(fromBlock) || !Number.isFinite(toBlock)) {
+        throw new Error(
+          `[NFT MARKET] Invalid block range: fromBlock=${fromBlock} toBlock=${toBlock} raw=${fromBlockRaw}`
+        );
+      }
 
       if (toBlock < fromBlock) return;
 
@@ -81,29 +145,64 @@ export async function startNftMarketplaceListener() {
           const topic0 = log.topics?.[0];
           if (!topic0) continue;
 
-          // SALES
-          if (topic0 === ORDER_FULFILLED_TOPIC) {
-            const parsed = iface.parseLog(log);
-            const seller = String(parsed.args.offerer).toLowerCase();
-            const buyer = String(parsed.args.recipient).toLowerCase();
+          if (topic0 !== ORDER_FULFILLED_TOPIC) continue;
 
-            const nftItem = findTrackedErc721OfferItem(parsed.args.offer);
-            if (!nftItem) continue;
+          const parsed = iface.parseLog(log);
+          const offerer = String(parsed.args.offerer).toLowerCase();
+          const recipient = String(parsed.args.recipient).toLowerCase();
 
-            const contractAddress = String(nftItem.token).toLowerCase();
+          const nftInOffer = findTrackedErc721OfferItem(parsed.args.offer);
+          const nftInConsideration = findTrackedErc721ConsiderationItem(parsed.args.consideration);
+
+          // Case 1: standard listing fill
+          if (nftInOffer) {
+            const contractAddress = nftInOffer.contractAddress;
             const collection = NFT_COLLECTION_MAP[contractAddress];
             if (!collection) continue;
 
-            const tokenId = String(nftItem.identifier);
-            const { amountRaw, symbol } = sumNativeOrErc20Consideration(parsed.args.consideration);
+            const payment = sumFungibleItems(parsed.args.consideration);
+            if (payment.amountRaw <= 0n) continue;
+
+            const { symbol, decimals } = await resolveCurrencyMeta(
+              payment.paymentToken,
+              payment.paymentItemType
+            );
 
             await sendTelegramNftSale({
               collectionName: collection.name,
               contractAddress,
-              tokenId,
-              seller,
-              buyer,
-              price: ethers.formatEther(amountRaw),
+              tokenId: nftInOffer.tokenId,
+              seller: offerer,
+              buyer: recipient,
+              price: ethers.formatUnits(payment.amountRaw, decimals),
+              currencySymbol: symbol,
+              txHash: log.transactionHash,
+            });
+
+            continue;
+          }
+
+          // Case 2: accepted bid
+          if (nftInConsideration) {
+            const contractAddress = nftInConsideration.contractAddress;
+            const collection = NFT_COLLECTION_MAP[contractAddress];
+            if (!collection) continue;
+
+            const payment = sumFungibleItems(parsed.args.offer);
+            if (payment.amountRaw <= 0n) continue;
+
+            const { symbol, decimals } = await resolveCurrencyMeta(
+              payment.paymentToken,
+              payment.paymentItemType
+            );
+
+            await sendTelegramNftSale({
+              collectionName: collection.name,
+              contractAddress,
+              tokenId: nftInConsideration.tokenId,
+              seller: recipient,
+              buyer: offerer,
+              price: ethers.formatUnits(payment.amountRaw, decimals),
               currencySymbol: symbol,
               txHash: log.transactionHash,
             });

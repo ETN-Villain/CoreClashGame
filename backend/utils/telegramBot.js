@@ -18,6 +18,9 @@ import {
 import { readGames } from "../store/gamesStore.js";
 import { ethers } from "ethers";
 
+import fs from "fs";
+import FormData from "form-data";
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ZEPHYROS_TELEGRAM_BOT_TOKEN = process.env.ZEPHYROS_TELEGRAM_BOT_TOKEN;
 const TELEGRAM_GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
@@ -179,6 +182,45 @@ function buildAllTimeTop10() {
 }
 
 const REVEAL_WINDOW_MS = 5 * 24 * 60 * 60 * 1000;
+
+// Helper function to check if a game is in the active reveal phase
+export async function sendZephyrosNftPhotoMessage({
+  caption,
+  photoPath,
+}) {
+  if (!isZephyrosTelegramConfigured()) {
+    console.warn(
+      "Zephyros Telegram bot not configured; skipping NFT photo message:",
+      caption
+    );
+    return null;
+  }
+
+  const form = new FormData();
+  form.append("chat_id", TELEGRAM_GROUP_CHAT_ID);
+  form.append("message_thread_id", String(ZEPHYROS_NFT_MESSAGE_THREAD_ID));
+  form.append("caption", caption + buildFooter());
+  form.append("parse_mode", "HTML");
+  form.append("disable_web_page_preview", "true");
+  form.append("photo", fs.createReadStream(photoPath));
+
+  try {
+    const res = await axios.post(
+      `${ZEPHYROS_TELEGRAM_API_BASE}/sendPhoto`,
+      form,
+      { headers: form.getHeaders() }
+    );
+
+    if (!res.data?.ok) {
+      throw new Error(res.data?.description || "Telegram sendPhoto failed");
+    }
+
+    return res.data.result;
+  } catch (err) {
+    console.error("sendZephyrosNftPhotoMessage failed:", err.message || err);
+    throw err;
+  }
+}
 
 function buildFooter() {
   return (
@@ -666,6 +708,45 @@ export async function sendTelegramRevealDeadlinePassed({
   return sendTelegramGroupMessage(text);
 }
 
+// New function to send an NFT photo to the Zephyros Telegram topic, which is separate from the main group thread and can be used for NFT announcements related to Planet Zephyros that aren't tied to specific games
+export async function sendZephyrosNftPhoto({ caption, imagePath }) {
+  if (!isZephyrosTelegramConfigured()) {
+    console.warn("Zephyros Telegram bot not configured; skipping NFT photo:", caption);
+    return null;
+  }
+
+  if (!imagePath || !fs.existsSync(imagePath)) {
+    throw new Error(`NFT image not found: ${imagePath}`);
+  }
+
+  const formData = new FormData();
+  formData.append("chat_id", TELEGRAM_GROUP_CHAT_ID);
+  formData.append("caption", caption + buildFooter());
+  formData.append("parse_mode", "HTML");
+  formData.append("disable_web_page_preview", "true");
+  formData.append("message_thread_id", String(ZEPHYROS_NFT_MESSAGE_THREAD_ID));
+
+  const fileBuffer = fs.readFileSync(imagePath);
+  const fileName = path.basename(imagePath);
+  const blob = new Blob([fileBuffer]);
+  formData.append("photo", blob, fileName);
+
+  const res = await fetch(`${ZEPHYROS_TELEGRAM_API_BASE}/sendPhoto`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok || !data.ok) {
+    throw new Error(
+      data?.description || `Telegram sendPhoto failed with status ${res.status}`
+    );
+  }
+
+  return data.result;
+}
+
 // New function to send messages to the Zephyros Telegram topic, which is separate from the main group thread and can be used for more general announcements that aren't tied to specific games
 export async function sendZephyrosNftMessage(text) {
   if (!isZephyrosTelegramConfigured()) {
@@ -711,15 +792,29 @@ export async function sendTelegramNftMint({
   tokenId,
   buyer,
   txHash,
+  tokenURI,
 }) {
-  const text =
+  const caption =
     `🧬 <b>${escapeHtml(collectionName)} Mint</b>\n\n` +
     `Token: <b>#${escapeHtml(tokenId)}</b>\n` +
     `Collector: <a href="${addrUrl(buyer)}">${escapeHtml(shortWallet(buyer))}</a>\n` +
     `NFT: <a href="${tokenUrl(contractAddress, tokenId)}">View NFT</a>\n` +
     `Tx: <a href="${txUrl(txHash)}">View Transaction</a>`;
 
-  return sendZephyrosNftMessage(text);
+  const image = resolveExistingNftImage({
+    contractAddress,
+    tokenId,
+    tokenURI,
+  });
+
+  if (image.absolutePath) {
+    return sendZephyrosNftPhotoMessage({
+      caption,
+      photoPath: image.absolutePath,
+    });
+  }
+
+  return sendZephyrosNftMessage(caption);
 }
 
 export async function sendTelegramNftSale({
@@ -731,8 +826,9 @@ export async function sendTelegramNftSale({
   price,
   currencySymbol = "ETN",
   txHash,
+  tokenURI,
 }) {
-  const text =
+  const caption =
     `💰 <b>${escapeHtml(collectionName)} Sale</b>\n\n` +
     `Token: <b>#${escapeHtml(tokenId)}</b>\n` +
     `Seller: <a href="${addrUrl(seller)}">${escapeHtml(shortWallet(seller))}</a>\n` +
@@ -741,7 +837,20 @@ export async function sendTelegramNftSale({
     `NFT: <a href="${tokenUrl(contractAddress, tokenId)}">View NFT</a>\n` +
     `Tx: <a href="${txUrl(txHash)}">View Transaction</a>`;
 
-  return sendZephyrosNftMessage(text);
+  const image = resolveExistingNftImage({
+    contractAddress,
+    tokenId,
+    tokenURI,
+  });
+
+  if (image.absolutePath) {
+    return sendZephyrosNftPhotoMessage({
+      caption,
+      photoPath: image.absolutePath,
+    });
+  }
+
+  return sendZephyrosNftMessage(caption);
 }
 
 export {
