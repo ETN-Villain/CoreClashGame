@@ -25,6 +25,7 @@ import { rebuildWeeklyLeaderboardForDate } from "../utils/weeklyLeaderboard.js";
 import { awardXp, adjustXp, XP_REWARDS } from "../utils/playerXp.js";
 import { sendTelegramGameCreated, sendTelegramGameJoined, sendTelegramReveal, sendTelegramBothRevealed,
          sendTelegramGameSettled, sendTelegramGameCancelled, formatTokenAmount } from "../utils/telegramBot.js";
+import { gameWriteContract as contract } from "../gameContract.js";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -33,11 +34,6 @@ const TOKEN_URI_MAP = loadTokenURIMapping();
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const adminWallet = new ethers.Wallet(BACKEND_PRIVATE_KEY, provider);
-export const contract = new ethers.Contract(
-  GAME_ADDRESS,
-  GameABI,
-  adminWallet // 🔐 ADMIN signer
-);
 
 // ---------------- HELPERS ----------------
 function loadTokenURIMapping() {

@@ -1,5 +1,5 @@
 import { readGames, writeGames } from "./store/gamesStore.js";
-import { contract } from "./routes/games.js";
+import { gameReadContract as contract } from "./gameContract.js";
 import { ethers } from "ethers";
 import { withLock } from "./utils/mutex.js";
 import PQueue from "p-queue";
@@ -130,7 +130,8 @@ if (onChain.settled) {
     dirty = true;
   }
 
-  const chainWinner = onChain.winner?.toLowerCase();
+const winnerAddr = await contract.backendWinner(game.id);
+const chainWinner = winnerAddr?.toLowerCase();
 
   // Winner exists and is valid
   if (chainWinner && chainWinner !== ZERO) {
