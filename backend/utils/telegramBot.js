@@ -25,7 +25,7 @@ import { resolveExistingNftImage } from "./nftMedia.js";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ZEPHYROS_TELEGRAM_BOT_TOKEN = process.env.ZEPHYROS_TELEGRAM_BOT_TOKEN;
 const TELEGRAM_GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
-const NFT_TELEGRAM_TOPIC_ID = 782;
+const ZEPHYROS_NFT_MESSAGE_THREAD_ID = 782;
 
 // Default topic for Core Clash bot messages
 const TELEGRAM_MESSAGE_THREAD_ID = process.env.TELEGRAM_MESSAGE_THREAD_ID
