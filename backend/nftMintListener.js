@@ -14,6 +14,10 @@ const ERC721_ABI = [
   "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
 ];
 
+const ERC721_METADATA_ABI = [
+  "function tokenURI(uint256 tokenId) view returns (string)"
+];
+
 const iface = new ethers.Interface(ERC721_ABI);
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
 
@@ -47,30 +51,61 @@ if (!Number.isFinite(fromBlock) || !Number.isFinite(toBlock)) {
         toBlock,
       });
 
-      for (const log of logs) {
-        try {
-          const parsed = iface.parseLog(log);
-          const from = String(parsed.args.from).toLowerCase();
-          const to = String(parsed.args.to).toLowerCase();
-          const tokenId = String(parsed.args.tokenId);
-          const contractAddress = String(log.address).toLowerCase();
+for (const log of logs) {
+  try {
+    const parsed = iface.parseLog(log);
+    const from = String(parsed.args.from).toLowerCase();
+    const to = String(parsed.args.to).toLowerCase();
+    const tokenId = String(parsed.args.tokenId);
+    const contractAddress = String(log.address).toLowerCase();
 
-          if (from !== ethers.ZeroAddress.toLowerCase()) continue;
+    if (from !== ethers.ZeroAddress.toLowerCase()) continue;
 
-          const collection = NFT_COLLECTION_MAP[contractAddress];
-          if (!collection) continue;
+    const collection = NFT_COLLECTION_MAP[contractAddress];
+    if (!collection) continue;
 
-          await sendTelegramNftMint({
-            collectionName: collection.name,
-            contractAddress,
-            tokenId,
-            buyer: to,
-            txHash: log.transactionHash,
-          });
-        } catch (err) {
-          console.error("[NFT MINT] Failed to process log:", err);
-        }
+    // 🔥 get actual minter (tx sender)
+    let minter = to; // fallback
+    try {
+      const tx = await provider.getTransaction(log.transactionHash);
+      if (tx?.from) {
+        minter = String(tx.from).toLowerCase();
       }
+    } catch (err) {
+      console.warn(
+        `[NFT MINT] Failed to fetch tx sender for ${log.transactionHash}:`,
+        err.message || err
+      );
+    }
+
+    let tokenURI = null;
+
+    try {
+      const nft = new ethers.Contract(
+        contractAddress,
+        ERC721_METADATA_ABI,
+        provider
+      );
+      tokenURI = await nft.tokenURI(tokenId);
+    } catch (err) {
+      console.warn(
+        `[NFT MINT] tokenURI lookup failed for ${contractAddress} #${tokenId}:`,
+        err.message || err
+      );
+    }
+
+    await sendTelegramNftMint({
+      collectionName: collection.name,
+      contractAddress,
+      tokenId,
+      buyer: minter, // ✅ FIXED
+      txHash: log.transactionHash,
+      tokenURI,
+    });
+  } catch (err) {
+    console.error("[NFT MINT] Failed to process log:", err);
+  }
+}
 
 const nextBlock = Number(toBlock + 1);
 if (!Number.isFinite(nextBlock)) {
