@@ -3,7 +3,6 @@ import { RPC_URL } from "./config.js";
 import { NFT_COLLECTIONS, NFT_COLLECTION_MAP } from "./nftConfig.js";
 import { loadLastBlockLocked, saveLastBlockLocked } from "./utils/blockState.js";
 import { sendTelegramNftMint } from "./utils/telegramBot.js";
-import { resolveExistingNftImage } from "./nftMedia.js";
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 
