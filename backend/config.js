@@ -16,4 +16,4 @@ export const SCIONS_CONTRACT_ADDRESS = "0xAc620b1A3dE23F4EB0A69663613baBf73F6C53
 export const CORE_TOKEN_ADDRESS = process.env.CORE_TOKEN_ADDRESS;
 export const WETN_TOKEN_ADDRESS = process.env.WETN_TOKEN_ADDRESS;
 export const EXPLORER_BASE_URL = "https://blockexplorer.electroneum.com";
-export const ELECTROSWAP_BASE_URL = "https://app.electrswap.io";
+export const ELECTROSWAP_BASE_URL = "https://app.electroswap.io";
