@@ -474,7 +474,7 @@ export async function sendTelegramFinalWeeklyLeaderboard() {
       `${medals[i] || "🏅"} <code>${escapeHtml(shortWallet(entry.address))}</code>\n` +
       `Played: <b>${escapeHtml(entry.played)}</b>\n` +
       `Wins: <b>${escapeHtml(entry.wins)}</b>\n` +
-      `Win Rate: <b>${escapeHtml(entry.winRate)}%</b>\n\n`;
+      `Win Rate: <b>${escapeHtml(entry.winRate)}%</b>\n`;
   });
 
   text += `🎉 <b>This week is now locked in.</b>`;

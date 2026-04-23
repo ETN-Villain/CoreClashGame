@@ -8,22 +8,22 @@ import {
 const REVEAL_WINDOW_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
+function isActiveRevealGame(game) {
+  const zero = "0x0000000000000000000000000000000000000000";
+
+  const p1 = String(game.player1 || "").toLowerCase();
+  const p2 = String(game.player2 || "").toLowerCase();
+
+  return !!p1 && !!p2 && p1 !== zero && p2 !== zero && !!game.player2JoinedAt;
+}
 function getRevealDeadline(game) {
-  const base =
-    game.player2JoinedAt ||
-    game.joinedAt ||
-    game.updatedAt ||
-    game.createdAt ||
-    game.date;
+  if (!game.player2JoinedAt) return null;
 
-  if (!base) return null;
-
-  const t = new Date(base).getTime();
+  const t = new Date(game.player2JoinedAt).getTime();
   if (Number.isNaN(t)) return null;
 
   return new Date(t + REVEAL_WINDOW_MS);
 }
-
 function hasMissingReveal(game) {
   return !game.player1Reveal || !game.player2Reveal;
 }
@@ -39,50 +39,51 @@ export async function processRevealDeadlineNotifications() {
     const games = readGames();
     let changed = false;
 
-    for (const game of games) {
-      if (!game || game.cancelled || game.settled) continue;
-      if (!hasMissingReveal(game)) continue;
+for (const game of games) {
+  if (!game || game.cancelled || game.settled) continue;
+  if (!isActiveRevealGame(game)) continue;
+  if (!hasMissingReveal(game)) continue;
 
-      const deadline = getRevealDeadline(game);
-      if (!deadline) continue;
+  const deadline = getRevealDeadline(game);
+  if (!deadline) continue;
 
-      const deadlineMs = deadline.getTime();
-      const oneDayBeforeMs = deadlineMs - ONE_DAY_MS;
+  const deadlineMs = deadline.getTime();
+  const oneDayBeforeMs = deadlineMs - ONE_DAY_MS;
 
-      // 1-day warning
-      if (
-        !game.telegramRevealDeadlineSoonSent &&
-        oneDayBeforeMs >= soonThresholdStart &&
-        oneDayBeforeMs <= soonThresholdEnd
-      ) {
-        pendingMessages.push({
-          type: "soon",
-          gameId: game.id,
-          player1: game.player1,
-          player2: game.player2,
-          deadlineAt: deadline.toISOString(),
-        });
+  // 1-day warning
+  if (
+    !game.telegramRevealDeadlineSoonSent &&
+    oneDayBeforeMs >= soonThresholdStart &&
+    oneDayBeforeMs <= soonThresholdEnd
+  ) {
+    pendingMessages.push({
+      type: "soon",
+      gameId: game.id,
+      player1: game.player1,
+      player2: game.player2,
+      deadlineAt: deadline.toISOString(),
+    });
 
-        game.telegramRevealDeadlineSoonSent = true;
-        game.telegramRevealDeadlineSoonSentAt = new Date().toISOString();
-        changed = true;
-      }
+    game.telegramRevealDeadlineSoonSent = true;
+    game.telegramRevealDeadlineSoonSentAt = new Date().toISOString();
+    changed = true;
+  }
 
-      // deadline passed
-      if (!game.telegramRevealDeadlinePassedSent && deadlineMs <= now) {
-        pendingMessages.push({
-          type: "passed",
-          gameId: game.id,
-          player1: game.player1,
-          player2: game.player2,
-          deadlineAt: deadline.toISOString(),
-        });
+  // deadline passed
+  if (!game.telegramRevealDeadlinePassedSent && deadlineMs <= now) {
+    pendingMessages.push({
+      type: "passed",
+      gameId: game.id,
+      player1: game.player1,
+      player2: game.player2,
+      deadlineAt: deadline.toISOString(),
+    });
 
-        game.telegramRevealDeadlinePassedSent = true;
-        game.telegramRevealDeadlinePassedSentAt = new Date().toISOString();
-        changed = true;
-      }
-    }
+    game.telegramRevealDeadlinePassedSent = true;
+    game.telegramRevealDeadlinePassedSentAt = new Date().toISOString();
+    changed = true;
+  }
+}
 
     if (changed) {
       writeGames(games);
