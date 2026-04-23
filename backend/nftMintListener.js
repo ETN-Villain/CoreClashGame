@@ -3,6 +3,7 @@ import { RPC_URL } from "./config.js";
 import { NFT_COLLECTIONS, NFT_COLLECTION_MAP } from "./nftConfig.js";
 import { loadLastBlockLocked, saveLastBlockLocked } from "./utils/blockState.js";
 import { sendTelegramNftMint } from "./utils/telegramBot.js";
+import { resolveExistingNftImage } from "./utils/nftMedia.js";
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 
@@ -20,6 +21,34 @@ const ERC721_METADATA_ABI = [
 
 const iface = new ethers.Interface(ERC721_ABI);
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitForNftImage({
+  contractAddress,
+  tokenId,
+  tokenURI,
+  attempts = 4,
+  delayMs = 3000,
+}) {
+  for (let i = 0; i < attempts; i++) {
+    const image = resolveExistingNftImage({
+      contractAddress,
+      tokenId,
+      tokenURI,
+    });
+
+    if (image.absolutePath) {
+      return image;
+    }
+
+    if (i < attempts - 1) {
+      await delay(delayMs);
+    }
+  }
+
+  return null;
+}
 
 export async function startNftMintListener() {
   async function poll() {
@@ -64,8 +93,7 @@ for (const log of logs) {
     const collection = NFT_COLLECTION_MAP[contractAddress];
     if (!collection) continue;
 
-    // 🔥 get actual minter (tx sender)
-    let minter = to; // fallback
+    let minter = to;
     try {
       const tx = await provider.getTransaction(log.transactionHash);
       if (tx?.from) {
@@ -79,7 +107,6 @@ for (const log of logs) {
     }
 
     let tokenURI = null;
-
     try {
       const nft = new ethers.Contract(
         contractAddress,
@@ -94,11 +121,19 @@ for (const log of logs) {
       );
     }
 
+    await waitForNftImage({
+      contractAddress,
+      tokenId,
+      tokenURI,
+      attempts: 4,
+      delayMs: 3000,
+    });
+
     await sendTelegramNftMint({
       collectionName: collection.name,
       contractAddress,
       tokenId,
-      buyer: minter, // ✅ FIXED
+      buyer: minter,
       txHash: log.transactionHash,
       tokenURI,
     });
