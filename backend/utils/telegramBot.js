@@ -665,8 +665,6 @@ export async function sendTelegramAllTimeLeaderboard() {
       `Win Rate: <b>${escapeHtml(entry.winRate)}%</b>\n\n`;
   });
 
-  text += buildFooter();
-
   return sendTelegramGroupMessage(text);
 }
 
