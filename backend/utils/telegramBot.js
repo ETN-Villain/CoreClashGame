@@ -7,6 +7,7 @@ import {
   CLUB_TELEGRAM_BOT_TOKEN,
   CLUB_TELEGRAM_CHAT_ID,
   CLUB_TELEGRAM_MESSAGE_THREAD_ID,
+  TOKEN_SYMBOL_MAP
 } from "../swapsConfig.js";
 
 import {
@@ -75,6 +76,11 @@ function formatUsdPrice(n) {
     minimumFractionDigits: 8,
     maximumFractionDigits: 10,
   });
+}
+
+function resolveTokenSymbol(tokenAddress, fallback = "TOKEN") {
+  const key = String(tokenAddress || "").toLowerCase();
+  return TOKEN_SYMBOL_MAP[key] || fallback;
 }
 
 function escapeHtml(str = "") {
@@ -541,7 +547,7 @@ export async function sendSwapMessage({
   side,                    // "BUY" or "SELL"
   baseAmount,
   quoteAmount,
-  quoteSymbol,
+  quoteSymbol,  
   trader,
   txHash,
   usdValue,

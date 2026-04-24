@@ -4,6 +4,7 @@ import { NFT_COLLECTIONS, NFT_COLLECTION_MAP } from "./nftConfig.js";
 import { loadLastBlockLocked, saveLastBlockLocked } from "./utils/blockState.js";
 import { sendTelegramNftMint } from "./utils/telegramBot.js";
 import { resolveExistingNftImage } from "./utils/nftMedia.js";
+import { generateMapping } from "./utils/generateMapping.js";
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 
@@ -121,23 +122,34 @@ for (const log of logs) {
       );
     }
 
-    await waitForNftImage({
-      contractAddress,
-      tokenId,
-      tokenURI,
-      attempts: 4,
-      delayMs: 3000,
-    });
+await triggerWalletNftCache(minter);
 
-    await sendTelegramNftMint({
-      collectionName: collection.name,
-      contractAddress,
-      tokenId,
-      buyer: minter,
-      txHash: log.transactionHash,
-      tokenURI,
-    });
-  } catch (err) {
+await generateMapping("VKIN");
+await generateMapping("VQLE");
+await generateMapping("SCIONS");
+
+const image = await waitForNftImage({
+  contractAddress,
+  tokenId,
+  tokenURI,
+  attempts: 6,
+  delayMs: 5000,
+});
+
+if (!image) {
+  console.warn(`[NFT MINT] Image still missing for ${collection.name} #${tokenId}`);
+}
+
+await sendTelegramNftMint({
+  collectionName: collection.name,
+  contractAddress,
+  tokenId,
+  buyer: minter,
+  txHash: log.transactionHash,
+  tokenURI,
+});
+
+} catch (err) {
     console.error("[NFT MINT] Failed to process log:", err);
   }
 }

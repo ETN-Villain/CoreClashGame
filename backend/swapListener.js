@@ -650,7 +650,7 @@ setInterval(async () => {
             side: isSell ? "SELL" : "BUY",
             baseAmount,
             quoteAmount: quoteAmountStr,
-            quoteSymbol: displayQuoteSymbol,
+            quoteSymbol: quoteTokenAddress,
             trader: aggregated.trader,
             txHash: aggregated.txHash,
             usdValue: finalUsdValue,
