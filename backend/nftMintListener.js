@@ -122,11 +122,7 @@ for (const log of logs) {
       );
     }
 
-await triggerWalletNftCache(minter);
-
-await generateMapping("VKIN");
-await generateMapping("VQLE");
-await generateMapping("SCIONS");
+await generateMapping(collection.key || collection.name);
 
 const image = await waitForNftImage({
   contractAddress,
@@ -146,7 +142,6 @@ await sendTelegramNftMint({
   tokenId,
   buyer: minter,
   txHash: log.transactionHash,
-  tokenURI,
 });
 
 } catch (err) {
