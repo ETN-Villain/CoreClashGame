@@ -645,22 +645,23 @@ setInterval(async () => {
             `[SwapListener] ${aggregated.symbol} ${isSell ? "SELL" : "BUY"} ${baseAmount} | $${finalUsdValue.toFixed(2)}`
           );
 
-          await sendSwapMessage({
-            symbol: aggregated.symbol,
-            side: isSell ? "SELL" : "BUY",
-            baseAmount,
-            quoteAmount: quoteAmountStr,
-            quoteSymbol: quoteTokenAddress,
-            trader: aggregated.trader,
-            txHash: aggregated.txHash,
-            usdValue: finalUsdValue,
-            tokenPriceUsd,
-            imageFileId: aggregated.imageFileId || null,
-            image: aggregated.image || null,
-            animationUrl: aggregated.animationUrl || null,
-            animationFileId: aggregated.animationFileId || null,
-          });
-        } catch (err) {
+await sendSwapMessage({
+  symbol: aggregated.symbol,
+  side: isSell ? "SELL" : "BUY",
+  baseAmount,
+  quoteAmount: quoteAmountStr,
+  quoteSymbol: displayQuoteSymbol,
+  trader: aggregated.trader,
+  txHash: aggregated.txHash,
+  usdValue: finalUsdValue,
+  tokenPriceUsd,
+  imageFileId: aggregated.imageFileId || null,
+  image: aggregated.image || null,
+  animationUrl: aggregated.animationUrl || null,
+  animationFileId: aggregated.animationFileId || null,
+});
+
+} catch (err) {
           console.error("[SwapListener] Failed sending swap message:", err);
         }
       }
