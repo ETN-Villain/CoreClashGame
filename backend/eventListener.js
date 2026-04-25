@@ -26,6 +26,7 @@ const scionsContract = new ethers.Contract(SCIONS_CONTRACT_ADDRESS, SCIONSNABI, 
 const POLL_INTERVAL_MS = 6000;
 const MAX_BLOCK_RANGE = 500; // safe range for RPC
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
+const EVENT_LISTENER_BLOCK_KEY = "event_listener";
 
 const gameInterface = new ethers.Interface(GameABI);
 const GAME_CREATED_TOPIC = gameInterface.getEvent("GameCreated").topic;
@@ -34,8 +35,13 @@ const GAME_SETTLED_TOPIC = gameInterface.getEvent("GameSettled").topic;
 
 console.log("📡 CoreClash event indexer starting…");
 
-let lastBlock = loadLastBlock() ?? ((await provider.getBlockNumber()) - 500);
-console.log("▶ Starting from block", lastBlock);
+let savedBlock = Number(loadLastBlock(EVENT_LISTENER_BLOCK_KEY));
+
+let lastBlock = Number.isFinite(savedBlock) && savedBlock > 0
+  ? savedBlock
+  : ((await provider.getBlockNumber()) - 500);
+  
+  console.log("▶ Starting from block", lastBlock);
 
 async function handleGameCreated(id) {
   const games = readGames();
@@ -263,7 +269,7 @@ const processLogs = async (logs, contractName, contractInstance) => {
       await processLogs(scionsLogs, "scions", scionsContract);
 
       lastBlock = toBlock;
-      saveLastBlock(lastBlock);
+      saveLastBlock(EVENT_LISTENER_BLOCK_KEY, lastBlock);
       fromBlock = toBlock + 1;
 
   if (toBlock === currentBlock) {
