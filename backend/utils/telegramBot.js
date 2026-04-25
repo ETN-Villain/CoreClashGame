@@ -517,13 +517,33 @@ export async function sendTelegramFinalWeeklyLeaderboard() {
 
   const medals = ["🥇", "🥈", "🥉"];
 
-  top3.forEach((entry, i) => {
+const leaderboardRewards = {
+  1: { attack: 1, defense: 1, vitality: 1, agility: 1 },
+  2: { attack: 0.5, defense: 0.5, vitality: 0.5, agility: 0.5 },
+  3: { attack: 0.1, defense: 0.1, vitality: 0.1, agility: 0.1 },
+};
+
+top3.forEach((entry, i) => {
+  const rank = i + 1;
+  const reward = leaderboardRewards[rank];
+
+  text +=
+    `${medals[i] || "🏅"} <code>${escapeHtml(shortWallet(entry.address))}</code>\n` +
+    `Played: <b>${escapeHtml(entry.played)}</b>\n` +
+    `Wins: <b>${escapeHtml(entry.wins)}</b>\n` +
+    `Win Rate: <b>${escapeHtml(entry.winRate)}%</b>\n`;
+
+  if (reward) {
     text +=
-      `${medals[i] || "🏅"} <code>${escapeHtml(shortWallet(entry.address))}</code>\n` +
-      `Played: <b>${escapeHtml(entry.played)}</b>\n` +
-      `Wins: <b>${escapeHtml(entry.wins)}</b>\n` +
-      `Win Rate: <b>${escapeHtml(entry.winRate)}%</b>\n`;
-  });
+      `Perks Awarded: ` +
+      `<b>+${reward.attack}</b> Attack, ` +
+      `<b>+${reward.defense}</b> Defense, ` +
+      `<b>+${reward.vitality}</b> Vitality, ` +
+      `<b>+${reward.agility}</b> Agility\n`;
+  }
+
+  text += `\n`;
+});
 
   text += `🎉 <b>This week is now locked in.</b>`;
   text += buildFooter();
