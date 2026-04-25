@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import fs from "fs";
 import path from "path";
 import { RPC_URL } from "./config.js";
-import { TRACKED_TOKENS } from "./swapsConfig.js";
+import { TRACKED_TOKENS, TOKEN_SYMBOL_MAP  } from "./swapsConfig.js";
 import { sendSwapMessage } from "./utils/telegramBot.js";
 import { buildPriceEngine } from "./utils/priceEngine.js";
 const POLL_INTERVAL_MS = 60000;
@@ -62,6 +62,15 @@ function getPoolInterface(dex) {
   return new ethers.Interface(getPoolAbi(dex));
 }
 
+function knownSymbol(address, fallback) {
+  const key = address?.toLowerCase();
+  return TOKEN_SYMBOL_MAP[key] || fallback || shortAddr(address);
+}
+
+function isPreferredQuote(symbol) {
+  return ["WETN", "ETN", "USDT", "USDC"].includes(String(symbol).toUpperCase());
+}
+
 function getAggregateKey(txHash, tokenAddress, side) {
   return `${txHash}:${tokenAddress.toLowerCase()}:${side}`;
 }
@@ -90,7 +99,7 @@ function addToAggregate(map, key, fragment) {
     existing.quoteSymbol = "MULTI";
   }
 
-  // Keep the first observed quote token instead of overriding with WETN/ETN
+// Keep accumulating the originally preferred quote token for display.
   if (fragment.quoteSymbol === existing.preferredQuoteSymbol) {
     existing.preferredQuoteAmountRaw += fragment.quoteAmountRaw;
   }
@@ -184,12 +193,17 @@ const quoteTokenAddress = baseTokenAddress === token0 ? token1 : token0;
       const baseTokenContract = new ethers.Contract(baseTokenAddress, ERC20_MIN_ABI, provider);
       const quoteTokenContract = new ethers.Contract(quoteTokenAddress, ERC20_MIN_ABI, provider);
 
-      const [baseSymbol, baseDecimals, quoteSymbol, quoteDecimals] = await Promise.all([
-        safeRead(baseTokenContract, "symbol", trackedFallbackSymbol),
-        safeRead(baseTokenContract, "decimals", 18),
-        safeRead(quoteTokenContract, "symbol", shortAddr(quoteTokenAddress)),
-        safeRead(quoteTokenContract, "decimals", 18),
-      ]);
+const [baseSymbol, baseDecimals, quoteSymbol, quoteDecimals] = await Promise.all([
+  safeRead(baseTokenContract, "symbol", trackedFallbackSymbol),
+  safeRead(baseTokenContract, "decimals", 18),
+  safeRead(quoteTokenContract, "symbol", shortAddr(quoteTokenAddress)),
+  safeRead(quoteTokenContract, "decimals", 18),
+]);
+
+const displayQuoteSymbol = knownSymbol(
+  quoteTokenAddress,
+  quoteSymbol || shortAddr(quoteTokenAddress)
+);
 
       const existing = poolMap.get(poolAddress.toLowerCase()) || {
         poolAddress,
@@ -205,7 +219,7 @@ const quoteTokenAddress = baseTokenAddress === token0 ? token1 : token0;
         symbol: baseSymbol || trackedFallbackSymbol,
         address: baseTokenAddress,
         decimals: Number(baseDecimals),
-        quoteSymbol: quoteSymbol || shortAddr(quoteTokenAddress),
+        quoteSymbol: displayQuoteSymbol,
         quoteAddress: quoteTokenAddress,
         quoteDecimals: Number(quoteDecimals),
         trackedIsToken0: baseTokenAddress.toLowerCase() === token0.toLowerCase(),
@@ -218,9 +232,9 @@ const quoteTokenAddress = baseTokenAddress === token0 ? token1 : token0;
       poolMap.set(poolAddress.toLowerCase(), existing);
       allWatchedPoolAddresses.add(poolAddress);
 
-      console.log(
-        `[SwapListener] Registered ${baseSymbol}/${quoteSymbol} on ${poolCfg.dex} pool ${poolAddress}`
-      );
+console.log(
+  `[SwapListener] Registered ${baseSymbol}/${displayQuoteSymbol} on ${poolCfg.dex} pool ${poolAddress}`
+);
     }
   }
 
@@ -565,31 +579,66 @@ setInterval(async () => {
               swap.side
             );
 
-            addToAggregate(aggregatedSwaps, aggregateKey, {
-              txHash: log.transactionHash,
-              symbol: trackedMeta.symbol,
-              side: swap.side,
-              tokenAddress: trackedMeta.address,
-              baseAmountRaw: swap.baseAmountRaw,
-              baseDecimals: trackedMeta.decimals,
-              quoteAmountRaw: swap.quoteAmountRaw,
-              quoteDecimals: trackedMeta.quoteDecimals,
-              quoteSymbol: trackedMeta.quoteSymbol,
-              trader: buyerAddress,
-              usdValue: usdValue ?? null,
-              imageFileId: trackedMeta.imageFileId || null,
-              image: trackedMeta.image || null,
-              animationUrl: trackedMeta.animationUrl || null,
-              animationFileId: trackedMeta.animationFileId || null,
-            });
+addToAggregate(aggregatedSwaps, aggregateKey, {
+  txHash: log.transactionHash,
+  logIndex: log.index ?? log.logIndex ?? 0,
+  symbol: trackedMeta.symbol,
+  side: swap.side,
+  tokenAddress: trackedMeta.address,
+  baseAmountRaw: swap.baseAmountRaw,
+  baseDecimals: trackedMeta.decimals,
+  quoteAmountRaw: swap.quoteAmountRaw,
+  quoteDecimals: trackedMeta.quoteDecimals,
+  quoteSymbol: trackedMeta.quoteSymbol,
+  trader: buyerAddress,
+  usdValue: usdValue ?? null,
+  imageFileId: trackedMeta.imageFileId || null,
+  image: trackedMeta.image || null,
+  animationUrl: trackedMeta.animationUrl || null,
+  animationFileId: trackedMeta.animationFileId || null,
+});
           } catch (err) {
             console.error("[SwapListener] Failed processing tracked token swap:", err);
           }
         }
       }
 
-      for (const aggregated of aggregatedSwaps.values()) {
-        try {
+const swapsToSend = [...aggregatedSwaps.values()];
+
+const byTx = new Map();
+
+for (const swap of swapsToSend) {
+  const list = byTx.get(swap.txHash) || [];
+  list.push(swap);
+  byTx.set(swap.txHash, list);
+}
+
+const dedupedSwaps = [];
+
+for (const swaps of byTx.values()) {
+  if (swaps.length === 1) {
+    dedupedSwaps.push(swaps[0]);
+    continue;
+  }
+
+  swaps.sort((a, b) => {
+    const aPreferred = a.side === "BUY" && isPreferredQuote(a.preferredQuoteSymbol || a.quoteSymbol);
+    const bPreferred = b.side === "BUY" && isPreferredQuote(b.preferredQuoteSymbol || b.quoteSymbol);
+
+    if (aPreferred !== bPreferred) return aPreferred ? -1 : 1;
+
+    const aUsd = a.usdValue || 0;
+    const bUsd = b.usdValue || 0;
+    if (aUsd !== bUsd) return bUsd - aUsd;
+
+    return (a.logIndex || 0) - (b.logIndex || 0);
+  });
+
+  dedupedSwaps.push(swaps[0]);
+}
+
+for (const aggregated of dedupedSwaps) {
+          try {
           if (aggregated.baseAmountRaw <= 0n) continue;
 
           const baseAmount = formatUnitsSafe(
