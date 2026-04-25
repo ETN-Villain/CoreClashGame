@@ -1621,35 +1621,39 @@ useEffect(() => {
             if (!reveal) return;
 
             const nftContracts = reveal.nftContracts || [];
-            const tokenURIs = reveal.tokenURIs || [];
+const tokenURIs = reveal.tokenURIs || [];
+const tokenIds = reveal.tokenIds || [];
 
-            tokenURIs.forEach((tokenURI, idx) => {
-              const collectionKey = resolveCollectionKeyFromAddress(nftContracts[idx]);
-              if (!collectionKey || !tokenURI) return;
+tokenURIs.forEach((tokenURI, idx) => {
+  const collectionKey = resolveCollectionKeyFromAddress(nftContracts[idx]);
+  const tokenId = tokenIds[idx];
 
-              const key = `${collectionKey}:${tokenURI}`;
-              if (!characterNameMap[key]) {
-                needed.set(key, { collectionKey, tokenURI });
-              }
-            });
+  if (!collectionKey || tokenId === undefined || tokenId === null) return;
+
+  const key = `${collectionKey}:${tokenURI}`;
+  if (!characterNameMap[key]) {
+    needed.set(key, { collectionKey, tokenURI, tokenId });
+  }
+});
           });
         });
 
       if (needed.size === 0) return;
 
-      const entries = await Promise.all(
-        [...needed.values()].map(async ({ collectionKey, tokenURI }) => {
-          try {
-            const tokenIdGuess = tokenURI.replace(/\.json$/i, "");
-            const res = await fetch(`${BACKEND_URL}/metadata/${collectionKey}/${tokenIdGuess}`);
-            if (!res.ok) throw new Error("metadata fetch failed");
-            const meta = await res.json();
-            return [`${collectionKey}:${tokenURI}`, meta.name || tokenURI];
-          } catch {
-            return [`${collectionKey}:${tokenURI}`, tokenURI.replace(/\.json$/i, "")];
-          }
-        })
-      );
+const entries = await Promise.all(
+  [...needed.values()].map(async ({ collectionKey, tokenURI, tokenId }) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/metadata/${collectionKey}/${tokenId}`);
+      if (!res.ok) throw new Error("metadata fetch failed");
+
+      const meta = await res.json();
+
+      return [`${collectionKey}:${tokenURI}`, meta.name || `${collectionKey} #${tokenId}`];
+    } catch {
+      return [`${collectionKey}:${tokenURI}`, `${collectionKey} #${tokenId}`];
+    }
+  })
+);
 
       setCharacterNameMap((prev) => ({
         ...prev,
@@ -1723,9 +1727,9 @@ const buildTeam = (reveal) => {
     const rawName =
       typeof characterNameMap[nameKey] === "string"
         ? characterNameMap[nameKey]
-        : typeof tokenURI === "string"
-        ? tokenURI.replace(/\.json$/i, "")
-        : "Unknown";
+: collectionKey
+? `${collectionKey} #${reveal.tokenIds?.[idx] ?? tokenURI}`
+: "Unknown";
 
     const baseName = String(rawName).replace(/\s*#\d+$/i, "").trim();
     const background = typeof backgrounds[idx] === "string" ? backgrounds[idx] : "Unknown";
