@@ -37,6 +37,17 @@ export default function WalletXpPanel({
   const [showXpHelp, setShowXpHelp] = useState(false);
   const [showPerks, setShowPerks] = useState(false);
 
+  const statsBonus = xpProfile.statsBonus || {};
+const weeklyBonus = xpProfile.weeklyLeaderboardBonus || {};
+
+const totalBonus = {
+  attack: Number(((statsBonus.attack || 0) + (weeklyBonus.attack || 0)).toFixed(2)),
+  defense: Number(((statsBonus.defense || 0) + (weeklyBonus.defense || 0)).toFixed(2)),
+  vitality: Number(((statsBonus.vitality || 0) + (weeklyBonus.vitality || 0)).toFixed(2)),
+  agility: Number(((statsBonus.agility || 0) + (weeklyBonus.agility || 0)).toFixed(2)),
+};
+
+
 if (xpLoading) {
     return (
       <div
@@ -327,7 +338,7 @@ if (xpLoading) {
       letterSpacing: 1.2,
     }}
   >
-    Unlocked Perks
+    Total Perks
   </div>
 
   <button
@@ -357,10 +368,12 @@ if (xpLoading) {
     }}
   >
          {[
-            ["Attack", xpProfile.statsBonus?.attack || 0],
-            ["Defense", xpProfile.statsBonus?.defense || 0],
-            ["Vitality", xpProfile.statsBonus?.vitality || 0],
-            ["Agility", xpProfile.statsBonus?.agility || 0],
+[
+  ["Attack", totalBonus.attack],
+  ["Defense", totalBonus.defense],
+  ["Vitality", totalBonus.vitality],
+  ["Agility", totalBonus.agility],
+]
           ].map(([label, value]) => (
             <div
               key={label}
