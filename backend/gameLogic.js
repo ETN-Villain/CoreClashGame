@@ -90,25 +90,29 @@ function applyAttackBoost(traitsArr, boostPercent = 10) {
 
 //// XP / LEVELING SYSTEM
 function getPlayerXpBonuses(wallet) {
-  if (!wallet) {
-    return { attack: 0, defense: 0, vitality: 0, agility: 0 };
-  }
+  const empty = { attack: 0, defense: 0, vitality: 0, agility: 0 };
+
+  if (!wallet) return empty;
 
   try {
     const allXp = readPlayerXp();
     const walletLc = String(wallet).toLowerCase();
+    const player = allXp[walletLc];
 
-    return (
-      allXp[walletLc]?.statsBonus || {
-        attack: 0,
-        defense: 0,
-        vitality: 0,
-        agility: 0,
-      }
-    );
+    if (!player) return empty;
+
+    const levelBonus = player.statsBonus || empty;
+    const weeklyBonus = player.weeklyLeaderboardBonus || empty;
+
+    return {
+      attack: Number(((levelBonus.attack || 0) + (weeklyBonus.attack || 0)).toFixed(2)),
+      defense: Number(((levelBonus.defense || 0) + (weeklyBonus.defense || 0)).toFixed(2)),
+      vitality: Number(((levelBonus.vitality || 0) + (weeklyBonus.vitality || 0)).toFixed(2)),
+      agility: Number(((levelBonus.agility || 0) + (weeklyBonus.agility || 0)).toFixed(2)),
+    };
   } catch (err) {
     console.error(`Failed to read XP bonuses for ${wallet}:`, err.message);
-    return { attack: 0, defense: 0, vitality: 0, agility: 0 };
+    return empty;
   }
 }
 

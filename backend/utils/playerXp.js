@@ -39,6 +39,75 @@ export const XP_LEVELS = [
   { level: 10, minXp: 25600, bonuses: { attack: 17, defense: 19, vitality: 10, agility: 15 } },
 ];
 
+// Weekly leaderboard bonuses are additive on top of regular level bonuses and last for 7 days. They are awarded based on the player's rank in the weekly leaderboard snapshot:
+export const WEEKLY_LEADERBOARD_BONUSES = {
+  1: { attack: 1, defense: 1, vitality: 1, agility: 1 },
+  2: { attack: 0.5, defense: 0.5, vitality: 0.5, agility: 0.5 },
+  3: { attack: 0.1, defense: 0.1, vitality: 0.1, agility: 0.1 },
+};
+
+export function awardWeeklyLeaderboardBonuses(weekKey, top3 = []) {
+  const all = readPlayerXp();
+
+  for (let i = 0; i < top3.length; i++) {
+    const rank = i + 1;
+    const walletLc = top3[i].address?.toLowerCase();
+    const bonus = WEEKLY_LEADERBOARD_BONUSES[rank];
+
+    if (!walletLc || !bonus) continue;
+
+    if (!all[walletLc]) {
+      const levelData = getLevelData(0);
+      all[walletLc] = {
+        wallet: walletLc,
+        xp: 0,
+        level: levelData.level,
+        statsBonus: levelData.bonuses,
+        weeklyLeaderboardBonus: { attack: 0, defense: 0, vitality: 0, agility: 0 },
+        weeklyLeaderboardRewards: [],
+        rewardedLevels: [],
+        etnLevel1Rewarded: false,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    if (!Array.isArray(all[walletLc].weeklyLeaderboardRewards)) {
+      all[walletLc].weeklyLeaderboardRewards = [];
+    }
+
+    const alreadyRewarded = all[walletLc].weeklyLeaderboardRewards.some(
+      (r) => r.weekKey === weekKey
+    );
+
+    if (alreadyRewarded) continue;
+
+    const current = all[walletLc].weeklyLeaderboardBonus || {
+      attack: 0,
+      defense: 0,
+      vitality: 0,
+      agility: 0,
+    };
+
+    all[walletLc].weeklyLeaderboardBonus = {
+      attack: Number((current.attack + bonus.attack).toFixed(2)),
+      defense: Number((current.defense + bonus.defense).toFixed(2)),
+      vitality: Number((current.vitality + bonus.vitality).toFixed(2)),
+      agility: Number((current.agility + bonus.agility).toFixed(2)),
+    };
+
+    all[walletLc].weeklyLeaderboardRewards.push({
+      weekKey,
+      rank,
+      bonus,
+      awardedAt: new Date().toISOString(),
+    });
+
+    all[walletLc].updatedAt = new Date().toISOString();
+  }
+
+  writePlayerXp(all);
+}
+
 ///* ---------------- Core Token Reward Logic ---------------- */
 function getRewardableLevelsCrossed(oldLevel, newLevel, rewardedLevels = []) {
   const alreadyRewarded = new Set(rewardedLevels);
@@ -113,7 +182,7 @@ export async function adjustXp(wallet, amount) {
   const rewardedLevels = Array.isArray(all[walletLc].rewardedLevels)
     ? all[walletLc].rewardedLevels
     : [];
-  const EtnLevel1Rewarded = Boolean(all[walletLc].EtnLevel1Rewarded);
+const etnLevel1Rewarded = Boolean(all[walletLc].etnLevel1Rewarded);
 
   all[walletLc].xp = Math.max(0, all[walletLc].xp + amount);
 
@@ -123,7 +192,7 @@ export async function adjustXp(wallet, amount) {
   all[walletLc].level = newLevel;
   all[walletLc].statsBonus = levelData.bonuses;
   all[walletLc].rewardedLevels = rewardedLevels;
-  all[walletLc].EtnLevel1Rewarded = EtnLevel1Rewarded;
+all[walletLc].etnLevel1Rewarded = etnLevel1Rewarded;
   all[walletLc].updatedAt = new Date().toISOString();
 
   writePlayerXp(all);
@@ -135,7 +204,7 @@ export async function adjustXp(wallet, amount) {
   );
 
   const shouldSendEtnLevel1 =
-    !EtnLevel1Rewarded && crossedSpecificLevel(oldLevel, newLevel, ETN_REWARD_LEVEL);
+    !etnLevel1Rewarded && crossedSpecificLevel(oldLevel, newLevel, ETN_REWARD_LEVEL);
     
   const rewardResults = [];
 

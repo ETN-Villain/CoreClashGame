@@ -1,5 +1,6 @@
 import { readGames } from "../store/gamesStore.js";
 import { saveWeeklyLeaderboard } from "../store/weeklyLeaderboardStore.js";
+import { awardWeeklyLeaderboardBonuses } from "../utils/playerXp.js";
 
 function getWeekStartUTC(dateInput) {
   const d = new Date(dateInput);
@@ -68,6 +69,7 @@ export async function rebuildWeeklyLeaderboardForDate(dateInput) {
     .slice(0, 3);
 
   await saveWeeklyLeaderboard(weekKey, top3);
+  awardWeeklyLeaderboardBonuses(weekKey, top3);
 
   return { weekKey, top3 };
 }
