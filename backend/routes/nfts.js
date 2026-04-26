@@ -1,20 +1,17 @@
 import express from "express";
 const router = express.Router();
-import PQueue from "p-queue";
 import fs from "fs";
 import path from "path";
 import { ethers } from "ethers";
 import { readOwnerCache, writeOwnerCache } from "../utils/ownerCache.js";
-import mapping from "../../src/mapping.json" with { type: "json" }; // new format
+import { METADATA_JSON_DIR, FRONTEND_MAPPING_FILE } from "../paths.js";
 import { RPC_URL, VKIN_CONTRACT_ADDRESS, VQLE_CONTRACT_ADDRESS, SCIONS_CONTRACT_ADDRESS } from "../config.js";
-import { METADATA_JSON_DIR } from "../paths.js";
 import { fetchOwnedTokenIds } from "../utils/nftUtils.js";
 import VKIN_ABI from "../../src/abis/VKINABI.json" with { type: "json" };
 import VQLE_ABI from "../../src/abis/VQLEABI.json" with { type: "json" };
 import SCIONS_ABI from "../../src/abis/SCIONSABI.json" with { type: "json" };
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
-const RPC_CONCURRENCY = 5; // max 5 concurrent RPC calls
 const RETRY_COUNT = 3; 
 const RETRY_DELAY_MS = 1000;
 
@@ -31,23 +28,24 @@ async function retryRpc(fn, retries = RETRY_COUNT, delayMs = RETRY_DELAY_MS) {
   }
 }
 
-const addressToCollection = {
-  [VKIN_CONTRACT_ADDRESS.toLowerCase()]: "VKIN",
-  [VQLE_CONTRACT_ADDRESS.toLowerCase()]: "VQLE",
-  [SCIONS_CONTRACT_ADDRESS.toLowerCase()]: "SCIONS"
-};
+function readMapping() {
+  try {
+    if (!fs.existsSync(FRONTEND_MAPPING_FILE)) {
+      console.warn(`Mapping file missing: ${FRONTEND_MAPPING_FILE}`);
+      return {};
+    }
+
+    return JSON.parse(fs.readFileSync(FRONTEND_MAPPING_FILE, "utf8"));
+  } catch (err) {
+    console.error("Failed to read frontend mapping:", err.message);
+    return {};
+  }
+}
 
 // Helper: enrich a single token with remapped data + real metadata
-async function enrichToken(collection, tokenIdStr, nftAddress) {
+async function enrichToken(collection, tokenIdStr, nftAddress, liveMapping = {}) {
   const tokenId = String(tokenIdStr);
-
-  const collectionMap =
-  mapping?.[collection] ||
-  mapping?.[collection.toUpperCase()] ||
-  mapping?.[collection.toLowerCase()] ||
-  {};
-
-const mapped = collectionMap[String(tokenId)];
+  const mapped = liveMapping?.[collection]?.[tokenId];
 
   let tokenURI = mapped?.token_uri || `${tokenId}.json`;
   let imageFile =
@@ -76,9 +74,7 @@ const mapped = collectionMap[String(tokenId)];
       );
     }
   } else {
-    console.warn(
-      `Missing metadata JSON for ${collection} #${tokenId}: ${jsonPath}`
-    );
+    console.warn(`Missing metadata JSON: ${jsonPath}`);
   }
 
   return {
@@ -191,18 +187,19 @@ if (shouldScanVKIN || shouldScanVQLE || shouldScanSCIONS) {
   
   // Enrich and return (your existing code)
 // After cache fill or cache hit
+const liveMapping = readMapping();
 const result = [];
 
 for (const tokenId of walletCache.VKIN || []) {
-  result.push(await enrichToken("VKIN", tokenId, VKIN_CONTRACT_ADDRESS));
+  result.push(await enrichToken("VKIN", tokenId, VKIN_CONTRACT_ADDRESS, liveMapping));
 }
 
 for (const tokenId of walletCache.VQLE || []) {
-  result.push(await enrichToken("VQLE", tokenId, VQLE_CONTRACT_ADDRESS));
+  result.push(await enrichToken("VQLE", tokenId, VQLE_CONTRACT_ADDRESS, liveMapping));
 }
 
 for (const tokenId of walletCache.SCIONS || []) {
-  result.push(await enrichToken("SCIONS", tokenId, SCIONS_CONTRACT_ADDRESS));
+  result.push(await enrichToken("SCIONS", tokenId, SCIONS_CONTRACT_ADDRESS, liveMapping));
 }
 
 res.json(result);
