@@ -2650,7 +2650,7 @@ return (
     marginBottom: 4,
   }}
 >
-  {formattedBurnPercent}% burned 🔥
+  {burnPercent}% burned 🔥
 </div>
 
 <div
