@@ -40,30 +40,38 @@ const addressToCollection = {
 // Helper: enrich a single token with remapped data + real metadata
 async function enrichToken(collection, tokenIdStr, nftAddress) {
   const tokenId = String(tokenIdStr);
-  const mapped = mapping[collection]?.[tokenId];
+  const mapped = mapping?.[collection]?.[tokenId];
 
-  let tokenURI = `${tokenId}.json`;
-  let imageFile = `${tokenId}.png`;
+  let tokenURI = mapped?.token_uri || `${tokenId}.json`;
+  let imageFile =
+    mapped?.image_file ||
+    tokenURI.replace(/\.json$/i, ".png");
+
   let name = `${collection} #${tokenId}`;
   let background = "Unknown";
 
-  if (mapped) {
-    tokenURI = mapped.token_uri || tokenURI;
-    imageFile = mapped.image_file || (tokenURI.replace(/\.json$/i, ".png"));
-  }
-
-  // Load real metadata (name/background) from JSON file
   const jsonPath = path.join(METADATA_JSON_DIR, collection, tokenURI);
+
   if (fs.existsSync(jsonPath)) {
     try {
       const meta = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+
       name = meta.name || name;
-      background = meta.background ||
-                   meta.attributes?.find(a => a.trait_type?.toLowerCase() === "background")?.value ||
-                   background;
+      background =
+        meta.background ||
+        meta.attributes?.find(
+          (a) => a.trait_type?.toLowerCase() === "background"
+        )?.value ||
+        background;
     } catch (e) {
-      console.warn(`Failed to parse metadata for ${collection} #${tokenId}: ${e.message}`);
+      console.warn(
+        `Failed to parse metadata for ${collection} #${tokenId} using ${tokenURI}: ${e.message}`
+      );
     }
+  } else {
+    console.warn(
+      `Missing metadata JSON for ${collection} #${tokenId}: ${jsonPath}`
+    );
   }
 
   return {
@@ -73,7 +81,7 @@ async function enrichToken(collection, tokenIdStr, nftAddress) {
     nftAddress,
     name,
     background,
-    imageFile, // optional - frontend can use if needed
+    imageFile,
   };
 }
 
@@ -178,94 +186,18 @@ if (shouldScanVKIN || shouldScanVQLE || shouldScanSCIONS) {
 // After cache fill or cache hit
 const result = [];
 
-// VKIN
 for (const tokenId of walletCache.VKIN || []) {
-  const mapped = mapping["VKIN"]?.[tokenId];
-  const jsonFile = mapped?.token_uri || `${tokenId}.json`;
-  const jsonPath = path.join(METADATA_JSON_DIR, "VKIN", jsonFile);
-
-  let name = `VKIN #${tokenId}`;
-  let background = "Unknown";
-
-  if (fs.existsSync(jsonPath)) {
-    try {
-      const meta = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
-      name = meta.name || name;
-      background = meta.attributes?.find(a => a.trait_type === "Background")?.value || background;
-    } catch (e) {
-      console.warn(`Metadata parse error for VKIN #${tokenId}`);
-    }
-  }
-
-  result.push({
-    nftAddress: VKIN_CONTRACT_ADDRESS,
-    tokenId,
-    name,
-    background,
-    tokenURI: jsonFile,
-    collection: "VKIN"
-  });
+  result.push(await enrichToken("VKIN", tokenId, VKIN_CONTRACT_ADDRESS));
 }
 
-// VQLE (same pattern)
 for (const tokenId of walletCache.VQLE || []) {
-  const mapped = mapping["VQLE"]?.[tokenId];
-  const jsonFile = mapped?.token_uri || `${tokenId}.json`;
-  const jsonPath = path.join(METADATA_JSON_DIR, "VQLE", jsonFile);
-
-  let name = `VQLE #${tokenId}`;
-  let background = "Unknown";
-
-  if (fs.existsSync(jsonPath)) {
-    try {
-      const meta = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
-      name = meta.name || name;
-      background = meta.attributes?.find(a => a.trait_type === "Background")?.value || background;
-    } catch (e) {
-      console.warn(`Metadata parse error for VQLE #${tokenId}`);
-    }
-  }
-
-  result.push({
-    nftAddress: VQLE_CONTRACT_ADDRESS,
-    tokenId,
-    name,
-    background,
-    tokenURI: jsonFile,
-    collection: "VQLE"
-  });
+  result.push(await enrichToken("VQLE", tokenId, VQLE_CONTRACT_ADDRESS));
 }
 
-// SCIONS (same pattern)
 for (const tokenId of walletCache.SCIONS || []) {
-  const mapped = mapping["SCIONS"]?.[tokenId];
-  const jsonFile = mapped?.token_uri || `${tokenId}.json`;
-  const jsonPath = path.join(METADATA_JSON_DIR, "SCIONS", jsonFile);
-
-  let name = `SCIONS #${tokenId}`;
-  let background = "Unknown";
-
-  if (fs.existsSync(jsonPath)) {
-    try {
-      const meta = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
-      name = meta.name || name;
-      background = meta.attributes?.find(a => a.trait_type === "Background")?.value || background;
-    } catch (e) {
-      console.warn(`Metadata parse error for SCIONS #${tokenId}`);
-    }
-  }
-
-  result.push({
-    nftAddress: SCIONS_CONTRACT_ADDRESS,
-    tokenId,
-    name,
-    background,
-    tokenURI: jsonFile,
-    collection: "SCIONS"
-  });
+  result.push(await enrichToken("SCIONS", tokenId, SCIONS_CONTRACT_ADDRESS));
 }
 
 res.json(result);
-});
 
 export default router;

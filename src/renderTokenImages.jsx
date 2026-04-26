@@ -81,15 +81,23 @@ export const renderTokenImages = (input = [], mapping = {}) => {
       });
 
       // Priority 1: explicit tokenURI from backend
-      if (tokenURIs[idx]) {
-        imageFile = tokenURIs[idx]
-          .replace(/\.json$/i, ".png")
-          .toLowerCase();
+// Priority 1: live mapping.json
+if (mapped) {
+  imageFile =
+    mapped?.image_file ??
+    mapped?.token_uri?.replace(/\.json$/i, ".png") ??
+    `${tokenId}.png`;
 
-        console.log(
-          `Slot ${idx}: backend tokenURI → ${imageFile} (collection: ${collection}, mappingKey: ${mappingKey})`
-        );
-      }
+  console.log(`Slot ${idx}: live mapping → ${imageFile}`);
+}
+// Priority 2: explicit tokenURI from backend
+else if (tokenURIs[idx]) {
+  imageFile = tokenURIs[idx].replace(/\.json$/i, ".png");
+
+  console.log(
+    `Slot ${idx}: backend tokenURI → ${imageFile} (collection: ${collection}, mappingKey: ${mappingKey})`
+  );
+}
       // Priority 2: live mapping.json from backend
       else if (mapped) {
         imageFile =

@@ -3149,7 +3149,7 @@ return (
                         textOverflow: "ellipsis",
                       }}
                     >
-                      {nftOption.background}
+                      {mapped?.background || nftOption.background}
                     </div>
                   </div>
                 );
