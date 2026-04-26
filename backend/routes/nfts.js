@@ -40,7 +40,14 @@ const addressToCollection = {
 // Helper: enrich a single token with remapped data + real metadata
 async function enrichToken(collection, tokenIdStr, nftAddress) {
   const tokenId = String(tokenIdStr);
-  const mapped = mapping?.[collection]?.[tokenId];
+
+  const collectionMap =
+  mapping?.[collection] ||
+  mapping?.[collection.toUpperCase()] ||
+  mapping?.[collection.toLowerCase()] ||
+  {};
+
+const mapped = collectionMap[String(tokenId)];
 
   let tokenURI = mapped?.token_uri || `${tokenId}.json`;
   let imageFile =
