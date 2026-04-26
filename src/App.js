@@ -2649,7 +2649,7 @@ return (
     marginBottom: 4,
   }}
 >
-  {burnPercent}% burned 🔥
+  {burnPercent.toFixed(2)}% burned of total $CORE supply
 </div>
 
 <div
