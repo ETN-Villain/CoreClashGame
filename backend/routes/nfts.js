@@ -199,5 +199,6 @@ for (const tokenId of walletCache.SCIONS || []) {
 }
 
 res.json(result);
+});
 
 export default router;
