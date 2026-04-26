@@ -2596,7 +2596,6 @@ return (
   />
 </div>
 
-/// ---------------- TOTAL CORE BURNED ----------------
 <div
   style={{
     background: "#0f0f0f",
