@@ -2596,6 +2596,7 @@ return (
   />
 </div>
 
+/// ---------------- TOTAL CORE BURNED ----------------
 <div
   style={{
     background: "#0f0f0f",
@@ -2641,16 +2642,27 @@ return (
   })}
   🔥
 </div>
-  <div
-    style={{
-      fontSize: 12,
-      color: "#aaa",
-      lineHeight: 1.5,
-      maxWidth: 240,
-    }}
-  >
-    1% of every settled game is burned
-  </div>
+<div
+  style={{
+    fontSize: 13,
+    color: "#ffb37a",
+    fontWeight: 600,
+    marginBottom: 4,
+  }}
+>
+  {formattedBurnPercent}% burned 🔥
+</div>
+
+<div
+  style={{
+    fontSize: 11,
+    color: "#888",
+    lineHeight: 1.5,
+    maxWidth: 240,
+  }}
+>
+  1% of every settled game gets destroyed forever
+</div>
 </div>
 
 {/* ---------------- CREATE GAME SECTION ---------------- */}
