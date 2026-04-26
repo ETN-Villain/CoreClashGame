@@ -3134,10 +3134,12 @@ return (
                         textOverflow: "ellipsis",
                       }}
                     >
-                      {nftOption.name
-                        ? `${nftOption.name} (#${nftOption.tokenId})`
-                        : `#${nftOption.tokenId}`}
-                    </div>
+                  {mapped?.name
+                  ? `${mapped.name} (#${nftOption.tokenId})`
+                  : nftOption.name
+                  ? `${nftOption.name} (#${nftOption.tokenId})`
+                  : `#${nftOption.tokenId}`}
+                      </div>
                     <div
                       style={{
                         fontSize: 10,
