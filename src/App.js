@@ -1846,6 +1846,7 @@ useEffect(() => {
 /* --------- TOTAL CORE BURN ---------*/
 const [totalGameBurned, setTotalGameBurned] = useState(0);
 const [burnPercent, setBurnPercent] = useState(0);
+const INITIAL_SUPPLY = 1_000_000;
 
 useEffect(() => {
   let interval;
@@ -1866,9 +1867,9 @@ useEffect(() => {
       const supplyWei = await coreReadContract.totalSupply();
       const supplyFormatted = Number(ethers.formatEther(supplyWei));
 
-      const percent =
-        supplyFormatted > 0 ? (burnFormatted / supplyFormatted) * 100 : 0;
-
+const percent =
+  INITIAL_SUPPLY > 0 ? (burnFormatted / INITIAL_SUPPLY) * 100 : 0;
+  
       setTotalGameBurned(burnFormatted);
       setBurnPercent(percent);
     } catch (err) {
