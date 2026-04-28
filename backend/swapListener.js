@@ -659,7 +659,7 @@ for (const aggregated of dedupedSwaps) {
           if (finalUsdValue == null) continue;
 
           const isSell = aggregated.side === "SELL";
-          const minUsdThreshold = isSell ? 500 : 10;
+          const minUsdThreshold = isSell ? 250 : 20;
 
           if (finalUsdValue < minUsdThreshold) {
             console.log(
