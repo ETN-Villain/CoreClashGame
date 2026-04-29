@@ -721,10 +721,11 @@ if (finalUsdValue >= minUsdThreshold) {
     destination: "MAIN_ALERTS",
   });
 } else {
+if (process.env.NODE_ENV !== "production") {
   console.log(
-    `[SwapListener][FILTER] Skipped MAIN alert for ${aggregated.symbol} ~$${finalUsdValue.toFixed(2)}`
+    `[SwapListener] Skipped MAIN alert (below threshold) → ${aggregated.symbol} ~$${finalUsdValue.toFixed(2)}`
   );
-}
+}}
 
           console.log(
             `[SwapListener] ${aggregated.symbol} ${isSell ? "SELL" : "BUY"} ${baseAmount} | $${finalUsdValue.toFixed(2)}`
