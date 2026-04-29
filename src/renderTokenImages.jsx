@@ -74,11 +74,14 @@ export const renderTokenImages = (input = [], mapping = {}) => {
 
       console.log(`Slot ${idx} char codes:`, charCodes);
 
-      addr = addr.replace(/[^0-9a-fA-F]/gi, "").toLowerCase();
+addr = addr
+  .replace(/[\u200B-\u200D\uFEFF]/g, "")
+  .trim()
+  .toLowerCase();
 
-      if (addr && !addr.startsWith("0x")) {
-        addr = "0x" + addr;
-      }
+if (addr && !addr.startsWith("0x")) {
+  addr = "0x" + addr.replace(/^0+/, "");
+}
 
       let collection = addressToCollection[addr];
 
