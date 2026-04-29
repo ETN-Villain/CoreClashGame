@@ -661,6 +661,28 @@ for (const aggregated of dedupedSwaps) {
           const isSell = aggregated.side === "SELL";
           const minUsdThreshold = isSell ? 250 : 20;
 
+          let quoteAmountStr = "-";
+          let displayQuoteSymbol =
+            aggregated.quoteSymbol === "MULTI" ? "multi-hop" : aggregated.quoteSymbol;
+
+          if (
+            aggregated.preferredQuoteSymbol &&
+            aggregated.preferredQuoteAmountRaw > 0n
+          ) {
+            quoteAmountStr = formatUnitsSafe(
+              aggregated.preferredQuoteAmountRaw,
+              aggregated.preferredQuoteDecimals
+            );
+            displayQuoteSymbol = aggregated.preferredQuoteSymbol;
+          } else if (aggregated.quoteAmountRaw > 0n) {
+            quoteAmountStr = formatUnitsSafe(
+              aggregated.quoteAmountRaw,
+              aggregated.quoteDecimals
+            );
+          }
+
+          const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress) || null;
+
 // ✅ ALWAYS send to "all swaps" group
 if (finalUsdValue < 1) {
 await sendSwapMessage({
@@ -708,28 +730,6 @@ if (finalUsdValue >= minUsdThreshold) {
     `[SwapListener][FILTER] Skipped MAIN alert for ${aggregated.symbol} ~$${finalUsdValue.toFixed(2)}`
   );
 }
-
-          let quoteAmountStr = "-";
-          let displayQuoteSymbol =
-            aggregated.quoteSymbol === "MULTI" ? "multi-hop" : aggregated.quoteSymbol;
-
-          if (
-            aggregated.preferredQuoteSymbol &&
-            aggregated.preferredQuoteAmountRaw > 0n
-          ) {
-            quoteAmountStr = formatUnitsSafe(
-              aggregated.preferredQuoteAmountRaw,
-              aggregated.preferredQuoteDecimals
-            );
-            displayQuoteSymbol = aggregated.preferredQuoteSymbol;
-          } else if (aggregated.quoteAmountRaw > 0n) {
-            quoteAmountStr = formatUnitsSafe(
-              aggregated.quoteAmountRaw,
-              aggregated.quoteDecimals
-            );
-          }
-
-          const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress) || null;
 
           console.log(
             `[SwapListener] ${aggregated.symbol} ${isSell ? "SELL" : "BUY"} ${baseAmount} | $${finalUsdValue.toFixed(2)}`
