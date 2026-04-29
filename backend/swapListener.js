@@ -684,7 +684,7 @@ for (const aggregated of dedupedSwaps) {
           const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress) || null;
 
 // ✅ ALWAYS send to "all swaps" group
-if (finalUsdValue < 1) {
+// send every swap to all-swaps group
 await sendSwapMessage({
   symbol: aggregated.symbol,
   side: isSell ? "SELL" : "BUY",
@@ -701,11 +701,6 @@ await sendSwapMessage({
   animationFileId: aggregated.animationFileId || null,
   destination: "ALL_SWAPS",
 });
-} else {
-  console.log(
-    `[SwapListener][FILTER] Skipped MAIN alert for ${aggregated.symbol} ~$${finalUsdValue.toFixed(2)}`
-  );
-}
 
 // ✅ Only send to main alerts if above threshold
 if (finalUsdValue >= minUsdThreshold) {
