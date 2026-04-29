@@ -272,7 +272,7 @@ const processLogs = async (logs, contractName, contractInstance) => {
       saveLastBlock(EVENT_LISTENER_BLOCK_KEY, lastBlock);
       fromBlock = toBlock + 1;
 
-  if (toBlock === currentBlock) {
+if (isCatchingUp && toBlock === currentBlock) {
   isCatchingUp = false;
   console.log("✅ Event indexer caught up to latest block");
 }
