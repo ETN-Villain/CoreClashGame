@@ -7,6 +7,8 @@ import {
   CLUB_TELEGRAM_BOT_TOKEN,
   CLUB_TELEGRAM_CHAT_ID,
   CLUB_TELEGRAM_MESSAGE_THREAD_ID,
+  CLUB_ALL_SWAPS_CHAT_ID,
+  CLUB_ALL_SWAPS_MESSAGE_THREAD_ID,
   TOKEN_SYMBOL_MAP
 } from "../swapsConfig.js";
 
@@ -26,6 +28,7 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ZEPHYROS_TELEGRAM_BOT_TOKEN = process.env.ZEPHYROS_TELEGRAM_BOT_TOKEN;
 const TELEGRAM_GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
 const ZEPHYROS_NFT_MESSAGE_THREAD_ID = 782;
+
 
 // Default topic for Core Clash bot messages
 const TELEGRAM_MESSAGE_THREAD_ID = process.env.TELEGRAM_MESSAGE_THREAD_ID
@@ -561,6 +564,24 @@ function formatUsd(value) {
   });
 }
 
+function getSwapTelegramDestination(destination = "MAIN_ALERTS") {
+  if (destination === "ALL_SWAPS") {
+    return {
+      chatId: CLUB_ALL_SWAPS_CHAT_ID,
+      threadId: CLUB_ALL_SWAPS_MESSAGE_THREAD_ID
+        ? Number(CLUB_ALL_SWAPS_MESSAGE_THREAD_ID)
+        : null,
+    };
+  }
+
+  return {
+    chatId: CLUB_TELEGRAM_CHAT_ID,
+    threadId: CLUB_TELEGRAM_MESSAGE_THREAD_ID
+      ? Number(CLUB_TELEGRAM_MESSAGE_THREAD_ID)
+      : null,
+  };
+}
+
 // Main function to send swap messages to Telegram with rich formatting and media support
 export async function sendSwapMessage({
   symbol,
@@ -578,6 +599,7 @@ export async function sendSwapMessage({
   animationFileId,
   extraHtml = "",          // for multi-hop route info
   includeFooter = true,
+  destination = "MAIN_ALERTS",
 }) {
 try {
   const txUrl = `${EXPLORER_BASE_URL}/tx/${txHash}`;
@@ -611,12 +633,22 @@ const titleLine =
     text += buildClubFooter();
   }
 
-    const basePayload = {
-      chat_id: CLUB_TELEGRAM_CHAT_ID,
-      message_thread_id: Number(CLUB_TELEGRAM_MESSAGE_THREAD_ID),
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-    };
+const { chatId, threadId } = getSwapTelegramDestination(destination);
+
+if (!CLUB_TELEGRAM_BOT_TOKEN || !chatId) {
+  console.warn(`[Telegram] Swap destination not configured: ${destination}`);
+  return null;
+}
+
+const basePayload = {
+  chat_id: chatId,
+  parse_mode: "HTML",
+  disable_web_page_preview: true,
+};
+
+if (threadId != null && Number.isFinite(threadId)) {
+  basePayload.message_thread_id = threadId;
+}
 
     // Animation / Photo / Text fallback (same as before)
     if (animationFileId || animationUrl) {

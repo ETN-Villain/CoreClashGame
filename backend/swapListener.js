@@ -661,12 +661,53 @@ for (const aggregated of dedupedSwaps) {
           const isSell = aggregated.side === "SELL";
           const minUsdThreshold = isSell ? 250 : 20;
 
-          if (finalUsdValue < minUsdThreshold) {
-            console.log(
-              `[SwapListener][FILTER] Skipped ${aggregated.symbol} ${isSell ? "SELL" : "BUY"} ~$${finalUsdValue.toFixed(2)} (below $${minUsdThreshold})`
-            );
-            continue;
-          }
+// ✅ ALWAYS send to "all swaps" group
+if (finalUsdValue < 1) {
+await sendSwapMessage({
+  symbol: aggregated.symbol,
+  side: isSell ? "SELL" : "BUY",
+  baseAmount,
+  quoteAmount: quoteAmountStr,
+  quoteSymbol: displayQuoteSymbol,
+  trader: aggregated.trader,
+  txHash: aggregated.txHash,
+  usdValue: finalUsdValue,
+  tokenPriceUsd,
+  imageFileId: aggregated.imageFileId || null,
+  image: aggregated.image || null,
+  animationUrl: aggregated.animationUrl || null,
+  animationFileId: aggregated.animationFileId || null,
+  destination: "ALL_SWAPS",
+});
+} else {
+  console.log(
+    `[SwapListener][FILTER] Skipped MAIN alert for ${aggregated.symbol} ~$${finalUsdValue.toFixed(2)}`
+  );
+}
+
+// ✅ Only send to main alerts if above threshold
+if (finalUsdValue >= minUsdThreshold) {
+  await sendSwapMessage({
+    symbol: aggregated.symbol,
+    side: isSell ? "SELL" : "BUY",
+    baseAmount,
+    quoteAmount: quoteAmountStr,
+    quoteSymbol: displayQuoteSymbol,
+    trader: aggregated.trader,
+    txHash: aggregated.txHash,
+    usdValue: finalUsdValue,
+    tokenPriceUsd,
+    imageFileId: aggregated.imageFileId || null,
+    image: aggregated.image || null,
+    animationUrl: aggregated.animationUrl || null,
+    animationFileId: aggregated.animationFileId || null,
+    destination: "MAIN_ALERTS",
+  });
+} else {
+  console.log(
+    `[SwapListener][FILTER] Skipped MAIN alert for ${aggregated.symbol} ~$${finalUsdValue.toFixed(2)}`
+  );
+}
 
           let quoteAmountStr = "-";
           let displayQuoteSymbol =
@@ -694,21 +735,6 @@ for (const aggregated of dedupedSwaps) {
             `[SwapListener] ${aggregated.symbol} ${isSell ? "SELL" : "BUY"} ${baseAmount} | $${finalUsdValue.toFixed(2)}`
           );
 
-await sendSwapMessage({
-  symbol: aggregated.symbol,
-  side: isSell ? "SELL" : "BUY",
-  baseAmount,
-  quoteAmount: quoteAmountStr,
-  quoteSymbol: displayQuoteSymbol,
-  trader: aggregated.trader,
-  txHash: aggregated.txHash,
-  usdValue: finalUsdValue,
-  tokenPriceUsd,
-  imageFileId: aggregated.imageFileId || null,
-  image: aggregated.image || null,
-  animationUrl: aggregated.animationUrl || null,
-  animationFileId: aggregated.animationFileId || null,
-});
 
 } catch (err) {
           console.error("[SwapListener] Failed sending swap message:", err);
