@@ -12,6 +12,27 @@ const addressToCollection = {
   "0xAc620b1A3dE23F4EB0A69663613baBf73F6C535D": "SCIONS",
 };
 
+function RetryImage({ src, alt, maxRetries = 5 }) {
+  const [attempt, setAttempt] = React.useState(0);
+
+  const retrySrc = attempt === 0 ? src : `${src}?retry=${attempt}`;
+
+  return (
+    <StableImage
+      key={retrySrc}
+      src={retrySrc}
+      alt={alt}
+      onError={() => {
+        if (attempt >= maxRetries) return;
+
+        setTimeout(() => {
+          setAttempt((prev) => prev + 1);
+        }, 1000);
+      }}
+    />
+  );
+}
+
 export const renderTokenImages = (input = [], mapping = {}) => {
   console.log("[renderTokenImages] Raw input:", JSON.stringify(input, null, 2));
   console.log("[renderTokenImages] Live mapping loaded:", mapping);
@@ -39,9 +60,18 @@ export const renderTokenImages = (input = [], mapping = {}) => {
       const rawAddr = nftContracts[idx];
       let addr = (rawAddr || "").toString().trim();
 
-      console.log(`Slot ${idx} raw type:`, typeof rawAddr, "length:", rawAddr?.length || "N/A");
+      console.log(
+        `Slot ${idx} raw type:`,
+        typeof rawAddr,
+        "length:",
+        rawAddr?.length || "N/A"
+      );
 
-      const charCodes = addr.split("").map((c) => c.charCodeAt(0)).join(", ");
+      const charCodes = addr
+        .split("")
+        .map((c) => c.charCodeAt(0))
+        .join(", ");
+
       console.log(`Slot ${idx} char codes:`, charCodes);
 
       addr = addr.replace(/[^0-9a-fA-F]/gi, "").toLowerCase();
@@ -80,32 +110,33 @@ export const renderTokenImages = (input = [], mapping = {}) => {
         mapped,
       });
 
-      // Priority 1: explicit tokenURI from backend
-// Priority 1: live mapping.json
-if (mapped) {
-  imageFile =
-    mapped?.image_file ??
-    mapped?.token_uri?.replace(/\.json$/i, ".png") ??
-    `${tokenId}.png`;
-
-  console.log(`Slot ${idx}: live mapping → ${imageFile}`);
-}
-// Priority 2: explicit tokenURI from backend
-else if (tokenURIs[idx]) {
-  imageFile = tokenURIs[idx].replace(/\.json$/i, ".png");
-
-  console.log(
-    `Slot ${idx}: backend tokenURI → ${imageFile} (collection: ${collection}, mappingKey: ${mappingKey})`
-  );
-}
-      // Priority 2: live mapping.json from backend
-      else if (mapped) {
+      // Priority 1: live mapping.json
+      if (mapped) {
         imageFile =
           mapped?.image_file ??
           mapped?.token_uri?.replace(/\.json$/i, ".png") ??
           `${tokenId}.png`;
 
         console.log(`Slot ${idx}: live mapping → ${imageFile}`);
+      }
+
+      // Priority 2: explicit tokenURI from backend
+      else if (tokenURIs[idx]) {
+        imageFile = tokenURIs[idx].replace(/\.json$/i, ".png");
+
+        console.log(
+          `Slot ${idx}: backend tokenURI → ${imageFile} (collection: ${collection}, mappingKey: ${mappingKey})`
+        );
+      }
+
+      // Keeping this duplicate mapped block as requested
+      else if (mapped) {
+        imageFile =
+          mapped?.image_file ??
+          mapped?.token_uri?.replace(/\.json$/i, ".png") ??
+          `${tokenId}.png`;
+
+        console.log(`Slot ${idx}: live mapping fallback → ${imageFile}`);
       } else {
         console.warn(
           `Slot ${idx}: no live mapping found for ${mappingKey} #${tokenId}, defaulting to ${imageFile}`
@@ -133,6 +164,7 @@ else if (tokenURIs[idx]) {
         let finalImageFile = imageFile;
 
         const mapped = mapping?.[mappingKey]?.[String(tokenId)];
+
         if (mapped) {
           finalImageFile =
             mapped?.image_file ??
@@ -145,7 +177,7 @@ else if (tokenURIs[idx]) {
         console.log(`Rendering slot ${i}: ${src}`);
 
         return (
-          <StableImage
+          <RetryImage
             key={`${collection}-${tokenId}-${i}`}
             src={src}
             alt={`${collection} #${tokenId}`}
