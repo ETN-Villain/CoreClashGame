@@ -16,7 +16,7 @@ const addressToCollection = {
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
 
 /* ---------------- Stable Image Component ---------------- */
-export const StableImage = ({ src, alt }) => {
+export const StableImage = ({ src, alt, onError }) => {
   const [status, setStatus] = React.useState('loading');
 
   React.useEffect(() => {
@@ -45,7 +45,10 @@ export const StableImage = ({ src, alt }) => {
           transition: 'opacity 0.2s ease',
         }}
         onLoad={() => setStatus('success')}
-        onError={() => setStatus('error')}
+onError={(e) => {
+  setStatus('error');
+  if (onError) onError(e);
+}}
       />
       {status !== 'success' && (
         <div
@@ -389,6 +392,27 @@ const handleDownloadReveal = (game) => {
 };
 
 /* ---------------- Render Token Images ---------------- */
+function RetryStableImage({ src, alt }) {
+  const [attempt, setAttempt] = React.useState(0);
+
+  const retrySrc = attempt === 0 ? src : `${src}?retry=${attempt}`;
+
+  return (
+    <StableImage
+      key={retrySrc}
+      src={retrySrc}
+      alt={alt}
+      onError={() => {
+        if (attempt >= 5) return;
+
+        setTimeout(() => {
+          setAttempt((prev) => prev + 1);
+        }, 1000);
+      }}
+    />
+  );
+}
+
 const renderTokenImages = (input = [], isWinningTeam = false) => {
   let tokens = [];
 
@@ -511,10 +535,10 @@ tokens = tokenIds.map((id, idx) => {
                 overflow: "hidden",
               }}
             >
-              <StableImage
-                src={src}
-                alt={`${collection} #${tokenId || "?"}`}
-              />
+<RetryStableImage
+  src={src}
+  alt={`${collection} #${tokenId || "?"}`}
+/>
             </div>
           </div>
         );
