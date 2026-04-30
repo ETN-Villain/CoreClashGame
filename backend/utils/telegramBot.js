@@ -608,11 +608,14 @@ try {
   const emoji = side === "SELL" ? "🔴" : "🟢";
   const action = side === "SELL" ? "SELL" : "BUY";
 
+// repeat emoji 10 times
+const emojiLine = emoji.repeat(10);
+
 const titleLine =
   usdValue != null
-    ? `${emoji} <b>${escapeHtml(symbol)} ${action}</b> ($${formatUsd(usdValue)})\n`
-    : `${emoji} <b>${escapeHtml(symbol)} ${action}</b>\n`;
-    
+    ? `${emojiLine}\n<b>${escapeHtml(symbol)} ${action}</b> ($${formatUsd(usdValue)})\n`
+    : `${emojiLine}\n<b>${escapeHtml(symbol)} ${action}</b>\n`;
+
   const priceLine =
     tokenPriceUsd != null && Number.isFinite(tokenPriceUsd)
       ? `💵 <b>${escapeHtml(symbol)} Price:</b> $${formatUsdPrice(tokenPriceUsd)}`
@@ -650,7 +653,7 @@ if (threadId != null && Number.isFinite(threadId)) {
   basePayload.message_thread_id = threadId;
 }
 
-const shouldSendMedia = side !== "SELL";
+const shouldSendMedia = destination !== "ALL_SWAPS" && side !== "SELL";
 
     // Animation / Photo / Text fallback (same as before)
     if (shouldSendMedia && (animationFileId || animationUrl)) {
