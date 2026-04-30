@@ -684,23 +684,25 @@ for (const aggregated of dedupedSwaps) {
           const tokenPriceUsd = priceEngine.getTokenUsd(aggregated.tokenAddress) || null;
 
 // ✅ ALWAYS send to "all swaps" group
-// send every swap to all-swaps group
-await sendSwapMessage({
-  symbol: aggregated.symbol,
-  side: isSell ? "SELL" : "BUY",
-  baseAmount,
-  quoteAmount: quoteAmountStr,
-  quoteSymbol: displayQuoteSymbol,
-  trader: aggregated.trader,
-  txHash: aggregated.txHash,
-  usdValue: finalUsdValue,
-  tokenPriceUsd,
-  imageFileId: aggregated.imageFileId || null,
-  image: aggregated.image || null,
-  animationUrl: aggregated.animationUrl || null,
-  animationFileId: aggregated.animationFileId || null,
-  destination: "ALL_SWAPS",
-});
+// 🔴 Small swaps → ALL_SWAPS
+if (finalUsdValue < minUsdThreshold) {
+  await sendSwapMessage({
+    symbol: aggregated.symbol,
+    side: isSell ? "SELL" : "BUY",
+    baseAmount,
+    quoteAmount: quoteAmountStr,
+    quoteSymbol: displayQuoteSymbol,
+    trader: aggregated.trader,
+    txHash: aggregated.txHash,
+    usdValue: finalUsdValue,
+    tokenPriceUsd,
+    imageFileId: aggregated.imageFileId || null,
+    image: aggregated.image || null,
+    animationUrl: aggregated.animationUrl || null,
+    animationFileId: aggregated.animationFileId || null,
+    destination: "ALL_SWAPS",
+  });
+}
 
 // ✅ Only send to main alerts if above threshold
 if (finalUsdValue >= minUsdThreshold) {
@@ -721,12 +723,12 @@ if (finalUsdValue >= minUsdThreshold) {
     destination: "MAIN_ALERTS",
   });
 } else {
-if (process.env.NODE_ENV !== "production") {
-  console.log(
-    `[SwapListener] Skipped MAIN alert (below threshold) → ${aggregated.symbol} ~$${finalUsdValue.toFixed(2)}`
-  );
-}}
-
+  if (process.env.NODE_ENV !== "production") {
+    console.log(
+      `[SwapListener] Routed to ALL_SWAPS → ${aggregated.symbol} ~$${finalUsdValue.toFixed(2)}`
+    );
+  }
+}
           console.log(
             `[SwapListener] ${aggregated.symbol} ${isSell ? "SELL" : "BUY"} ${baseAmount} | $${finalUsdValue.toFixed(2)}`
           );
