@@ -650,8 +650,10 @@ if (threadId != null && Number.isFinite(threadId)) {
   basePayload.message_thread_id = threadId;
 }
 
+const shouldSendMedia = side !== "SELL";
+
     // Animation / Photo / Text fallback (same as before)
-    if (animationFileId || animationUrl) {
+    if (shouldSendMedia && (animationFileId || animationUrl)) {
       try {
         await axios.post(`https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendAnimation`, {
           ...basePayload,
@@ -664,7 +666,7 @@ if (threadId != null && Number.isFinite(threadId)) {
       }
     }
 
-    if (imageFileId || image) {
+    if (shouldSendMedia && (imageFileId || image)) {
       try {
         await axios.post(`https://api.telegram.org/bot${CLUB_TELEGRAM_BOT_TOKEN}/sendPhoto`, {
           ...basePayload,
