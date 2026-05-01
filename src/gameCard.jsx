@@ -341,9 +341,9 @@ const isOpenGame = !isSettled && !isCancelled && isPlayer2Empty;
 const isActiveGame = !isSettled && !isCancelled && hasPlayer2;
 
 const cardAccent = isOpenGame
-  ? "#f0b90b"
-  : isActiveGame
   ? "#18bb1a"
+  : isActiveGame
+  ? "#f0b90b"
   : "#444";
 
 const cardTitle = isOpenGame
