@@ -12,6 +12,12 @@ const POLL_INTERVAL_MS = 60000;
 const MAX_BLOCK_RANGE = 500;
 const REORG_BUFFER_BLOCKS = 2;
 
+const announcedMintLogs = new Set();
+
+function mintLogKey(log) {
+  return `${log.transactionHash}:${log.index ?? log.logIndex}`;
+}
+
 const ERC721_ABI = [
   "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
 ];
@@ -82,6 +88,12 @@ if (!Number.isFinite(fromBlock) || !Number.isFinite(toBlock)) {
       });
 
 for (const log of logs) {
+  const key = mintLogKey(log);
+
+  if (announcedMintLogs.has(key)) {
+    continue;
+  }
+
   try {
     const parsed = iface.parseLog(log);
     const from = String(parsed.args.from).toLowerCase();
@@ -122,29 +134,32 @@ for (const log of logs) {
       );
     }
 
-await generateMapping(collection.key || collection.name);
+    await generateMapping(collection.key || collection.name);
 
-const image = await waitForNftImage({
-  contractAddress,
-  tokenId,
-  tokenURI,
-  attempts: 6,
-  delayMs: 5000,
-});
+    const image = await waitForNftImage({
+      contractAddress,
+      tokenId,
+      tokenURI,
+      attempts: 6,
+      delayMs: 5000,
+    });
 
-if (!image) {
-  console.warn(`[NFT MINT] Image still missing for ${collection.name} #${tokenId}`);
-}
+    if (!image) {
+      console.warn(`[NFT MINT] Image still missing for ${collection.name} #${tokenId}`);
+    }
 
-await sendTelegramNftMint({
-  collectionName: collection.name,
-  contractAddress,
-  tokenId,
-  buyer: minter,
-  txHash: log.transactionHash,
-});
+    await sendTelegramNftMint({
+      collectionName: collection.name,
+      contractAddress,
+      tokenId,
+      buyer: minter,
+      txHash: log.transactionHash,
+      tokenURI, // important: pass this through
+    });
 
-} catch (err) {
+    announcedMintLogs.add(key);
+
+  } catch (err) {
     console.error("[NFT MINT] Failed to process log:", err);
   }
 }
