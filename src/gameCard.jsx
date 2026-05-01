@@ -359,12 +359,16 @@ const cardSubtitle = isOpenGame
   : "";
 
 const buttonBaseStyle = {
+  width: "100%",              // 🔑 makes it span the card
+  display: "block",           // ensures full-width behavior
   border: "none",
-  borderRadius: 10,
-  padding: "9px 14px",
+  borderRadius: 12,
+  padding: "12px 14px",       // slightly taller = more premium feel
   fontWeight: "bold",
   cursor: "pointer",
   boxShadow: "0 0 12px rgba(0,0,0,0.35)",
+  textAlign: "center",
+  fontSize: 14,
 };
 
 const statBoxStyle = {
