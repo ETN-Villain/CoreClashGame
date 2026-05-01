@@ -337,6 +337,44 @@ const playerWinningsWei = tie
 
 const playerWinnings = ethers.formatUnits(playerWinningsWei, 18);
 
+const isOpenGame = !isSettled && !isCancelled && isPlayer2Empty;
+const isActiveGame = !isSettled && !isCancelled && hasPlayer2;
+
+const cardAccent = isOpenGame
+  ? "#f0b90b"
+  : isActiveGame
+  ? "#18bb1a"
+  : "#444";
+
+const cardTitle = isOpenGame
+  ? "Open Clash"
+  : isActiveGame
+  ? "Active Clash"
+  : "Clash";
+
+const cardSubtitle = isOpenGame
+  ? "Waiting for a challenger"
+  : isActiveGame
+  ? "Battle locked — reveal phase active"
+  : "";
+
+const buttonBaseStyle = {
+  border: "none",
+  borderRadius: 10,
+  padding: "9px 14px",
+  fontWeight: "bold",
+  cursor: "pointer",
+  boxShadow: "0 0 12px rgba(0,0,0,0.35)",
+};
+
+const statBoxStyle = {
+  background: "rgba(255,255,255,0.045)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: 12,
+  padding: "10px 12px",
+  textAlign: "center",
+};
+
 /* ---------------- Reveal File Re-download Handler ---------------- */
 const getRevealBackup = (() => {
   try {
@@ -524,81 +562,205 @@ tokens = tokenIds.map((id, idx) => {
 };
 
   /* ---------------- Render JSX ---------------- */
-  return (
-    <div
-      style={{
-        border: "1px solid #444",
-        padding: 14,
-        marginBottom: 14,
-        opacity: isCancelled ? 0.6 : 1,
-        backgroundColor: isCancelled ? "#111" : "transparent",
-      }}
-    >
-{/* Cancelled Banner */}
-{isPreJoinCancelled && (
+return (
   <div
     style={{
-      backgroundColor: "rgba(255, 68, 68, 0.2)",
-      border: "1px solid #ff4444",
-      borderRadius: 6,
-      padding: "12px",
-      marginBottom: 12,
-      color: "#ff5555",
-      fontWeight: "bold",
-      textAlign: "center",
-      fontSize: 16,
+      position: "relative",
+      overflow: "hidden",
+      border: `1px solid ${isCancelled ? "#444" : cardAccent}`,
+      borderRadius: 18,
+      padding: 16,
+      marginBottom: 18,
+      opacity: isCancelled ? 0.6 : 1,
+      background: isCancelled
+        ? "#111"
+        : `
+          radial-gradient(circle at top left, ${cardAccent}22, transparent 34%),
+          linear-gradient(145deg, #111 0%, #171717 55%, #0b0b0b 100%)
+        `,
+      boxShadow: isCancelled
+        ? "0 0 12px rgba(0,0,0,0.5)"
+        : `0 0 18px ${cardAccent}22, 0 8px 24px rgba(0,0,0,0.45)`,
     }}
   >
-    ⚠️ Game Cancelled
-    <div style={{ fontSize: 13, fontWeight: "normal", marginTop: 4, opacity: 0.9 }}>
-      Stake refunded on-chain
-    </div>
-  </div>
-)}
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        background:
+          "linear-gradient(120deg, rgba(255,255,255,0.05), transparent 35%, rgba(255,255,255,0.025))",
+      }}
+    />
 
-      <h3 style={{ marginTop: 0, marginBottom: 6 }}>Game #{g.id}</h3>
+    <div style={{ position: "relative", zIndex: 1 }}>
+      {isPreJoinCancelled && (
+        <div
+          style={{
+            backgroundColor: "rgba(255, 68, 68, 0.2)",
+            border: "1px solid #ff4444",
+            borderRadius: 12,
+            padding: "12px",
+            marginBottom: 14,
+            color: "#ff5555",
+            fontWeight: "bold",
+            textAlign: "center",
+            fontSize: 16,
+          }}
+        >
+          ⚠️ Game Cancelled
+          <div style={{ fontSize: 13, fontWeight: "normal", marginTop: 4, opacity: 0.9 }}>
+            Stake refunded on-chain
+          </div>
+        </div>
+      )}
 
-<BadgeWrapper
-  href={status.link}
-  target={status.link ? "_blank" : undefined}
-  rel={status.link ? "noopener noreferrer" : undefined}
-  style={{
-    display: "inline-block",
-    padding: "4px 10px",
-    borderRadius: 20,
-    fontSize: 12,
-    fontWeight: "bold",
-    backgroundColor: status.color,
-    color: "#000",
-    marginBottom: 10,
-    textDecoration: "none",
-    cursor: status.link ? "pointer" : "default",
-  }}
->
-  {status.label}
-</BadgeWrapper>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 12,
+          marginBottom: 12,
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: 12,
+              color: cardAccent,
+              fontWeight: "bold",
+              letterSpacing: 1.2,
+              textTransform: "uppercase",
+              marginBottom: 4,
+            }}
+          >
+            {cardTitle}
+          </div>
 
-{!isSettled && (
-  <>
-    {/* Player 1 */}
-    <div>
-      🟥 Player 1: {g.player1 ? `0x...${g.player1.slice(-5)}` : "⏳Waiting for opponent"}
-    </div>
+          <h3
+            style={{
+              margin: 0,
+              fontSize: 24,
+              color: "#fff",
+              textShadow: `0 0 12px ${cardAccent}55`,
+            }}
+          >
+            Game #{g.id}
+          </h3>
 
-    {/* Player 2 */}
-    <div style={{ marginTop: 6, opacity: isCancelled ? 0.6 : 1 }}>
-      🟦 Player 2:{" "}
-      {g.player2 && g.player2 !== ethers.ZeroAddress
-        ? `0x...${g.player2.slice(-5)}`
-        : "⏳Waiting for opponent"}
-    </div>
+          {cardSubtitle && (
+            <div style={{ fontSize: 13, color: "#aaa", marginTop: 4 }}>
+              {cardSubtitle}
+            </div>
+          )}
+        </div>
 
-<div style={{ fontSize: 14, marginTop: 6, opacity: isCancelled ? 0.6 : 1 }}>
-  Stake: {displayStake !== null ? displayStake : "Loading..."} $CORE
-</div>  
-</>
-)}
+        <BadgeWrapper
+          href={status.link}
+          target={status.link ? "_blank" : undefined}
+          rel={status.link ? "noopener noreferrer" : undefined}
+          style={{
+            display: "inline-block",
+            padding: "7px 12px",
+            borderRadius: 999,
+            fontSize: 12,
+            fontWeight: "bold",
+            backgroundColor: status.color,
+            color: "#000",
+            textDecoration: "none",
+            cursor: status.link ? "pointer" : "default",
+            boxShadow: `0 0 12px ${status.color}66`,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {status.label}
+        </BadgeWrapper>
+      </div>
 
+      {!isSettled && (
+        <>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+              gap: 10,
+              marginTop: 12,
+            }}
+          >
+            <div
+              style={{
+                ...statBoxStyle,
+                borderColor: "rgba(255,85,85,0.35)",
+                background: "rgba(255,85,85,0.08)",
+              }}
+            >
+              <div style={{ fontSize: 12, color: "#ff7777", fontWeight: "bold" }}>
+                🟥 Player 1
+              </div>
+              <div style={{ marginTop: 4, color: "#fff", fontWeight: "bold" }}>
+                {g.player1 ? `0x...${g.player1.slice(-5)}` : "Waiting"}
+              </div>
+            </div>
+
+            <div
+              style={{
+                ...statBoxStyle,
+                borderColor: hasPlayer2
+                  ? "rgba(77,163,255,0.35)"
+                  : "rgba(240,185,11,0.35)",
+                background: hasPlayer2
+                  ? "rgba(77,163,255,0.08)"
+                  : "rgba(240,185,11,0.08)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  color: hasPlayer2 ? "#7db8ff" : "#f0b90b",
+                  fontWeight: "bold",
+                }}
+              >
+                🟦 Player 2
+              </div>
+              <div style={{ marginTop: 4, color: "#fff", fontWeight: "bold" }}>
+                {hasPlayer2 ? `0x...${g.player2.slice(-5)}` : "Open Slot"}
+              </div>
+            </div>
+
+            <div
+              style={{
+                ...statBoxStyle,
+                borderColor: "rgba(24,187,26,0.35)",
+                background: "rgba(24,187,26,0.08)",
+              }}
+            >
+              <div style={{ fontSize: 12, color: "#18bb1a", fontWeight: "bold" }}>
+                Stake
+              </div>
+              <div style={{ marginTop: 4, color: "#fff", fontWeight: "bold" }}>
+                {displayStake !== null ? formatTokenAmount(displayStake) : "Loading..."} $CORE
+              </div>
+            </div>
+
+            <div
+              style={{
+                ...statBoxStyle,
+                borderColor: "rgba(255,152,0,0.35)",
+                background: "rgba(255,152,0,0.08)",
+              }}
+            >
+              <div style={{ fontSize: 12, color: "#ffb74d", fontWeight: "bold" }}>
+                Total Pot
+              </div>
+              <div style={{ marginTop: 4, color: "#fff", fontWeight: "bold" }}>
+                {formatTokenAmount(totalPot)} $CORE
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+      
 {/* Cancel Button – only for unjoined games */}
 {isPlayer1 &&
   g.player2?.toLowerCase() === ethers.ZeroAddress.toLowerCase() &&
@@ -963,7 +1125,8 @@ tokens = tokenIds.map((id, idx) => {
   </div>
 </div>
 )}
+      </div>
     </div>
-    </div>
-  );
+  </div>
+);
 }
