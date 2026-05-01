@@ -767,22 +767,19 @@ return (
   !isSettled &&
   !isCancelled && (
     <div style={{ marginTop: 12 }}>
-      <button
-        onClick={() => cancelUnjoinedGame(g.id)}
-        disabled={!account}
-        style={{
-          background: "#ff4444",
-          color: "#fff",
-          padding: "6px 12px",
-          borderRadius: 4,
-          border: "none",
-          cursor: account ? "pointer" : "not-allowed",
-          opacity: account ? 1 : 0.5,
-        }}
-      >
-        Cancel Game (Refund Stake)
-      </button>
-
+<button
+  onClick={() => cancelUnjoinedGame(g.id)}
+  disabled={!account}
+  style={{
+    ...buttonBaseStyle,
+    background: "linear-gradient(135deg, #ff4444, #9f1d1d)",
+    color: "#fff",
+    opacity: account ? 1 : 0.5,
+    cursor: account ? "pointer" : "not-allowed",
+  }}
+>
+  Cancel Game (Refund Stake)
+</button>
       <div style={{ fontSize: 12, color: "#ff9999", marginTop: 4 }}>
         Only available before someone joins
       </div>
@@ -797,18 +794,16 @@ return (
       {/* Join / Approve */}
       {!isCancelled && !isSettled && canJoin && (
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          <button
-            onClick={() => joinGame(g.id)}
-            style={{
-              background: "#18bb1a",
-              color: "#fff",
-              padding: "6px 12px",
-              borderRadius: 4,
-              cursor: "pointer",
-            }}
-          >
-            Join Game
-          </button>
+<button
+  onClick={() => joinGame(g.id)}
+  style={{
+    ...buttonBaseStyle,
+    background: "linear-gradient(135deg, #18bb1a, #0f8f12)",
+    color: "#fff",
+  }}
+>
+  Join Game
+</button>
         </div>
       )}
 
@@ -838,13 +833,11 @@ return (
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <button
             onClick={() => document.getElementById(`reveal-file-${g.id}`).click()}
-            style={{
-              background: "#18bb1a",
-              color: "#fff",
-              padding: "6px 12px",
-              borderRadius: 4,
-              cursor: "pointer",
-            }}
+style={{
+  ...buttonBaseStyle,
+  background: "linear-gradient(135deg, #18bb1a, #0f8f12)",
+  color: "#fff",
+}}
           >
             Upload Reveal
           </button>
@@ -875,14 +868,11 @@ return (
     {canManualSettle && (
       <button
         onClick={() => manualSettleGame(g.id)}
-        style={{
-          background: "#ff9800",
-          color: "#000",
-          padding: "6px 12px",
-          borderRadius: 4,
-          cursor: "pointer",
-          border: "none",
-        }}
+style={{
+  ...buttonBaseStyle,
+  background: "linear-gradient(135deg, #ffb347, #ff9800)",
+  color: "#000",
+}}
       >
         Settle Game
       </button>
